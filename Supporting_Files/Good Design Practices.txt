@@ -1,0 +1,29 @@
+Good Design Practices:
+
+1. More classes and relationships can effect diagram readability and make it cluttered. Aim for simplicity in the class diagram, and if it becomes too complicated, consider breaking it into smaller, more manageable segments.
+2. Classes are named as singular nouns and don't include spaces. 
+3. Class names are relatively short. 
+4. Class names can be in uppercase or lowercase it depends on company's naming convention. However, whatever convention is decided must be followed by all classes.
+5. Attributes should be assigned carefully to the appropriate classes. Classes with too many attributes should split or when with less attributes, should be combined.
+6. Be suspicious of classes with one or two operations, legitimately it is fine but it indicates that classes should be combined with others.
+7. A class with no operation at all might be better modelled as an attribute or two as class encapsulates information (i.e. attribute) and behavior (i.e. operation).
+8. A class should have a manageable set of responsibilities. Hence, a class with too many operations must be divided into two smaller classes for ease of maintenance.
+9. Industry standard is to create access methods for each attribute of class, especially for the attributes that need to be viewed or changed by other classes. 
+10. It is a good practice to divide the class operations into respective categories and assign them the access specifiers based on their usage. For instance, an operation can be manager --- object constructor or destructor---, implementor ---implements core business logics---, helper ---includes logics that class holds for performing specific tasks. hence, private to class---, or access operation --- get and set methods---.
+11. Class with too many relationships is hard to maintain and reuse. A well designed system has reduced relationships as classes with many relationships need to know about other classes.
+12. Refine associations (as possible) to unidirectional as they are easy to build and maintain. Also, helps in finding the classes that can be reused.
+13. Avoid multi level inheritance.
+14. Avoid circular dependency in packages (when possible) as with circular dependency we may loose the reusability and maintainability of application. 
+15. Multiplicity explains relationship between classes. For instance, if it is optional or mandatory. It therefore implements business rules. Determine the multiplicity of relationship.
+16. Relationship name or a role name is optional but explains why the relationship exist. 
+17. Role names are noun or noun phrases.
+18. Relationship names are verb or verb phrases.
+19. Typically, we either use role name or relationship name, but not both, only when the purpose of relationship is not obvious.
+20. Use link elements / association class when needed to avoid cluttering the classes with too many attributes.  
+21. Identify relationships. Determine how the classes will interact with each other by understanding the type of relationships.
+22. Maintain clearness and conformity by using standard UML notations for the illustration of classes, relationships, etc.
+23. Choose descriptive and meaningful names for classes, attributes, and methods, to clearly describe their functionalities.
+24. Maintain a constant style in the diagram, including naming conventions, symbols, and layout, to improve readability and understanding.
+25. Add explanatory notes in order to explain complex sections or to provide additional information where necessary.  
+26. Avoid Redundancy to ensure that the same information isn’t represented in multiple places, which can lead to inconsistencies. 
+27. Classes should be loosely coupled to one another. Coupling is achieved in many ways via messaging or through global data. As coupling increases, chances of error propagation also increases and overall maintainability of the software decreases. It should be as low as is reasonable.

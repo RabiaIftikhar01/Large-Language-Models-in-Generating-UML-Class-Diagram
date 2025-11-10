@@ -1,0 +1,21 @@
+strive to produce simplest model that will describe the problem. Don't overbuild the model instead keep it simple. the result is software that is easy to integrate, test, and maintain. simple models are easier for the members of the software team to understand and critique, resulting in an ongoing form of feedback that optimizes the end results.
+
+The intent of any model is to communicate information. To accomplish this, use a consistent format. Assume that you won't be there to0 explain the model. It should stand on its own. 
+
+Assume that your model will change, but in making this assumption don't get sloppy. For example, since requirements will change, there is a tendency to give requirements model short shrift.
+
+Be able to state an explicit purpose for each class, attribute, method, and relationship that is created. Every time you create a class, attribute, method, or a relationship, ask yourself why are you doing so. If you can't provide solid justification for their existence, don't spend time on it.
+
+since you are an experienced software engineer, trust your instincts. If something tells you that a design model is doomed to fail, you have reason to spend additional time examining the model or developing a different one.
+
+classes should be loosely coupled to one another. Coupling is achieved in many ways via messaging or through global data. As coupling increases, chances of error propagation also increases and overall maintainability of the software decreases. It should be as low as is reasonable.
+
+Model should be easily understandable as its purpose is to communicate information to practitioners who will generate code, test system, or others who may maintain the software in future.
+
+The design occurs iteratively. The first iterations work to refine the design and correct errors, but later iterations should strive to make the design as simple as is possible. 
+  
+
+
+		When these instructions are properly followed, you create a design that exhibits both external and internal quality factors. external quality factors are those readily observed by users (speed, reliability, correctness, usability) and internal quality factors can be achieved by understanding the basic UML design concepts:
+
+ 
