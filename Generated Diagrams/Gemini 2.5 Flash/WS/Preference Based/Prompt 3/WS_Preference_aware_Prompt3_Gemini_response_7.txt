@@ -1,0 +1,98 @@
+@startuml
+!theme plain
+
+' Define enums for clarity and type safety
+enum OwnerType {
+    PUBLIC_AGENCY
+    RESEARCH_CENTER
+    INFRASTRUCTURE_ENTITY
+}
+
+enum SensorType {
+    TEMPERATURE
+    HUMIDITY
+    PRESSURE
+    WIND_SPEED
+    // Add other relevant sensor types as needed
+}
+
+' Main classes of the system
+class MonitoringSystem {
+    - name : String
+    -- Operations --
+    + initiateDataCollection(stationId: String) : void
+    + receiveAndProcessData(data: SensorData) : void
+}
+
+class WeatherStation {
+    - stationId : String
+    - location : String
+    - transmissionCadence : Duration
+    -- Operations --
+    + requestDataTransfer() : List<SensorData>
+    + getStationId() : String
+    + getLocation() : String
+    + getTransmissionCadence() : Duration
+}
+
+class Sensor {
+    - sensorId : String
+    - vendor : String
+    - nativeFormatSpec : String
+    -- Operations --
+    + collectRawData() : String
+    + getSensorId() : String
+    + getVendor() : String
+    + getNativeFormatSpec() : String
+}
+
+class SensorData {
+    - dataId : String
+    - timestamp : DateTime
+    - rawValue : String
+    - standardizedValue : Map<String, Object>
+    -- Operations --
+    + getRawValue() : String
+    + getStandardizedValue() : Map<String, Object>
+    + setStandardizedValue(value: Map<String, Object>) : void
+}
+
+class DataIngestionService {
+    -- Operations --
+    + ingestRawData(rawData: String, formatSpec: String) : SensorData
+    + standardizeData(data: SensorData) : void
+}
+
+' Relationships between classes
+MonitoringSystem "1" --> "1..*" WeatherStation : monitors >
+WeatherStation "1" *-- "1..*" Sensor : has
+WeatherStation "1" --> "1" OwnerType : ownedBy
+Sensor "1" --> "1" SensorType : isOfType
+
+' Data flow and processing relationships
+WeatherStation "1" ..> "0..*" SensorData : transmits
+Sensor "1" ..> "1" SensorData : generates
+MonitoringSystem "1" --> "1" DataIngestionService : uses >
+DataIngestionService "1" --> "0..*" SensorData : processes >
+
+' Explanatory notes for complex sections or additional information
+note top of MonitoringSystem
+  Orchestrates data collection requests
+  and overall processing flow.
+  Represents the central control point
+  in the distributed architecture.
+end note
+
+note top of DataIngestionService
+  Handles high-volume data ingestion
+  and standardizes diverse native sensor
+  data formats from various vendors.
+end note
+
+note top of SensorData
+  Encapsulates both the raw and
+  the processed/standardized
+  telemetry readings.
+end note
+
+@enduml

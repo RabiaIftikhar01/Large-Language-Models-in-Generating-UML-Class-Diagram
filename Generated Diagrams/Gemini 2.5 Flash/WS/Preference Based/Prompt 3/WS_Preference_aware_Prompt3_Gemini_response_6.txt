@@ -1,0 +1,94 @@
+@startuml
+' Set a consistent naming convention for classes (PascalCase)
+' Use a consistent style for attributes and methods
+
+' Define the main system class responsible for overall monitoring and data ingestion
+class MonitoringSystem {
+    - ingestionCapacity : int ' Represents the system's ability to handle large-scale ingestion
+    + requestTelemetry() : List<WeatherStation>
+    + ingestTelemetry(data : List<SensorData>) : void
+}
+
+' Represents a physical weather station in the field
+class WeatherStation {
+    - stationId : string
+    - location : string
+    - lastTransmissionTime : datetime
+    + collectSensorData() : List<SensorData>
+    + transmitData() : void
+}
+
+' Represents an individual sensor device within a weather station
+class Sensor {
+    - sensorId : string
+    - type : string ' e.g., Temperature, Humidity, Pressure
+    - unit : string ' e.g., Celsius, %, hPa
+    - reportingCadence : Duration ' Frequency of data reporting (e.g., 1 hour, 30 minutes)
+    + readMeasurement() : SensorData
+}
+
+' Represents a single data point collected by a sensor
+class SensorData {
+    - dataId : string
+    - timestamp : datetime
+    - rawValue : string ' The data in its native format from the sensor
+    - nativeFormatType : string ' Describes the native format (e.g., JSON, XML, proprietary string)
+    - standardizedValue : string ' The data after conversion to a common format
+    - standardizedFormatType : string ' Describes the standardized format (e.g., internal JSON schema)
+    - sensorId : string ' Identifier of the sensor that produced this data
+    + getRawValue() : string
+    + getStandardizedValue() : string
+}
+
+' Class responsible for converting diverse native sensor data formats to a standard format
+class DataStandardizer {
+    + standardize(rawData : SensorData) : SensorData
+}
+
+' Represents an organization that operates one or more weather stations
+class Organization {
+    - orgId : string
+    - name : string
+    - type : string ' e.g., "Public Agency", "Research Center", "Infrastructure Entity"
+}
+
+' Represents a vendor that manufactures and supplies sensors
+class Vendor {
+    - vendorId : string
+    - name : string
+}
+
+' Relationships
+
+' MonitoringSystem manages multiple WeatherStations
+MonitoringSystem "1" -- "0..*" WeatherStation : manages >
+
+' WeatherStation hosts one or more Sensors
+WeatherStation "1" *-- "1..*" Sensor : hosts >
+
+' Sensor produces SensorData. SensorData contains a reference to its originating Sensor.
+Sensor ..> SensorData : creates >
+
+' MonitoringSystem uses the DataStandardizer to process incoming SensorData
+MonitoringSystem ..> DataStandardizer : uses >
+
+' DataStandardizer processes SensorData objects
+DataStandardizer ..> SensorData : processes >
+
+' An Organization runs multiple WeatherStations
+Organization "1" -- "0..*" WeatherStation : runs >
+
+' A Vendor supplies multiple Sensors
+Vendor "1" -- "0..*" Sensor : supplies >
+
+' Notes for additional clarity
+note "Central platform for environmental monitoring.\nOrchestrates data collection and ingestion." as N_MonitoringSystem
+MonitoringSystem .. N_MonitoringSystem
+
+note "Encapsulates raw telemetry and its standardized counterpart.\nCrucial for data interoperability." as N_SensorData
+SensorData .. N_SensorData
+
+note "Ensures data consistency across diverse sensor types and vendors." as N_DataStandardizer
+DataStandardizer .. N_DataStandardizer
+
+@enduml

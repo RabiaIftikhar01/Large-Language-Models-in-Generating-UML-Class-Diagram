@@ -1,0 +1,101 @@
+@startuml
+' Style and Skin Parameters for improved readability
+skinparam classAttributeFontColor #333333
+skinparam classAttributeFontName Arial
+skinparam classAttributeFontSize 12
+skinparam classMethodFontColor #005500
+skinparam classMethodFontName Arial
+skinparam classMethodFontSize 12
+skinparam classStereotypeFontColor #888888
+skinparam classStereotypeFontName Arial
+skinparam classStereotypeFontSize 10
+skinparam classFontColor #000000
+skinparam classFontName Arial
+skinparam classFontSize 14
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam linetype ortho
+
+' General Note for the system context
+note "Environmental Monitoring System:\nConsolidates telemetry from thousands of weather stations.\nDesigned for large-scale ingestion and data standardization." as SystemContextNote
+
+' Classes representing core entities and services
+class WeatherInformationSystem {
+    - systemId : string
+    + monitorStations()
+    + requestDataTransfer(stationId : string) : void
+}
+
+class WeatherStation {
+    - stationId : string
+    - location : string
+    - currentCadence : string ' e.g., "hourly", "daily"
+    + sendTelemetry(data : List<SensorData>) : void
+    + getStationInfo() : string
+}
+
+class Sensor {
+    - sensorId : string
+    - vendor : string
+    - model : string
+    - nativeDataType : string ' e.g., "Temperature", "Humidity"
+    - nativeFormatSpec : string ' e.g., "JSON", "XML", "CSV"
+    + readRawData() : SensorData
+    + calibrate() : void
+}
+
+class SensorData {
+    - timestamp : DateTime
+    - rawValue : string ' Data in its native format (e.g., JSON string)
+    - nativeUnit : string
+    - sensorId : string
+    + getRawValue() : string
+    + getTimestamp() : DateTime
+}
+
+class StandardizedSensorData {
+    - timestamp : DateTime
+    - standardizedValue : float
+    - standardizedUnit : string
+    - dataType : string
+    - sensorId : string
+    + getStandardizedValue() : float
+    + getDataType() : string
+}
+
+class DataIngestionService {
+    - ingestionRateLimit : int
+    + ingestRawData(rawData : SensorData) : void
+    + standardize(rawData : SensorData) : StandardizedSensorData
+    + processBatch(rawDataSet : List<SensorData>) : void
+    + storeStandardizedData(data : StandardizedSensorData) : void
+}
+
+class StationOwner {
+    - ownerId : string
+    - name : string
+    - type : string ' e.g., "Public Agency", "Research Center", "Infrastructure Entity"
+    + getOwnerInfo() : string
+}
+
+' Relationships between classes
+WeatherInformationSystem "1" -- "collects telemetry from" "*" WeatherStation : requests data
+WeatherStation "1" -- "contains" "*" Sensor
+Sensor "1" -- "produces" "*" SensorData
+
+' Data flow and processing relationships
+DataIngestionService "1" <-- "ingests" "*" SensorData : receives raw data
+DataIngestionService "1" --> "generates" "*" StandardizedSensorData
+
+' Ownership relationship
+StationOwner "1" -- "owns" "*" WeatherStation
+
+' Additional explanatory notes for clarity
+note right of SensorData : Represents sensor data\nin its original native format.
+note right of StandardizedSensorData : Represents sensor data\nafter conversion to a common, standardized format.
+note left of DataIngestionService : Centralized service responsible for\nhandling diverse native data formats\nand ensuring data standardization.
+note top of WeatherStation : Data transfer cadence (e.g., hourly)\ncan vary and is configurable.
+note bottom of Sensor : Sensors from multiple vendors\nreport data in their native formats.
+
+@enduml

@@ -1,0 +1,92 @@
+@startuml
+!theme mars
+
+' Classes
+class Organization {
+    - id : UUID
+    - name : string
+    - type : string ' e.g., "Public Agency", "Research Center", "Infrastructure Entity"
+    + Organization(id: UUID, name: string, type: string)
+    + getName() : string
+    + getType() : string
+}
+
+class WeatherStation {
+    - id : UUID
+    - location : string
+    - deploymentDate : Date
+    - reportingCadenceHours : int
+    + WeatherStation(id: UUID, location: string, deploymentDate: Date)
+    + requestRawSensorData() : List<Map<string, string>>
+    + updateReportingCadence(newCadence: int)
+    + getLocation() : string
+    + getReportingCadenceHours() : int
+}
+
+class Sensor {
+    - id : UUID
+    - type : string ' e.g., "Temperature", "Humidity", "Wind Speed"
+    - vendor : string
+    - model : string
+    - nativeFormatDescription : string
+    + Sensor(id: UUID, type: string, vendor: string, model: string, nativeFormatDescription: string)
+    + readRawData() : string
+    + getType() : string
+    + getVendor() : string
+    + getModel() : string
+}
+
+class Telemetry {
+    - id : UUID
+    - timestamp : DateTime
+    - rawValue : string
+    - sensorId : UUID
+    - standardizedData : Map<string, any>
+    + Telemetry(id: UUID, timestamp: DateTime, rawValue: string, sensorId: UUID, standardizedData: Map<string, any>)
+    + getStandardizedData() : Map<string, any>
+    + getRawValue() : string
+    + getTimestamp() : DateTime
+    + getSensorId() : UUID
+}
+
+interface StandardizationStrategy {
+    + {abstract} standardize(rawData: string, sensorType: string, vendor: string) : Map<string, any>
+}
+
+class GenericSensorStandardizer implements StandardizationStrategy {
+    + standardize(rawData: string, sensorType: string, vendor: string) : Map<string, any>
+}
+
+class MonitoringSystem {
+    - name : string
+    - deploymentRegion : string
+    - stationRegistry : Map<UUID, WeatherStation>
+    - strategyRegistry : Map<string, StandardizationStrategy> ' Maps sensorType/vendor combination to a strategy
+    + MonitoringSystem(name: string, region: string)
+    + registerStation(station: WeatherStation, ownerId: UUID)
+    + registerStandardizationStrategy(key: string, strategy: StandardizationStrategy)
+    + collectAndProcessData(stationId: UUID) : List<Telemetry>
+    + ingestTelemetry(telemetry: Telemetry)
+    - getStrategyForSensor(sensorType: string, vendor: string) : StandardizationStrategy
+}
+
+' Relationships
+Organization "1" --> "0..*" WeatherStation : manages >
+WeatherStation "1" --> "1..*" Sensor : contains >
+MonitoringSystem "1" --> "0..*" WeatherStation : monitors >
+MonitoringSystem "1" --> "0..*" Telemetry : ingests >
+
+' Dependency for standardization logic
+MonitoringSystem ..> StandardizationStrategy : selects strategy for standardization
+
+' Realization of the strategy interface
+StandardizationStrategy <|.. GenericSensorStandardizer
+
+' Notes for clarity
+note "Telemetry objects are created by MonitoringSystem\nafter raw data is collected and standardized." as TelemetryCreationNote
+Telemetry .. TelemetryCreationNote
+
+note "Sensors provide the raw data\nthat forms the 'rawValue' attribute in Telemetry." as SensorDataRoleNote
+Sensor .. SensorDataRoleNote
+
+@enduml

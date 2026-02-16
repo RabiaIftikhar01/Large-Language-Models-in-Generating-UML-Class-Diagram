@@ -1,0 +1,84 @@
+@startuml
+' Set a consistent skinparam for better readability
+skinparam class {
+    AttributeFontColor #111
+    AttributeFontSize 12
+    OperationFontColor #111
+    OperationFontSize 12
+    BorderColor #2A6496
+    BackgroundColor #F8F8F8
+    ArrowColor #2A6496
+    ArrowFontColor #2A6496
+}
+
+' Define the main components of the system
+class WeatherInformationSystem {
+    ' Operations to interact with stations and process data
+    + requestTelemetry(stationId : String)
+    + processStandardizedData(data : StandardizedSensorData)
+}
+
+class WeatherStation {
+    - id : String
+    - location : String
+    - transmissionCadence : Duration
+    ' Operations to manage and transmit collected telemetry
+    + getTelemetry() : List<RawSensorData>
+    + transmitTelemetry() : List<RawSensorData>
+}
+
+class Sensor {
+    - id : String
+    - type : String
+    - vendor : String
+    - nativeFormat : String
+    ' Operation to read data in its native format
+    + readValue() : RawSensorData
+}
+
+class RawSensorData {
+    - sensorId : String
+    - timestamp : DateTime
+    - rawPayload : String ' Represents data in native format (e.g., JSON, XML)
+}
+
+class StandardizedSensorData {
+    - sensorId : String
+    - timestamp : DateTime
+    - metricType : String
+    - value : Double
+    - unit : String
+}
+
+class DataIngestionService {
+    ' Operations to handle incoming raw data and transform it
+    + ingestRawData(rawData : RawSensorData)
+    + standardize(rawData : RawSensorData) : StandardizedSensorData
+    + storeData(data : StandardizedSensorData)
+}
+
+class OperatingEntity {
+    - id : String
+    - name : String
+    - type : String ' e.g., "Public Agency", "Research Center", "Infrastructure Entity"
+}
+
+' Define relationships between classes
+WeatherInformationSystem "1" --> "1..*" WeatherStation : requests data from >
+WeatherStation "1" *-- "1..*" Sensor : collects from
+Sensor "1" --> "1..*" RawSensorData : generates >
+WeatherStation "1..*" --> "1" OperatingEntity : operated by >
+
+DataIngestionService "1" --> "1..*" RawSensorData : processes >
+DataIngestionService "1" --> "1..*" StandardizedSensorData : produces & stores >
+
+WeatherInformationSystem "1" --> "1..*" StandardizedSensorData : consumes >
+
+' Add explanatory notes for clarity
+note top of WeatherInformationSystem : Orchestrates monitoring and data processing across stations.
+note top of DataIngestionService : Centralized service for receiving, standardizing, and storing telemetry.
+note bottom of RawSensorData : Telemetry in its original, native sensor format.
+note bottom of StandardizedSensorData : Telemetry after conversion to a consistent, internal format.
+note bottom of OperatingEntity : Represents the organization responsible for a station.
+
+@enduml

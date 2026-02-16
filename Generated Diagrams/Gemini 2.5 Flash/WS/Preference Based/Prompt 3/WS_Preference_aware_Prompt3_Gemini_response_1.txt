@@ -1,0 +1,123 @@
+@startuml
+' Set a consistent style for readability
+skinparam class {
+    BackgroundColor White
+    ArrowColor Black
+    BorderColor #2688d4
+    FontColor Black
+    StereotypeFontColor #2688d4
+}
+skinparam association {
+    Thickness 2
+    Color Black
+}
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+
+' Title for the diagram
+title Environmental Monitoring System - Class Diagram
+
+' Notes for overall context
+note "This diagram illustrates the core components\nfor telemetry ingestion and management in a distributed system." as N1
+note "Focuses on data flow from weather stations to the central ingestion service." as N2
+
+' Define Classes
+class WEATHERSTATION {
+    - id : String
+    - name : String
+    - location : String
+    - transmissionCadence : String ' e.g., "hourly", "daily", "custom"
+    --
+    + requestTelemetry() : List<SensorData>
+    + getStatus() : String
+}
+
+class SENSOR {
+    - id : String
+    - type : String ' e.g., "temperature", "humidity", "pressure"
+    - unit : String ' e.g., "Celsius", "%", "hPa"
+    - manufacturer : String ' Name of the sensor manufacturer
+    --
+    + readValue() : String ' Returns raw sensor reading in native format
+    + calibrate()
+}
+
+class VENDOR {
+    - id : String
+    - name : String
+    - contactInfo : String
+    --
+    + getProvidedSensors() : List<Sensor>
+}
+
+class AGENCY {
+    - id : String
+    - name : String
+    - type : String ' e.g., "Public", "Research", "Infrastructure"
+    - contactInfo : String
+    --
+    + getOperatedStations() : List<WeatherStation>
+}
+
+class SENSORDATA {
+    - id : String
+    - timestamp : DateTime
+    - nativeValue : String
+    - nativeUnit : String
+    - standardizedValue : String
+    - standardizedUnit : String
+    --
+    + getNativeData() : Map<String, String>
+    + getStandardizedData() : Map<String, String>
+}
+
+class DATAINGESTIONSERVICE {
+    --
+    + ingest(data : List<SensorData>)
+    + standardize(nativeData : SensorData) : SensorData
+    + store(standardizedData : SensorData)
+}
+
+class WEATHERINFORMATIONSYSTEM {
+    --
+    + initiateDataTransfer(stationId : String)
+    + monitorSystemHealth()
+    + retrieveTelemetry(stationId : String, period : String) : List<SensorData>
+}
+
+' Define Relationships
+
+' WeatherStation and Agency
+AGENCY "1" -- "0..*" WEATHERSTATION : operates >
+note on link: An agency can operate multiple stations.
+
+' WeatherStation and Sensor (Composition - sensor is part of station)
+WEATHERSTATION "1" *-- "1..*" SENSOR : has >
+note on link: A station is composed of one or more sensors.
+
+' Sensor and Vendor
+VENDOR "1" -- "0..*" SENSOR : supplies >
+note on link: A vendor supplies zero or more sensors.
+
+' WeatherStation and SensorData (Transmission)
+WEATHERSTATION "1" --> "0..*" SENSORDATA : transmits >
+note on link: Stations transmit multiple sensor data points periodically.
+
+' DataIngestionService and SensorData (Processing)
+DATAINGESTIONSERVICE "1" --> "0..*" SENSORDATA : processes >
+note on link: The service processes and transforms native sensor data.
+
+' WeatherInformationSystem and WeatherStation (Requests)
+WEATHERINFORMATIONSYSTEM "1" --> "0..*" WEATHERSTATION : requests data from >
+note on link: System initiates data transfer from stations.
+
+' WeatherInformationSystem and DataIngestionService (Usage)
+WEATHERINFORMATIONSYSTEM "1" --> "1" DATAINGESTIONSERVICE : uses >
+note on link: System relies on the ingestion service for data handling.
+
+' Notes for specific classes/relationships
+note left of DATAINGESTIONSERVICE : Handles large-scale ingestion demands\nand standardizes diverse native data formats.
+note right of WEATHERSTATION : Represents a geographically distributed\nphysical weather station.
+note top of SENSORDATA : Encapsulates raw (native) and processed (standardized)\nsensor readings with timestamp.
+
+@enduml

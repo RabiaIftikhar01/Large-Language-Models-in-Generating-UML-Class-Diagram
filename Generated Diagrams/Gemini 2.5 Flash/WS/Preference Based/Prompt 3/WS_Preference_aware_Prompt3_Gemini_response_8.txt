@@ -1,0 +1,118 @@
+@startuml
+' Global settings for better readability
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam shadowing false
+
+' Define the main system component responsible for overall management
+class MonitoringPlatform {
+    - id : String
+    - name : String
+    + requestDataTransfer(stationId : String) : void
+    + ingestRawData(rawData : RawSensorData) : void
+    + standardizeData(rawData : RawSensorData) : StandardizedSensorData
+    + storeTelemetry(telemetry : StandardizedSensorData) : void
+}
+
+' Represents a physical weather station in the field
+class WeatherStation {
+    - id : String
+    - location : String
+    - dataCadence : Duration ' e.g., 1 hour, 30 minutes
+    + collectSensorData() : List<RawSensorData>
+    + transmitData() : void
+    + receiveDataRequest() : void
+}
+
+' Represents a sensor device attached to a weather station
+class Sensor {
+    - id : String
+    - type : String ' e.g., Temperature, Humidity, WindSpeed
+    - nativeFormatSpec : String ' Describes the format (e.g., JSON, XML, proprietary)
+    + readData() : RawSensorData
+}
+
+' Represents the raw, unprocessed data as received from a sensor
+class RawSensorData {
+    - sensorId : String
+    - timestamp : DateTime
+    - rawValue : String ' Stores the raw data as a string or serialized object
+    - nativeFormat : String ' Reference to the native format specification
+    + getSensorId() : String
+    + getTimestamp() : DateTime
+    + getRawValue() : String
+}
+
+' Represents the standardized and processed data, ready for storage and analysis
+class StandardizedSensorData {
+    - sensorId : String
+    - timestamp : DateTime
+    - value : Double
+    - unit : String ' e.g., Celsius, %, m/s
+    - dataType : String ' e.g., Temperature, Humidity
+    + getSensorId() : String
+    + getTimestamp() : DateTime
+    + getValue() : Double
+    + getUnit() : String
+}
+
+' Represents the abstract concept of an entity that owns or operates a weather station
+abstract class StationOwner {
+    - id : String
+    - name : String
+    + getContactInfo() : String
+}
+
+' Concrete types of station owners
+class PublicAgency extends StationOwner {
+    - agencyType : String
+}
+
+class ResearchCenter extends StationOwner {
+    - researchArea : String
+}
+
+class InfrastructureEntity extends StationOwner {
+    - entityType : String
+}
+
+' Represents a manufacturer or vendor of sensors
+class SensorVendor {
+    - id : String
+    - name : String
+    + getVendorInfo() : String
+}
+
+' Relationships
+
+' MonitoringPlatform interacts with WeatherStations to request data
+MonitoringPlatform "1" --> "0..*" WeatherStation : requests data from >
+
+' A WeatherStation contains one or more Sensors
+WeatherStation "1" *-- "1..*" Sensor : contains
+
+' A Sensor generates RawSensorData
+Sensor "1" --> "0..*" RawSensorData : generates >
+
+' RawSensorData is ingested by the MonitoringPlatform
+RawSensorData "0..*" --> "1" MonitoringPlatform : ingested by >
+
+' MonitoringPlatform produces StandardizedSensorData from raw data
+MonitoringPlatform "1" --> "0..*" StandardizedSensorData : produces >
+
+' A WeatherStation is operated by exactly one StationOwner
+WeatherStation "0..*" --> "1" StationOwner : operated by
+
+' A Sensor is supplied by exactly one SensorVendor
+Sensor "0..*" --> "1" SensorVendor : supplied by
+
+' Notes for additional clarity
+note top of MonitoringPlatform : Orchestrates data ingestion, standardization,\nand storage across distributed deployments.
+note top of WeatherStation : Collects telemetry from sensors and transmits data\nbased on a configurable cadence.
+note top of Sensor : Reports data in its native format, requiring standardization.
+note top of RawSensorData : Data as received from sensors, before any processing.
+note top of StandardizedSensorData : Uniform data format after processing,\nready for analysis and storage.
+note top of StationOwner : Represents various entities managing weather stations.
+
+@enduml

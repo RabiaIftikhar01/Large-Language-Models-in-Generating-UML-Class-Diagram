@@ -1,0 +1,134 @@
+@startuml
+' Set a consistent style for readability and professionalism
+skinparam classAttributeFontColor #000080
+skinparam classAttributeFontName "Arial"
+skinparam classAttributeFontSize 12
+skinparam classMethodFontColor #006400
+skinparam classMethodFontName "Arial"
+skinparam classMethodFontSize 12
+skinparam classStereotypeFontColor #8B0000
+skinparam classStereotypeFontName "Arial"
+skinparam classStereotypeFontSize 10
+skinparam classBorderColor #4682B4
+skinparam classBackgroundColor #E0FFFF
+skinparam arrowColor #4682B4
+skinparam handwritten false
+
+' Define the classes for the environmental monitoring system
+
+class Agency {
+    - agencyId : String
+    - name : String
+    - type : String ' e.g., Public, Research, Infrastructure
+    + getAgencyId() : String
+    + getName() : String
+}
+
+class WeatherStation {
+    - stationId : String
+    - name : String
+    - location : String
+    - transmissionCadence : Duration ' e.g., hourly, 30min
+    + getStationId() : String
+    + getName() : String
+    + requestRawSensorReadings() : List<RawSensorReading>
+}
+
+class Sensor {
+    - sensorId : String
+    - type : String ' e.g., Temperature, Humidity, WindSpeed
+    - vendorName : String
+    - nativeFormat : String ' e.g., JSON, XML, proprietary binary
+    + getSensorId() : String
+    + getType() : String
+    + generateRawReading() : RawSensorReading
+}
+
+class RawSensorReading {
+    - readingId : String
+    - sensorId : String
+    - stationId : String
+    - timestamp : DateTime
+    - rawValue : String ' The raw data string/blob
+    - nativeFormat : String
+    + getReadingId() : String
+    + getSensorId() : String
+    + getStationId() : String
+    + getTimestamp() : DateTime
+    + getRawValue() : String
+    + getNativeFormat() : String
+}
+
+class SensorData {
+    - dataId : String
+    - stationId : String
+    - sensorId : String
+    - timestamp : DateTime
+    - value : Double ' Standardized numeric value
+    - unit : String ' e.g., Celsius, %, m/s
+    + getDataId() : String
+    + getStationId() : String
+    + getSensorId() : String
+    + getTimestamp() : DateTime
+    + getValue() : Double
+    + getUnit() : String
+}
+
+class DataIngestionService {
+    + receiveRawData(reading : RawSensorReading) : void
+    + transformToStandard(rawReading : RawSensorReading) : SensorData
+    + processStandardizedData(data : SensorData) : void
+}
+
+class DataStorage {
+    + saveSensorData(data : SensorData) : void
+    + retrieveSensorData(query : String) : List<SensorData>
+}
+
+' Define relationships between classes
+
+' An Agency operates one or more WeatherStations
+Agency "1" -- "*" WeatherStation : operates >
+
+' A WeatherStation contains one or more Sensors (composition)
+WeatherStation "1" *-- "1..*" Sensor : contains >
+
+' A WeatherStation creates and sends RawSensorReadings
+WeatherStation ..> RawSensorReading : creates & sends >
+
+' A Sensor generates RawSensorReadings
+Sensor ..> RawSensorReading : generates >
+
+' The DataIngestionService receives RawSensorReadings
+RawSensorReading <.. DataIngestionService : received by <
+
+' The DataIngestionService transforms RawSensorReadings into SensorData
+RawSensorReading <.. DataIngestionService : transforms <
+DataIngestionService ..> SensorData : creates >
+
+' The DataIngestionService stores SensorData in DataStorage
+DataIngestionService --> DataStorage : stores >
+
+' Add explanatory notes for complex sections or additional information
+note "Represents an entity (public, research, infrastructure) that operates weather stations." as N_Agency
+Agency .. N_Agency
+
+note "Represents a physical weather station, collecting data from sensors." as N_WeatherStation
+WeatherStation .. N_WeatherStation
+
+note "Represents a physical sensor device attached to a station, providing raw measurements." as N_Sensor
+Sensor .. N_Sensor
+
+note "Data point in its original, native format as reported by a sensor." as N_RawSensorReading
+RawSensorReading .. N_RawSensorReading
+
+note "Data point after standardization, ready for analysis and storage." as N_SensorData
+SensorData .. N_SensorData
+
+note "Central component for receiving, standardizing, and routing sensor data." as N_DataIngestionService
+DataIngestionService .. N_DataIngestionService
+
+note "Responsible for persisting standardized sensor data for long-term storage and retrieval." as N_DataStorage
+DataStorage .. N_DataStorage
+
+@enduml

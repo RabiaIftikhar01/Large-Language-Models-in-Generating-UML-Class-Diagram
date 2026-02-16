@@ -1,0 +1,132 @@
+@startuml
+' Global settings for consistency and readability
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam class {
+    BorderColor #34495E
+    BackgroundColor #ECF0F1
+    ArrowColor #34495E
+    HeaderBackgroundColor #BDC3C7
+}
+skinparam note {
+    BackgroundColor #FDFD96
+    BorderColor #BDB76B
+}
+
+' Title for the diagram
+title Environmental Monitoring System - Class Diagram
+
+' Main System Component
+class MonitoringSystem {
+    - id : String
+    - name : String
+    + requestDataTransfer(stationId : String) : void
+    + ingestData(telemetryData : TelemetryData) : void
+    + processStandardizedData(data : TelemetryData) : void
+}
+
+' Service for handling data ingestion and standardization
+class DataIngestionService {
+    - dataStandardizer : DataStandardizer
+    + receiveRawData(rawData : TelemetryData) : TelemetryData
+    + standardize(rawData : TelemetryData) : TelemetryData
+}
+
+' Interface for data standardization strategy
+interface DataStandardizer {
+    + standardize(rawData : TelemetryData) : TelemetryData
+}
+
+' Concrete implementation for data standardization
+class GenericDataStandardizer implements DataStandardizer {
+    + standardize(rawData : TelemetryData) : TelemetryData
+}
+
+' Represents a physical weather station
+class WeatherStation {
+    - id : String
+    - location : String
+    - ownerType : String ' e.g., "Public Agency", "Research Center", "Infrastructure Entity"
+    - transferCadence : String ' e.g., "hourly", "daily", "minutely"
+    + transmitData() : List<TelemetryData>
+    + getStationInfo() : String
+}
+
+' Represents a sensor within a weather station
+class Sensor {
+    - id : String
+    - type : String ' e.g., "temperature", "humidity", "pressure"
+    - vendor : String
+    - nativeFormat : String ' e.g., "JSON", "XML", "CSV"
+    + collectRawData() : String ' Returns raw data string
+    + getSensorInfo() : String
+}
+
+' Represents the telemetry data collected by a sensor
+class TelemetryData {
+    - id : String
+    - timestamp : DateTime
+    - rawValue : String
+    - standardizedValue : String
+    - sensorId : String
+    - stationId : String
+    + getRawValue() : String
+    + getStandardizedValue() : String
+    + updateStandardizedValue(value : String) : void
+}
+
+' Relationships
+MonitoringSystem "1" --> "1" DataIngestionService : uses >
+note on link
+  The system delegates data ingestion
+  and standardization tasks to this service.
+end note
+
+MonitoringSystem "1" --> "0..*" WeatherStation : monitors >
+note on link
+  The monitoring system connects to and
+  requests data transfers from multiple stations.
+end note
+
+DataIngestionService "1" --> "1" DataStandardizer : uses >
+note on link
+  The ingestion service relies on a specific
+  strategy for data transformation.
+end note
+
+DataIngestionService "1" --> "0..*" TelemetryData : processes >
+note on link
+  The ingestion service receives and
+  transforms multiple telemetry data points.
+end note
+
+WeatherStation "1" *-- "1..*" Sensor : contains
+note on link
+  A weather station is composed of one
+  or more sensors.
+end note
+
+Sensor "1" --> "0..*" TelemetryData : generates >
+note on link
+  A sensor produces many
+  telemetry data points over time.
+end note
+
+' Notes for additional context
+note "This class represents the central platform\nresponsible for overall monitoring and coordination." as N1
+MonitoringSystem .. N1
+
+note "Handles the reception and initial processing\nof raw sensor data, including standardization." as N2
+DataIngestionService .. N2
+
+note "Encapsulates raw and standardized sensor readings,\nalong with metadata like timestamp and sensor ID." as N3
+TelemetryData .. N3
+
+note "Represents the physical device that measures\nenvironmental parameters within a station." as N4
+Sensor .. N4
+
+note "Represents a collection of sensors at a specific\ngeographical location, acting as a data source." as N5
+WeatherStation .. N5
+
+@enduml

@@ -1,0 +1,93 @@
+@startuml
+' Style settings for better readability
+skinparam classAttributeFontColor #333333
+skinparam classAttributeFontSize 12
+skinparam classMethodFontColor #005500
+skinparam classMethodFontSize 12
+skinparam classArrowColor #115511
+skinparam classArrowFontSize 10
+skinparam classArrowFontColor #115511
+skinparam classBorderColor #336633
+skinparam classBackgroundColor #DDFFDD
+skinparam shadowing false
+
+' Define the classes
+class WeatherInformationSystem {
+    - systemId: string
+    + requestDataTransfer(station: WeatherStation)
+    + retrieveStandardizedData(query: string) : List<StandardizedSensorData>
+    + analyzeData(data: List<StandardizedSensorData>)
+}
+
+class WeatherStation {
+    - stationId: string
+    - location: string
+    - operatorType: string ' e.g., "PublicAgency", "ResearchCenter", "InfrastructureEntity"
+    - transmissionCadence: string ' e.g., "hourly", "daily"
+    + getStationInfo() : string
+    + collectRawSensorData() : List<RawSensorReading>
+    + transmitData(service: DataIngestionService)
+    + configureCadence(newCadence: string)
+}
+
+class Sensor {
+    - sensorId: string
+    - vendor: string
+    - type: string ' e.g., "Temperature", "Humidity", "Pressure"
+    - nativeFormat: string ' e.g., "JSON", "XML", "CSV"
+    + readValue() : string
+    + getSensorDetails() : string
+}
+
+class RawSensorReading {
+    - timestamp: DateTime
+    - rawValue: string
+    - sensorId: string
+    - stationId: string
+    + getReadingDetails() : string
+}
+
+class StandardizedSensorData {
+    - timestamp: DateTime
+    - value: float
+    - unit: string
+    - sensorId: string
+    - stationId: string
+    - dataType: string ' e.g., "Temperature", "Humidity"
+    + getDataDetails() : string
+}
+
+class DataIngestionService {
+    + ingestAndStandardize(readings: List<RawSensorReading>) : List<StandardizedSensorData>
+    + storeStandardizedData(data: List<StandardizedSensorData>)
+}
+
+' Define relationships
+
+' WeatherInformationSystem interacts with WeatherStation to request data
+WeatherInformationSystem "1" --> "requests from\n(0..*)" WeatherStation : requests data transfer
+
+' WeatherStation contains multiple Sensors
+WeatherStation "1" *-- "0..*" Sensor : has
+
+' WeatherStation collects RawSensorReading instances from its sensors
+WeatherStation "1" --> "collects\n(0..*)" RawSensorReading
+
+' RawSensorReading instances originate from a specific Sensor and WeatherStation
+RawSensorReading "0..*" --> "from" Sensor "1"
+RawSensorReading "0..*" --> "from" WeatherStation "1"
+
+' WeatherStation transmits collected data to the DataIngestionService
+WeatherStation "1" --> "transmits to" DataIngestionService "1"
+
+' DataIngestionService processes RawSensorReading and produces StandardizedSensorData
+DataIngestionService "1" --> "processes\n(0..*)" RawSensorReading
+DataIngestionService "1" --> "produces\n(0..*)" StandardizedSensorData
+
+' WeatherInformationSystem uses the DataIngestionService to retrieve and manage processed data
+WeatherInformationSystem "1" --> "uses" DataIngestionService "1"
+
+' StandardizedSensorData is derived from RawSensorReading during ingestion
+StandardizedSensorData "0..*" --> "derived from" RawSensorReading "1"
+
+@enduml
