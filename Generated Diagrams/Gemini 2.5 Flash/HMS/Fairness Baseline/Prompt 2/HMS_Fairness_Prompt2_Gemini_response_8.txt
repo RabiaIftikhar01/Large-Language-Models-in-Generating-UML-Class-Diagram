@@ -1,0 +1,234 @@
+@startuml
+!pragma layout smetana
+
+' Title for the diagram
+title Hospital Discharge Billing System - Class Diagram
+
+' Enums for clear classification
+enum PatientClassification {
+  INSURANCE
+  GOVERNMENT
+  SELF_PAY
+}
+
+' ====================================================================================
+' Core Billing Entities
+' ====================================================================================
+
+class Patient {
+  - patientId: String
+  - name: String
+  - classification: PatientClassification
+  --
+  + getClassification(): PatientClassification
+  + getPatientId(): String
+}
+
+class Invoice {
+  - invoiceId: String
+  - issueDate: Date
+  - totalAmount: BigDecimal
+  --
+  + addEntry(entry: BillingEntry): void
+  + calculateTotal(): BigDecimal
+  + getInvoiceDetails(): String
+}
+
+abstract class BillingEntry {
+  - entryId: String
+  - description: String
+  - quantity: int
+  - unitPrice: BigDecimal
+  - amount: BigDecimal
+  --
+  + calculateAmount(): BigDecimal
+  + getAmount(): BigDecimal
+  + getUnitPrice(): BigDecimal
+  + setUnitPrice(price: BigDecimal): void
+}
+
+class ClinicalProcedureEntry extends BillingEntry {
+  - procedureCode: String
+  --
+  + getProcedureCode(): String
+}
+
+class PharmaceuticalEntry extends BillingEntry {
+  - drugCode: String
+  --
+  + getDrugCode(): String
+}
+
+class LaboratoryDiagnosticEntry extends BillingEntry {
+  - testCode: String
+  --
+  + getTestCode(): String
+}
+
+class RoomUtilizationEntry extends BillingEntry {
+  - roomNumber: String
+  - daysOccupied: int
+  --
+  + getRoomNumber(): String
+  + getDaysOccupied(): int
+}
+
+' ====================================================================================
+' Billing Policy Strategy (Patient Classification specific)
+' ====================================================================================
+
+interface BillingStrategy {
+  + applyPolicy(invoice: Invoice, patient: Patient): void
+}
+
+class InsuranceBillingStrategy implements BillingStrategy {
+  - insurancePolicy: InsurancePolicy
+  --
+  + applyPolicy(invoice: Invoice, patient: Patient): void
+}
+
+class GovernmentBillingStrategy implements BillingStrategy {
+  - subsidySchedule: SubsidySchedule
+  --
+  + applyPolicy(invoice: Invoice, patient: Patient): void
+}
+
+class SelfPayBillingStrategy implements BillingStrategy {
+  + applyPolicy(invoice: Invoice, patient: Patient): void
+}
+
+' ====================================================================================
+' Policy Data Repositories/Classes
+' ====================================================================================
+
+class PolicyRepository {
+  --
+  + getInsurancePolicy(patientId: String): InsurancePolicy
+  + getSubsidySchedule(governmentProgramId: String): SubsidySchedule
+}
+
+class InsurancePolicy {
+  - policyId: String
+  - insurerName: String
+  - coverageDetails: Map<String, BigDecimal>
+  - reimbursementCeilings: Map<String, BigDecimal>
+  - coPaymentModel: BigDecimal
+  --
+  + getCoverage(serviceType: String): BigDecimal
+  + getReimbursementCeiling(serviceType: String): BigDecimal
+  + getCoPayment(): BigDecimal
+}
+
+class SubsidySchedule {
+  - scheduleId: String
+  - governmentProgram: String
+  - subsidyRates: Map<String, BigDecimal>
+  --
+  + getSubsidyRate(serviceType: String): BigDecimal
+}
+
+' ====================================================================================
+' Item Pricing Strategy
+' ====================================================================================
+
+class PricingService {
+  - pricingStrategies: Map<String, ItemPricingStrategy>
+  --
+  + getUnitPrice(itemType: String, itemId: String): BigDecimal
+  + registerPricingStrategy(itemType: String, strategy: ItemPricingStrategy): void
+}
+
+interface ItemPricingStrategy {
+  + calculateUnitPrice(itemId: String): BigDecimal
+}
+
+class ClinicalProcedurePricingStrategy implements ItemPricingStrategy {
+  + calculateUnitPrice(itemId: String): BigDecimal
+}
+
+class PharmaceuticalPricingStrategy implements ItemPricingStrategy {
+  + calculateUnitPrice(itemId: String): BigDecimal
+}
+
+class LaboratoryPricingStrategy implements ItemPricingStrategy {
+  + calculateUnitPrice(itemId: String): BigDecimal
+}
+
+class RoomPricingStrategy implements ItemPricingStrategy {
+  + calculateUnitPrice(itemId: String): BigDecimal
+}
+
+' ====================================================================================
+' Orchestration Service
+' ====================================================================================
+
+class DischargeBillingService {
+  - pricingService: PricingService
+  - policyRepository: PolicyRepository
+  - billingStrategyMap: Map<PatientClassification, BillingStrategy>
+  --
+  + generateInvoice(patient: Patient, rawServiceItems: List<Map<String, Object>>): Invoice
+  + initializeBillingStrategies(): void
+  + registerPricingStrategies(): void
+}
+
+' ====================================================================================
+' Relationships
+' ====================================================================================
+
+' Patient and Invoice relationship
+Patient "1" --> "1" PatientClassification : has
+Patient "1" --> "0..1" Invoice : generates
+
+' Invoice contains Billing Entries (Composition)
+Invoice "1" *-- "0..*" BillingEntry : contains
+
+' Billing Entry Inheritance
+BillingEntry <|-- ClinicalProcedureEntry
+BillingEntry <|-- PharmaceuticalEntry
+BillingEntry <|-- LaboratoryDiagnosticEntry
+BillingEntry <|-- RoomUtilizationEntry
+
+' Billing Strategy Inheritance
+BillingStrategy <|-- InsuranceBillingStrategy
+BillingStrategy <|-- GovernmentBillingStrategy
+BillingStrategy <|-- SelfPayBillingStrategy
+
+' Billing Strategies reference Policy Data
+InsuranceBillingStrategy "1" --> "1" InsurancePolicy : references
+GovernmentBillingStrategy "1" --> "1" SubsidySchedule : references
+
+' Item Pricing Strategy Inheritance
+ItemPricingStrategy <|-- ClinicalProcedurePricingStrategy
+ItemPricingStrategy <|-- PharmaceuticalPricingStrategy
+ItemPricingStrategy <|-- LaboratoryPricingStrategy
+ItemPricingStrategy <|-- RoomPricingStrategy
+
+' Pricing Service manages Item Pricing Strategies (Aggregation)
+PricingService "1" o-- "*" ItemPricingStrategy : manages
+
+' Discharge Billing Service dependencies
+DischargeBillingService "1" --> "1" PricingService : uses
+DischargeBillingService "1" --> "1" PolicyRepository : uses
+DischargeBillingService "1" --> "*" BillingStrategy : uses (via map)
+
+' ====================================================================================
+' Explanatory Notes
+' ====================================================================================
+
+note "Applies patient-specific policies (e.g., discounts, co-pays, subsidies) based on PatientClassification." as N1
+BillingStrategy .. N1
+
+note "Determines the base unit price for each type of service or item." as N2
+ItemPricingStrategy .. N2
+
+note "Orchestrates the entire billing process, from raw service items to final invoice, applying pricing and billing policies." as N3
+DischargeBillingService .. N3
+
+note "Manages access to various insurance policies and subsidy schedules." as N4
+PolicyRepository .. N4
+
+note "Raw input from clinical systems, containing descriptions and quantities of services delivered." as N5
+DischargeBillingService .. N5 : rawServiceItems parameter
+
+@enduml

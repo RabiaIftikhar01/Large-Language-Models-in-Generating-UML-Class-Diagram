@@ -1,0 +1,210 @@
+@startuml
+' Global settings for clarity and consistency
+skinparam classAttributeIconSize 0
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+' Explanatory note for the diagram (Design Practice 25)
+note "This diagram models the discharge billing module for a hospital management system.\nIt leverages the Strategy pattern for both billing policies and pricing logic,\nenensuring runtime configurability, extensibility, and maintainability (DP 27).\nClear separation is maintained between patient data, pricing elements, and billing policies (DP 1, 26)." as N1
+
+' ----------------------------------------------------------------------------------------------------
+' Patient Management Package (DP 1, 14, 21)
+' Encapsulates core patient information.
+' ----------------------------------------------------------------------------------------------------
+package "Patient Management" {
+  class Patient {
+    -patientId: String
+    -name: String
+    -admissionDate: Date
+    -dischargeDate: Date
+    --
+    +getPatientId(): String
+    +getName(): String
+    +getBillingPolicy(): BillingPolicy
+    +setBillingPolicy(policy: BillingPolicy)
+  }
+}
+
+' ----------------------------------------------------------------------------------------------------
+' Billing Policies Package (DP 1, 14, 21)
+' Defines how patients are billed based on their classification.
+' Uses the Strategy pattern for flexible policy application (DP 1, 11, 12, 27).
+' Policies are replaceable at runtime and support updates without structural redesign (DP 1, 27).
+' ----------------------------------------------------------------------------------------------------
+package "Billing Policies" {
+  interface BillingPolicy {
+    +applyPolicy(invoice: Invoice, patient: Patient): void
+  }
+
+  class InsuranceBillingPolicy {
+    -coverageDefinitions: Map<String, String>
+    -reimbursementCeilings: Map<String, Double>
+    -coPaymentModels: Map<String, Double>
+    --
+    +InsuranceBillingPolicy(insurer: Insurer)
+    +applyPolicy(invoice: Invoice, patient: Patient): void
+  }
+
+  class GovernmentBillingPolicy {
+    -subsidySchedules: Map<String, Double>
+    --
+    +applyPolicy(invoice: Invoice, patient: Patient): void
+  }
+
+  class SelfPayBillingPolicy {
+    --
+    +applyPolicy(invoice: Invoice, patient: Patient): void
+  }
+
+  class Insurer {
+    -insurerId: String
+    -name: String
+    -contactInfo: String
+    --
+    +getInsurerId(): String
+    +getName(): String
+  }
+}
+
+' ----------------------------------------------------------------------------------------------------
+' Treatment & Pricing Package (DP 1, 14, 21)
+' Manages different types of treatments and their respective pricing strategies.
+' Uses the Strategy pattern for flexible pricing logic per treatment type (DP 1, 11, 12, 27).
+' ----------------------------------------------------------------------------------------------------
+package "Treatment & Pricing" {
+  abstract class Treatment {
+    -treatmentId: String
+    -description: String
+    -datePerformed: Date
+    -pricingStrategy: PricingStrategy
+    --
+    +getTreatmentId(): String
+    +getDescription(): String
+    +getPrice(): Double ' Delegates to PricingStrategy (DP 8, 10)
+    +setPricingStrategy(strategy: PricingStrategy)
+  }
+
+  class ClinicalProcedure extends Treatment {
+    -procedureCode: String
+    --
+    +getProcedureCode(): String
+  }
+
+  class Pharmaceutical extends Treatment {
+    -drugCode: String
+    -dosage: String
+    --
+    +getDrugCode(): String
+    +getDosage(): String
+  }
+
+  class LabDiagnostic extends Treatment {
+    -testCode: String
+    -result: String
+    --
+    +getTestCode(): String
+    +getResult(): String
+  }
+
+  class RoomUtilization extends Treatment {
+    -roomNumber: String
+    -daysOccupied: int
+    --
+    +getRoomNumber(): String
+    +getDaysOccupied(): int
+  }
+
+  interface PricingStrategy {
+    +calculatePrice(treatment: Treatment): Double
+  }
+
+  class ClinicalPricingStrategy implements PricingStrategy {
+    +calculatePrice(treatment: Treatment): Double
+  }
+
+  class PharmaceuticalPricingStrategy implements PricingStrategy {
+    +calculatePrice(treatment: Treatment): Double
+  }
+
+  class LabPricingStrategy implements PricingStrategy {
+    +calculatePrice(treatment: Treatment): Double
+  }
+
+  class RoomPricingStrategy implements PricingStrategy {
+    +calculatePrice(treatment: Treatment): Double
+  }
+}
+
+' ----------------------------------------------------------------------------------------------------
+' Invoice Generation Package (DP 1, 14, 21)
+' Handles the creation and management of patient invoices.
+' ----------------------------------------------------------------------------------------------------
+package "Invoice Generation" {
+  class Invoice {
+    -invoiceId: String
+    -issueDate: Date
+    -totalAmount: Double
+    -status: String
+    --
+    +Invoice(patient: Patient) ' Constructor (DP 10)
+    +addBillingEntry(entry: BillingEntry): void
+    +calculateTotal(): void ' Core business logic (DP 8, 10)
+    +generateInvoice(): void
+    +getTotalAmount(): Double ' Access method (DP 9, 10)
+  }
+
+  class BillingEntry {
+    -entryId: String
+    -description: String
+    -quantity: int
+    -unitPrice: Double
+    -amount: Double
+    --
+    +BillingEntry(treatment: Treatment, quantity: int) ' Constructor (DP 10)
+    +calculateAmount(): void ' Core business logic (DP 8, 10)
+    +getAmount(): Double ' Access method (DP 9, 10)
+  }
+}
+
+' ----------------------------------------------------------------------------------------------------
+' Relationships between classes and packages (DP 11, 12, 15, 16, 18, 21, 22)
+' ----------------------------------------------------------------------------------------------------
+
+' Patient and Billing Policy (DP 12, 15, 18)
+Patient "1" --> "1" BillingPolicy : uses >
+
+' Billing Policies and their implementations (DP 22)
+BillingPolicy <|.. InsuranceBillingPolicy
+BillingPolicy <|.. GovernmentBillingPolicy
+BillingPolicy <|.. SelfPayBillingPolicy
+
+' Insurance Policy and Insurer (DP 15, 18)
+InsuranceBillingPolicy "1" -- "1" Insurer : defined by >
+
+' Treatment and Pricing Strategy (DP 12, 15, 18)
+Treatment "1" --> "1" PricingStrategy : determines price with >
+
+' Treatment hierarchy (DP 13, 22)
+Treatment <|-- ClinicalProcedure
+Treatment <|-- Pharmaceutical
+Treatment <|-- LabDiagnostic
+Treatment <|-- RoomUtilization
+
+' Pricing Strategy implementations (DP 22)
+PricingStrategy <|.. ClinicalPricingStrategy
+PricingStrategy <|.. PharmaceuticalPricingStrategy
+PricingStrategy <|.. LabPricingStrategy
+PricingStrategy <|.. RoomPricingStrategy
+
+' Invoice and Patient (DP 15, 18)
+Patient "1" -- "0..*" Invoice : generates >
+
+' Invoice and BillingEntry (Composition - strong ownership, DP 15, 18, 22)
+Invoice "1" *-- "1..*" BillingEntry : contains >
+
+' BillingEntry and Treatment (DP 12, 15, 18)
+BillingEntry "1" -- "1" Treatment : references >
+
+@enduml

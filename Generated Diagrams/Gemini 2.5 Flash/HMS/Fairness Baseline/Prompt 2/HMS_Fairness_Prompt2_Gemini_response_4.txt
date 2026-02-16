@@ -1,0 +1,232 @@
+@startuml
+!pragma layout smetana
+
+' Enums for clarity and type safety
+enum PatientClassificationType {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+enum InvoiceStatus {
+    PENDING
+    PAID
+    CANCELLED
+}
+
+' Core Entities
+class Patient {
+    - patientId: String
+    - name: String
+    - dateOfBirth: Date
+    - classificationType: PatientClassificationType
+    --
+    + getClassificationType(): PatientClassificationType
+    + getPatientDetails(): String
+}
+
+class Hospitalization {
+    - hospitalizationId: String
+    - admissionDate: Date
+    - dischargeDate: Date
+    --
+    + getDurationInDays(): int
+}
+
+abstract class Service {
+    - serviceCode: String
+    - name: String
+    --
+    + {abstract} getBasePrice(): Money
+}
+
+class ClinicalProcedure {
+    - procedureCode: String
+    - description: String
+    --
+    + getBasePrice(): Money
+}
+
+class Pharmaceutical {
+    - drugCode: String
+    - manufacturer: String
+    --
+    + getBasePrice(): Money
+}
+
+class LaboratoryDiagnostic {
+    - testCode: String
+    - method: String
+    --
+    + getBasePrice(): Money
+}
+
+class RoomUtilization {
+    - roomNumber: String
+    - roomType: String
+    --
+    + getBasePrice(): Money
+}
+
+class TreatmentRecord {
+    - recordId: String
+    - datePerformed: Date
+    - quantity: int
+    --
+    + getServiceCost(): Money
+}
+
+class Invoice {
+    - invoiceId: String
+    - issueDate: Date
+    - totalAmount: Money
+    - status: InvoiceStatus
+    --
+    + calculateTotal(): void
+    + addLineItem(item: InvoiceLineItem): void
+    + generateInvoice(hospitalization: Hospitalization, patient: Patient): void
+}
+
+class InvoiceLineItem {
+    - lineItemId: String
+    - description: String
+    - quantity: int
+    - unitPrice: Money ' Base price before policy application
+    - billedAmount: Money ' Price after policy application
+    --
+    + calculateBilledAmount(policy: BillingPolicy, patient: Patient): void
+}
+
+' Strategy Pattern for Service Pricing
+interface PricingStrategy {
+    + calculatePrice(service: Service): Money
+}
+
+class FixedPriceStrategy {
+    - amount: Money
+    --
+    + calculatePrice(service: Service): Money
+}
+
+class PerUnitPricingStrategy {
+    - unitPrice: Money
+    --
+    + calculatePrice(service: Service): Money
+}
+
+' Strategy Pattern for Billing Policies (runtime configurable)
+interface BillingPolicy {
+    + applyPolicy(lineItem: InvoiceLineItem, patient: Patient): Money
+}
+
+class InsuranceBillingPolicy {
+    + applyPolicy(lineItem: InvoiceLineItem, patient: Patient): Money
+}
+
+class GovernmentBillingPolicy {
+    + applyPolicy(lineItem: InvoiceLineItem, patient: Patient): Money
+}
+
+class SelfPayBillingPolicy {
+    + applyPolicy(lineItem: InvoiceLineItem, patient: Patient): Money
+}
+
+' Policy Management and Dynamic Data
+class BillingPolicyManager {
+    - policies: Map<PatientClassificationType, BillingPolicy>
+    --
+    + getBillingPolicy(type: PatientClassificationType): BillingPolicy
+    + registerPolicy(type: PatientClassificationType, policy: BillingPolicy): void
+    + updatePolicy(type: PatientClassificationType, newPolicy: BillingPolicy): void
+}
+
+class PolicyDataRepository {
+    - coverageDefinitions: List<CoverageDefinition>
+    - subsidySchedules: List<SubsidySchedule>
+    --
+    + getCoverageDefinition(insurerId: String, serviceType: String): CoverageDefinition
+    + getSubsidySchedule(serviceType: String): SubsidySchedule
+    + saveCoverageDefinition(def: CoverageDefinition): void
+    + saveSubsidySchedule(schedule: SubsidySchedule): void
+}
+
+class CoverageDefinition {
+    - definitionId: String
+    - insurerId: String
+    - serviceType: String
+    - coveragePercentage: double
+    - coPaymentAmount: Money
+    - reimbursementCeiling: Money
+}
+
+class SubsidySchedule {
+    - scheduleId: String
+    - serviceType: String
+    - subsidyPercentage: double
+    - fixedSubsidyAmount: Money
+}
+
+' Relationships
+
+' Patient and Hospitalization
+Patient "1" -- "1" Hospitalization : admittedTo >
+
+' Hospitalization and Treatments
+Hospitalization "1" -- "0..*" TreatmentRecord : includes >
+
+' TreatmentRecord and Service
+TreatmentRecord "1" -- "1" Service : references >
+
+' Service and Pricing Strategy (Composition: a Service owns its PricingStrategy)
+Service "1" *-- "1" PricingStrategy : uses >
+
+' Inheritance for Services
+Service <|-- ClinicalProcedure
+Service <|-- Pharmaceutical
+Service <|-- LaboratoryDiagnostic
+Service <|-- RoomUtilization
+
+' Implementation for Pricing Strategies
+PricingStrategy <|.. FixedPriceStrategy
+PricingStrategy <|.. PerUnitPricingStrategy
+
+' Invoice and Patient/LineItems
+Invoice "1" -- "1" Patient : bills >
+Invoice "1" -- "1..*" InvoiceLineItem : contains >
+InvoiceLineItem "1" -- "1" TreatmentRecord : derivesFrom >
+
+' Billing Policy Management
+BillingPolicyManager "1" -- "0..*" BillingPolicy : manages >
+Invoice ..> BillingPolicyManager : <<uses>> \n (retrieves policy)
+
+' Implementation for Billing Policies
+BillingPolicy <|.. InsuranceBillingPolicy
+BillingPolicy <|.. GovernmentBillingPolicy
+BillingPolicy <|.. SelfPayBillingPolicy
+
+' Policy Data Integration
+InsuranceBillingPolicy ..> PolicyDataRepository : <<uses>> \n (fetches coverage)
+GovernmentBillingPolicy ..> PolicyDataRepository : <<uses>> \n (fetches subsidy)
+
+PolicyDataRepository "1" -- "0..*" CoverageDefinition : manages >
+PolicyDataRepository "1" -- "0..*" SubsidySchedule : manages >
+
+' Notes for clarity and design rationale
+note "The BillingPolicyManager centralizes policy selection \nand allows policies to be replaced at runtime, \nsupporting dynamic regulatory changes." as N1
+BillingPolicyManager .. N1
+
+note "PricingStrategy decouples base price calculation \nfrom service definition, enabling varied pricing logic \nper service type." as N2
+PricingStrategy .. N2
+
+note "PolicyDataRepository manages dynamic regulatory data \n(coverage definitions, subsidy schedules) \nallowing updates without structural redesign." as N3
+PolicyDataRepository .. N3
+
+note "InvoiceLineItem's unitPrice represents the base cost \nfrom the Service, while billedAmount is the final \namount after applying the relevant BillingPolicy." as N4
+InvoiceLineItem .. N4
+
+note "This design enforces clear separation among \npatient data, pricing elements, and billing policies, \nensuring extensibility and maintainability." as N5
+Patient .l. N5
+Service .u. N5
+BillingPolicy .r. N5
+
+@enduml

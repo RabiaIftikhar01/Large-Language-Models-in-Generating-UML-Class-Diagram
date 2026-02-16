@@ -1,0 +1,195 @@
+@startuml
+' --- Global Style Configuration ---
+skinparam classAttributeIconSize 0
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam class {
+  BorderColor #30475E
+  BackgroundColor #F0F0F0
+  ArrowColor #30475E
+  FontColor #30475E
+}
+skinparam interface {
+  BorderColor #30475E
+  BackgroundColor #F0F0F0
+  ArrowColor #30475E
+  FontColor #30475E
+}
+
+' --- Value Object: Money for financial calculations ---
+class Money {
+  - amount: BigDecimal
+  - currency: Currency
+  -- Operations --
+  + Money(amount: BigDecimal, currency: Currency)
+  + add(other: Money): Money
+  + subtract(other: Money): Money
+  + multiply(factor: double): Money
+  + divide(divisor: double): Money
+  + isGreaterThan(other: Money): boolean
+  + min(other: Money): Money
+  + toString(): String
+}
+
+' --- Enum: EntryDomain for categorizing billing entries ---
+enum EntryDomain {
+  CLINICAL_PROCEDURE
+  PHARMACEUTICAL
+  LAB_DIAGNOSTIC
+  ROOM_UTILIZATION
+}
+
+' --- Core Entities ---
+
+' Patient: Represents the individual receiving treatment and for whom invoices are generated.
+class Patient {
+  - patientId: String
+  - name: String
+  - admissionDate: Date
+  - dischargeDate: Date
+  - billingPolicy: IBillingPolicy ' The assigned billing strategy for this patient
+  -- Operations --
+  + getPatientId(): String
+  + getName(): String
+  + getBillingPolicy(): IBillingPolicy
+  + setBillingPolicy(policy: IBillingPolicy): void ' Allows runtime policy changes
+}
+
+' Invoice: The final bill produced for a patient's hospitalization.
+class Invoice {
+  - invoiceId: String
+  - issueDate: Date
+  - patient: Patient ' Reference to the patient this invoice is for
+  - totalAmount: Money
+  - billingEntries: List<BillingEntry>
+  -- Operations --
+  + addBillingEntry(entry: BillingEntry): void
+  + calculateTotal(): Money ' Uses the patient's assigned billing policy
+  + getInvoiceId(): String
+  + getBillingEntries(): List<BillingEntry>
+  + getPatient(): Patient
+}
+
+' BillingEntry: Represents a single billable item or service provided during hospitalization.
+class BillingEntry {
+  - entryId: String
+  - description: String
+  - quantity: int
+  - baseUnitPrice: Money
+  - entryDate: Date
+  - domain: EntryDomain
+  -- Operations --
+  + getCalculatedBasePrice(): Money ' Calculates quantity * baseUnitPrice
+  + getEntryId(): String
+  + getDescription(): String
+  + getDomain(): EntryDomain
+}
+
+' --- Billing Policy Strategy Pattern ---
+
+' IBillingPolicy: Interface for different billing strategies.
+' This enables flexible, runtime-replaceable billing behavior.
+interface IBillingPolicy {
+  + calculateLineItemAmount(entry: BillingEntry): Money
+  + applyOverallPolicy(invoice: Invoice, subtotal: Money): Money
+}
+
+' SelfPayBillingPolicy: Billing strategy for self-paying individuals (full amount).
+class SelfPayBillingPolicy {
+  + SelfPayBillingPolicy()
+  + calculateLineItemAmount(entry: BillingEntry): Money
+  + applyOverallPolicy(invoice: Invoice, subtotal: Money): Money
+}
+
+' GovernmentBillingPolicy: Billing strategy for government-sponsored patients (subsidized pricing).
+class GovernmentBillingPolicy {
+  - subsidySchedule: SubsidySchedule
+  + GovernmentBillingPolicy(schedule: SubsidySchedule)
+  + calculateLineItemAmount(entry: BillingEntry): Money
+  + applyOverallPolicy(invoice: Invoice, subtotal: Money): Money
+}
+
+' InsuranceBillingPolicy: Billing strategy for insurance claims (insurer-specific coverage).
+class InsuranceBillingPolicy {
+  - coveragePolicy: CoveragePolicy
+  - reimbursementCeiling: ReimbursementCeiling
+  - coPaymentModel: CoPaymentModel
+  + InsuranceBillingPolicy(coverage: CoveragePolicy, ceiling: ReimbursementCeiling, coPay: CoPaymentModel)
+  + calculateLineItemAmount(entry: BillingEntry): Money
+  + applyOverallPolicy(invoice: Invoice, subtotal: Money): Money
+}
+
+' --- Policy Configuration Elements (Data-driven rules for policies) ---
+' These classes encapsulate the specific rules and data for each policy type.
+' They are designed to be easily updated without necessitating structural redesign.
+
+class SubsidySchedule {
+  - subsidyPercentage: double
+  - maxSubsidyAmount: Money
+  -- Operations --
+  + SubsidySchedule(percentage: double, maxAmount: Money)
+  + getSubsidyAmount(baseAmount: Money): Money
+}
+
+class CoveragePolicy {
+  - policyName: String
+  - coveredDomains: List<EntryDomain>
+  - exclusionKeywords: List<String>
+  -- Operations --
+  + CoveragePolicy(name: String, domains: List<EntryDomain>, keywords: List<String>)
+  + isCovered(entry: BillingEntry): boolean
+}
+
+class ReimbursementCeiling {
+  - maxClaimAmount: Money
+  - perItemMaxAmount: Money
+  -- Operations --
+  + ReimbursementCeiling(maxClaim: Money, perItemMax: Money)
+  + applyCeiling(amount: Money, entry: BillingEntry): Money
+}
+
+class CoPaymentModel {
+  - coPayPercentage: double
+  - fixedCoPayAmount: Money
+  -- Operations --
+  + CoPaymentModel(percentage: double, fixedAmount: Money)
+  + calculateCoPay(coveredAmount: Money): Money
+}
+
+' --- Relationships ---
+
+' An Invoice is always generated for a specific Patient.
+Invoice "1" --> "1" Patient : for >
+
+' An Invoice is composed of one or more Billing Entries.
+Invoice "1" *-- "1..*" BillingEntry : contains >
+
+' A Patient uses a specific Billing Policy (Strategy Pattern).
+' This allows the billing behavior to be configured and changed at runtime.
+Patient "1" --> "1" IBillingPolicy : uses >
+
+' Concrete billing policies implement the IBillingPolicy interface.
+IBillingPolicy <|.. SelfPayBillingPolicy
+IBillingPolicy <|.. GovernmentBillingPolicy
+IBillingPolicy <|.. InsuranceBillingPolicy
+
+' GovernmentBillingPolicy is configured with a SubsidySchedule.
+GovernmentBillingPolicy "1" *-- "1" SubsidySchedule : configures with >
+
+' InsuranceBillingPolicy is configured with various policy elements.
+InsuranceBillingPolicy "1" *-- "1" CoveragePolicy : configures with >
+InsuranceBillingPolicy "1" *-- "1" ReimbursementCeiling : configures with >
+InsuranceBillingPolicy "1" *-- "1" CoPaymentModel : configures with >
+
+' A BillingEntry is categorized by its EntryDomain.
+BillingEntry "1" --> "1" EntryDomain : has >
+
+' --- Explanatory Notes ---
+note top of IBillingPolicy : Strategy Pattern\nAllows runtime policy changes\nand supports evolving regulatory demands\nwithout structural redesign.
+note bottom of BillingEntry : Each entry represents a single billable item/service\n(e.g., a drug, a lab test, a procedure).
+note top of Invoice : Orchestrates billing entries and calculates total\nusing the patient's assigned policy.
+note bottom of Patient : Patient's classification determines the specific\nIBillingPolicy instance assigned.
+note "The Money class is a Value Object\nfor safe and precise financial calculations." as MoneyNote
+Money .. MoneyNote
+
+@enduml

@@ -1,0 +1,211 @@
+@startuml
+!theme plain
+
+' Global settings for clarity and professional appearance
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 14
+skinparam class {
+    BackgroundColor White
+    BorderColor #336699
+    ArrowColor #336699
+    FontColor #333333
+}
+skinparam interface {
+    BackgroundColor #E0F2F7
+    BorderColor #00BCD4
+    ArrowColor #00BCD4
+    FontColor #333333
+}
+skinparam enum {
+    BackgroundColor #FFFDE7
+    BorderColor #FFC107
+    ArrowColor #FFC107
+    FontColor #333333
+}
+skinparam abstract {
+    BackgroundColor #F3E5F5
+    BorderColor #9C27B0
+    ArrowColor #9C27B0
+    FontColor #333333
+}
+skinparam note {
+    BackgroundColor #FFF9C4
+    BorderColor #FFEB3B
+    FontColor #333333
+}
+
+' Define Money type for financial values, as recommended for precision
+hide circle
+class Money << (M, #FF7700) Value Object >> {
+  - amount: BigDecimal
+  - currency: Currency
+  + add(other: Money): Money
+  + subtract(other: Money): Money
+  + multiply(factor: double): Money
+  + toString(): String
+}
+
+' Patient and Classification
+class Patient {
+  - patientId: String
+  - name: String
+  - dateOfBirth: Date
+  - classificationType: PatientClassificationType
+  + getClassificationType(): PatientClassificationType
+  + getPatientDetails(): String
+}
+
+enum PatientClassificationType {
+  INSURANCE
+  GOVERNMENT
+  SELF_PAY
+}
+
+Patient "1" -- "1" PatientClassificationType : has >
+
+' Invoice and Billing Entries
+class Invoice {
+  - invoiceId: String
+  - issueDate: Date
+  - totalAmount: Money
+  - status: String
+  + addBillingEntry(entry: BillingEntry): void
+  + calculateTotalAmount(): Money
+  + generateInvoiceDetails(): String
+}
+
+class BillingEntry {
+  - entryId: String
+  - quantity: int
+  - unitPrice: Money
+  - lineTotal: Money
+  - description: String
+  + calculateLineTotal(): Money
+}
+
+Invoice "1" *-- "1..*" BillingEntry : contains >
+Patient "1" -- "0..*" Invoice : generates >
+
+' Service Items (Treatments) - Abstract base for all billable services
+abstract class ServiceItem {
+  - serviceId: String
+  - name: String
+  - basePrice: Money
+  + {abstract} calculatePrice(): Money
+  + getDescription(): String
+}
+
+class ClinicalProcedure {
+  - procedureCode: String
+  + calculatePrice(): Money
+}
+
+class Pharmaceutical {
+  - drugName: String
+  - dosage: String
+  + calculatePrice(): Money
+}
+
+class LabDiagnostic {
+  - testName: String
+  + calculatePrice(): Money
+}
+
+class RoomUtilization {
+  - roomType: String
+  - durationInDays: int
+  + calculatePrice(): Money
+}
+
+ServiceItem <|-- ClinicalProcedure
+ServiceItem <|-- Pharmaceutical
+ServiceItem <|-- LabDiagnostic
+ServiceItem <|-- RoomUtilization
+
+BillingEntry "1" --> "1" ServiceItem : refersTo >
+
+' Billing Policies (Strategy Pattern for runtime configurability)
+interface BillingPolicy << (I, #FF7700) Strategy >> {
+  + calculateAdjustedAmount(entry: BillingEntry, patient: Patient): Money
+}
+
+class InsuranceBillingPolicy {
+  + calculateAdjustedAmount(entry: BillingEntry, patient: Patient): Money
+}
+
+class GovernmentBillingPolicy {
+  + calculateAdjustedAmount(entry: BillingEntry, patient: Patient): Money
+}
+
+class SelfPayBillingPolicy {
+  + calculateAdjustedAmount(entry: BillingEntry, patient: Patient): Money
+}
+
+BillingPolicy <|.. InsuranceBillingPolicy
+BillingPolicy <|.. GovernmentBillingPolicy
+BillingPolicy <|.. SelfPayBillingPolicy
+
+' Policy Configurations - Data-driven elements for policies
+class CoveragePolicy {
+  - insurerName: String
+  - coveragePercentage: double
+  - reimbursementCeiling: Money
+  - coPayment: Money
+  + getCoverageDetails(): String
+}
+
+class SubsidySchedule {
+  - programName: String
+  - subsidyRate: double
+  + getSubsidyDetails(): String
+}
+
+InsuranceBillingPolicy "1" --> "1" CoveragePolicy : uses >
+GovernmentBillingPolicy "1" --> "1" SubsidySchedule : uses >
+
+' Billing Engine (Context for the Strategy Pattern)
+class BillingEngine {
+  - policies: Map<PatientClassificationType, BillingPolicy>
+  + generateInvoice(patient: Patient, serviceItems: List<ServiceItem>): Invoice
+  + registerPolicy(type: PatientClassificationType, policy: BillingPolicy): void
+  + getPolicy(type: PatientClassificationType): BillingPolicy
+}
+
+BillingEngine "1" o-- "0..*" BillingPolicy : manages >
+
+' Dependencies for the BillingEngine's operations
+BillingEngine .> Patient
+BillingEngine .> ServiceItem
+BillingEngine .> Invoice
+BillingEngine .> BillingEntry
+BillingEngine .> PatientClassificationType
+
+' Notes to explain complex sections or provide additional information
+note left of BillingEngine
+  Orchestrates the billing process.
+  Selects and applies the correct
+  BillingPolicy based on Patient's
+  classification. Supports runtime
+  policy updates and extensibility.
+end note
+
+note right of BillingPolicy
+  Implements the Strategy pattern
+  to handle variable billing logic
+  based on patient classification.
+end note
+
+note bottom of CoveragePolicy
+  Configurable data for
+  InsuranceBillingPolicy, allowing
+  updates without structural redesign.
+end note
+
+note bottom of SubsidySchedule
+  Configurable data for
+  GovernmentBillingPolicy, allowing
+  updates without structural redesign.
+end note
+
+@enduml

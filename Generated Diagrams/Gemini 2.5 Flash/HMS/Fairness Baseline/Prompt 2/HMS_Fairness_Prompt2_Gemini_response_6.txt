@@ -1,0 +1,226 @@
+@startuml
+!theme mars
+
+title Hospital Discharge Billing System - Class Diagram
+
+' Value Objects
+class Money {
+    - amount: BigDecimal
+    - currency: String
+    + Money(amount: BigDecimal, currency: String)
+    + getAmount(): BigDecimal
+    + getCurrency(): String
+    + add(other: Money): Money
+    + subtract(other: Money): Money
+    + multiply(factor: BigDecimal): Money
+}
+
+' Enums
+enum InvoiceStatus {
+    PENDING
+    PAID
+    CANCELLED
+}
+
+enum PatientType {
+    INSURED
+    GOVERNMENT
+    SELF_PAY
+}
+
+' Core Entities
+class Patient {
+    - patientId: String
+    - name: String
+    - dateOfBirth: Date
+    - patientType: PatientType
+    + getPatientId(): String
+    + getName(): String
+    + getDateOfBirth(): Date
+    + getPatientType(): PatientType
+}
+
+class Hospitalization {
+    - hospitalizationId: String
+    - admissionDate: Date
+    - dischargeDate: Date
+    + getHospitalizationId(): String
+    + getAdmissionDate(): Date
+    + getDischargeDate(): Date
+    + addBillableItem(item: BillableItem): void
+    + getBillableItems(): List<BillableItem>
+}
+
+class Invoice {
+    - invoiceId: String
+    - issueDate: Date
+    - totalAmount: Money
+    - status: InvoiceStatus
+    + getInvoiceId(): String
+    + getIssueDate(): Date
+    + getTotalAmount(): Money
+    + getStatus(): InvoiceStatus
+    + addBillingEntry(entry: BillingEntry): void
+    + calculateTotalAmount(): void
+}
+
+class BillingEntry {
+    - entryId: String
+    - description: String
+    - quantity: int
+    - unitPrice: Money
+    - chargedAmount: Money
+    + getEntryId(): String
+    + getDescription(): String
+    + getQuantity(): int
+    + getUnitPrice(): Money
+    + getChargedAmount(): Money
+}
+
+' Billable Items Hierarchy
+abstract class BillableItem {
+    - itemId: String
+    - description: String
+    - basePrice: Money
+    - quantity: int
+    + getItemId(): String
+    + getDescription(): String
+    + getBasePrice(): Money
+    + getQuantity(): int
+    + calculateBaseAmount(): Money
+}
+
+class Procedure extends BillableItem {
+    - procedureCode: String
+    + getProcedureCode(): String
+}
+
+class Pharmaceutical extends BillableItem {
+    - drugCode: String
+    + getDrugCode(): String
+}
+
+class LabDiagnostic extends BillableItem {
+    - testCode: String
+    + getTestCode(): String
+}
+
+class RoomUtilization extends BillableItem {
+    - roomNumber: String
+    - days: int
+    + getRoomNumber(): String
+    + getDays(): int
+}
+
+' Billing Policies (Strategy Pattern)
+interface IBillingPolicy {
+    + applyPolicy(billableItems: List<BillableItem>, pricingService: PricingService): List<BillingEntry>
+    + getPolicyName(): String
+}
+
+class InsurerBillingPolicy implements IBillingPolicy {
+    - insurancePolicy: InsurancePolicy
+    + InsurerBillingPolicy(policy: InsurancePolicy)
+    + applyPolicy(billableItems: List<BillableItem>, pricingService: PricingService): List<BillingEntry>
+    + getPolicyName(): String
+}
+
+class GovernmentBillingPolicy implements IBillingPolicy {
+    + applyPolicy(billableItems: List<BillableItem>, pricingService: PricingService): List<BillingEntry>
+    + getPolicyName(): String
+}
+
+class SelfPayBillingPolicy implements IBillingPolicy {
+    + applyPolicy(billableItems: List<BillableItem>, pricingService: PricingService): List<BillingEntry>
+    + getPolicyName(): String
+}
+
+' Policy-Related Entities
+class Insurer {
+    - insurerId: String
+    - name: String
+    + getInsurerId(): String
+    + getName(): String
+}
+
+class InsurancePolicy {
+    - policyId: String
+    - coverageDetails: String
+    - reimbursementCeilings: Map<String, Money>
+    - coPaymentModels: Map<String, Money>
+    + getPolicyId(): String
+    + getCoverageDetails(): String
+    + getReimbursementCeilings(): Map<String, Money>
+    + getCoPaymentModels(): Map<String, Money>
+}
+
+' Services/Orchestration
+class PricingService {
+    + getBasePrice(itemId: String): Money
+    + getSubsidizedPrice(itemId: String): Money
+    + getInsurerSpecificPrice(itemId: String, insurerId: String): Money
+}
+
+class BillingPolicyFactory {
+    + createPolicy(patientType: PatientType, patient: Patient): IBillingPolicy
+}
+
+class InvoiceGenerator {
+    - pricingService: PricingService
+    - policyFactory: BillingPolicyFactory
+    + InvoiceGenerator(pricingService: PricingService, policyFactory: BillingPolicyFactory)
+    + generateInvoice(hospitalization: Hospitalization, patient: Patient): Invoice
+}
+
+' Relationships
+
+' Patient and Hospitalization
+Patient "1" -- "0..*" Hospitalization : admits >
+
+' Hospitalization and Billable Items (Composition)
+Hospitalization "1" *-- "0..*" BillableItem : includes >
+
+' Invoice and Billing Entries (Composition)
+Invoice "1" *-- "0..*" BillingEntry : contains >
+
+' Billing Entry and Billable Item (Association/Dependency)
+BillingEntry "1" --> "1" BillableItem : derivedFrom >
+
+' Invoice Generation Orchestration
+InvoiceGenerator "1" --> "1" Hospitalization : processes >
+InvoiceGenerator "1" --> "1" Patient : for >
+InvoiceGenerator "1" --> "1" IBillingPolicy : uses >
+InvoiceGenerator "1" --> "1" PricingService : uses >
+InvoiceGenerator "1" --> "1" BillingPolicyFactory : uses >
+InvoiceGenerator "1" ..> "1" Invoice : creates >
+
+' Patient and Policy/Insurance
+Patient "1" --> "1" PatientType : has >
+Patient "1" -- "0..1" InsurancePolicy : coveredBy >
+
+' Insurer and Insurance Policy
+Insurer "1" -- "0..*" InsurancePolicy : offers >
+
+' Billing Policy Implementations
+InsurerBillingPolicy "1" --> "1" InsurancePolicy : applies >
+IBillingPolicy <|.. InsurerBillingPolicy
+IBillingPolicy <|.. GovernmentBillingPolicy
+IBillingPolicy <|.. SelfPayBillingPolicy
+
+' Billable Item Hierarchy
+BillableItem <|-- Procedure
+BillableItem <|-- Pharmaceutical
+BillableItem <|-- LabDiagnostic
+BillableItem <|-- RoomUtilization
+
+' Notes for clarity
+note "Strategy Pattern for flexible billing rules,\nreplaceable at runtime" as N1
+IBillingPolicy .. N1
+
+note "Value Object for precise monetary amounts" as N2
+Money .. N2
+
+note "Factory for runtime policy selection based on PatientType" as N3
+BillingPolicyFactory .. N3
+
+@enduml

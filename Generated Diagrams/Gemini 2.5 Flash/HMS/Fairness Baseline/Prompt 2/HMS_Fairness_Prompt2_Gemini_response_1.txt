@@ -1,0 +1,199 @@
+@startuml
+!pragma layout smetana
+
+' Title for the diagram '
+title Hospital Discharge Billing System
+
+' Define interfaces for strategy patterns '
+interface BillingPolicy {
+    + calculateFinalAmount(entry: BillingEntry, patient: Patient): Money
+}
+
+interface PricingStrategy {
+    + calculateBasePrice(entry: BillingEntry): Money
+}
+
+' Concrete Billing Policies (Strategy Pattern implementations) '
+class InsuranceBillingPolicy implements BillingPolicy {
+    - coverageDefinitions: Map<String, Coverage>
+    - reimbursementCeilings: Map<String, Money>
+    - coPaymentModel: CoPaymentModel
+    + calculateFinalAmount(entry: BillingEntry, patient: Patient): Money
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - subsidySchedules: Map<String, Subsidy>
+    - predeterminedSubsidizedPricing: Map<String, Money>
+    + calculateFinalAmount(entry: BillingEntry, patient: Patient): Money
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    + calculateFinalAmount(entry: BillingEntry, patient: Patient): Money
+}
+
+' Abstract base class for all billable entries '
+abstract class BillingEntry {
+    - entryId: String
+    - description: String
+    - quantity: int
+    - unitPrice: Money ' Base unit price before any specific pricing or policy application '
+    - dateOfService: Date
+    + getEntryId(): String
+    + getDescription(): String
+    + getQuantity(): int
+    + getUnitPrice(): Money
+    + getDateOfService(): Date
+    + getBaseCost(): Money ' Calculates raw cost using its assigned PricingStrategy '
+    + {abstract} getPricingStrategy(): PricingStrategy
+}
+
+' Concrete Billing Entry types, each representing a domain of treatment '
+class ClinicalProcedureEntry extends BillingEntry {
+    - procedureCode: String
+    + getProcedureCode(): String
+    + getPricingStrategy(): PricingStrategy
+}
+
+class PharmaceuticalEntry extends BillingEntry {
+    - drugCode: String
+    - dosage: String
+    + getDrugCode(): String
+    + getDosage(): String
+    + getPricingStrategy(): PricingStrategy
+}
+
+class LabDiagnosticEntry extends BillingEntry {
+    - testCode: String
+    - result: String
+    + getTestCode(): String
+    + getResult(): String
+    + getPricingStrategy(): PricingStrategy
+}
+
+class RoomUtilizationEntry extends BillingEntry {
+    - roomNumber: String
+    - stayDurationDays: int
+    + getRoomNumber(): String
+    + getStayDurationDays(): int
+    + getPricingStrategy(): PricingStrategy
+}
+
+' Concrete Pricing Strategies (Strategy Pattern implementations) '
+class ProcedurePricingStrategy implements PricingStrategy {
+    + calculateBasePrice(entry: ClinicalProcedureEntry): Money
+}
+
+class PharmaceuticalPricingStrategy implements PricingStrategy {
+    + calculateBasePrice(entry: PharmaceuticalEntry): Money
+}
+
+class LabPricingStrategy implements PricingStrategy {
+    + calculateBasePrice(entry: LabDiagnosticEntry): Money
+}
+
+class RoomPricingStrategy implements PricingStrategy {
+    + calculateBasePrice(entry: RoomUtilizationEntry): Money
+}
+
+' Patient entity '
+class Patient {
+    - patientId: String
+    - name: String
+    - classification: PatientClassificationType
+    + getPatientId(): String
+    + getName(): String
+    + getClassification(): PatientClassificationType
+}
+
+' Enum for patient classification, driving billing policy selection '
+enum PatientClassificationType {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+' Invoice entity, representing the final bill '
+class Invoice {
+    - invoiceId: String
+    - issueDate: Date
+    - totalAmount: Money
+    - status: InvoiceStatus
+    - billingEntries: List<BillingEntry>
+    + addBillingEntry(entry: BillingEntry): void
+    + calculateTotalAmount(): Money
+    + generateInvoiceDocument(): Document
+}
+
+' Enum for invoice status '
+enum InvoiceStatus {
+    PENDING
+    PAID
+    CANCELLED
+}
+
+' Service responsible for orchestrating the discharge billing process '
+class DischargeBillingService {
+    - policyFactory: BillingPolicyFactory
+    + generateDischargeInvoice(patient: Patient, entries: List<BillingEntry>): Invoice
+}
+
+' Factory to provide the appropriate BillingPolicy based on patient classification '
+class BillingPolicyFactory {
+    + getPolicy(classification: PatientClassificationType): BillingPolicy
+}
+
+' Relationships '
+
+' Patient and Invoice: A patient can have multiple invoices '
+Patient "1" -- "0..*" Invoice : generates
+
+' Invoice and BillingEntry: An invoice is composed of one or more billing entries '
+Invoice "1" *-- "1..*" BillingEntry : contains
+
+' BillingEntry and PricingStrategy: Each concrete BillingEntry type uses a specific PricingStrategy '
+' This is a a dependency, as the BillingEntry's getPricingStrategy() method provides the strategy '
+ClinicalProcedureEntry ..> ProcedurePricingStrategy : uses >
+PharmaceuticalEntry ..> PharmaceuticalPricingStrategy : uses >
+LabDiagnosticEntry ..> LabPricingStrategy : uses >
+RoomUtilizationEntry ..> RoomPricingStrategy : uses >
+
+' DischargeBillingService orchestration '
+' It processes patients and billing entries to create invoices '
+DischargeBillingService ..> Patient : processes >
+DischargeBillingService ..> BillingEntry : processes >
+DischargeBillingService ..> Invoice : creates >
+
+' DischargeBillingService uses a BillingPolicyFactory to get the correct policy '
+DischargeBillingService "1" --> "1" BillingPolicyFactory : uses
+
+' BillingPolicyFactory creates instances of BillingPolicy '
+BillingPolicyFactory ..> BillingPolicy : creates >
+
+' Enums are used by their respective classes for classification and status '
+Patient --> PatientClassificationType
+Invoice --> InvoiceStatus
+
+' Notes to explain key design decisions and implied concepts '
+note "Configurable billing policies replaceable at runtime (Strategy Pattern)" as N1
+BillingPolicy . N1
+
+note "Specific pricing logic for each entry type, allowing extensibility (Strategy Pattern)" as N2
+PricingStrategy . N2
+
+note "Ensures clear separation among patient data, pricing elements, and billing policies" as N3
+Patient .. N3
+PricingStrategy .. N3
+BillingPolicy .. N3
+
+note "Supports updates to policies/pricing without structural redesign (Open/Closed Principle)" as N4
+BillingPolicy . N4
+PricingStrategy . N4
+
+note "Money class for robust currency handling (implied value object for amounts)" as N5
+Money . N5
+
+note "Coverage, Subsidy, CoPaymentModel are complex policy details (implied value objects/data structures)" as N6
+InsuranceBillingPolicy . N6
+GovernmentBillingPolicy . N6
+
+@enduml

@@ -1,0 +1,174 @@
+@startuml
+!pragma layout smetana
+
+' Theme and Styling for readability
+skinparam classAttributeFontColor #111
+skinparam classAttributeFontsize 12
+skinparam classAttributeFontName Arial
+skinparam classAttributeFontColor #000080
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam noteBackgroundColor LightYellow
+skinparam noteBorderColor DarkGoldenRod
+skinparam shadowing false
+
+hide empty members
+
+' Interfaces
+interface BillingPolicy {
+    + generateInvoiceLineItems(patient: Patient, chargeItems: List<ChargeItem>): List<InvoiceLineItem>
+}
+
+' Concrete Billing Policies - implementing the Strategy pattern for runtime configurability
+class InsuranceBillingPolicy implements BillingPolicy {
+    - insurer: Insurer
+    - coveragePolicy: CoveragePolicy
+    -- Operations --
+    + generateInvoiceLineItems(patient: Patient, chargeItems: List<ChargeItem>): List<InvoiceLineItem>
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - subsidySchedule: SubsidySchedule
+    -- Operations --
+    + generateInvoiceLineItems(patient: Patient, chargeItems: List<ChargeItem>): List<InvoiceLineItem>
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    -- Operations --
+    + generateInvoiceLineItems(patient: Patient, chargeItems: List<ChargeItem>): List<InvoiceLineItem>
+}
+
+' Patient and Invoice Core Entities
+class Patient {
+    - patientId: String
+    - name: String
+    - dateOfBirth: Date
+    - admissionDate: Date
+    - dischargeDate: Date
+    - patientType: PatientType ' Enum: INSURANCE, GOVERNMENT, SELF_PAY
+    -- Operations --
+    + getPatientId(): String
+    + getName(): String
+    + getPatientType(): PatientType
+}
+
+class Invoice {
+    - invoiceId: String
+    - issueDate: Date
+    - totalAmount: Money
+    - status: InvoiceStatus ' Enum: DRAFT, PENDING, PAID, VOID
+    -- Operations --
+    + <size:14><b>Invoice</b>(patient: Patient, chargeItems: List<ChargeItem>, policy: BillingPolicy)</size>
+    + calculateTotal(): Money
+    + addLineItem(item: InvoiceLineItem)
+    + getInvoiceId(): String
+    + getTotalAmount(): Money
+}
+
+class InvoiceLineItem {
+    - description: String
+    - quantity: int
+    - unitPrice: Money
+    - billedAmount: Money
+    -- Operations --
+    + getBilledAmount(): Money
+}
+
+' Charge Items Hierarchy - representing billable services/goods
+abstract class ChargeItem {
+    - itemId: String
+    - description: String
+    - quantity: int
+    -- Operations --
+    + calculateBasePrice(): Money <<abstract>>
+    + getItemId(): String
+    + getDescription(): String
+    + getQuantity(): int
+}
+
+class ProcedureCharge extends ChargeItem {
+    - procedureCode: String
+    - baseRate: Money
+    -- Operations --
+    + calculateBasePrice(): Money
+}
+
+class MedicationCharge extends ChargeItem {
+    - drugCode: String
+    - unitCost: Money
+    -- Operations --
+    + calculateBasePrice(): Money
+}
+
+class LabTestCharge extends ChargeItem {
+    - testCode: String
+    - standardFee: Money
+    -- Operations --
+    + calculateBasePrice(): Money
+}
+
+class RoomCharge extends ChargeItem {
+    - roomNumber: String
+    - dailyRate: Money
+    - numberOfDays: int
+    -- Operations --
+    + calculateBasePrice(): Money
+}
+
+' Supporting Entities for Policies
+class Insurer {
+    - insurerId: String
+    - name: String
+    -- Operations --
+    + getInsurerId(): String
+    + getName(): String
+}
+
+class CoveragePolicy {
+    - policyId: String
+    - name: String
+    - reimbursementCeilings: Map<String, Money> ' e.g., "procedureCode" -> MaxAmount
+    - coPaymentModels: Map<String, Percentage> ' e.g., "serviceType" -> CoPayPercentage
+    -- Operations --
+    + applyCoverage(chargeItem: ChargeItem): Money
+    + getPolicyId(): String
+}
+
+class SubsidySchedule {
+    - scheduleId: String
+    - name: String
+    - subsidyRates: Map<String, Percentage> ' e.g., "serviceType" -> SubsidyPercentage
+    -- Operations --
+    + applySubsidy(chargeItem: ChargeItem): Money
+    + getScheduleId(): String
+}
+
+' Relationships
+Patient "1" -- "0..*" ChargeItem : accumulates >
+
+Invoice "1" -- "1" Patient : for >
+Invoice "1" *-- "1..*" InvoiceLineItem : contains
+
+InvoiceLineItem "1" -- "1" ChargeItem : derivesFrom >
+
+InsuranceBillingPolicy "1" -- "1" Insurer : uses >
+InsuranceBillingPolicy "1" -- "1" CoveragePolicy : applies >
+
+GovernmentBillingPolicy "1" -- "1" SubsidySchedule : applies >
+
+' Invoice uses a BillingPolicy at runtime to generate line items.
+' This is a dependency, as Invoice doesn't "own" the policy but collaborates with it.
+Invoice .down.> BillingPolicy : <<uses>>
+
+' Notes for additional context and clarification
+note "PatientType is an enum (INSURANCE, GOVERNMENT, SELF_PAY)\nused to select the appropriate BillingPolicy at runtime." as N1
+Patient .left. N1
+
+note "Money and Percentage are value objects or custom types \nfor robust financial calculations." as N2
+Money .. N2
+Percentage .. N2
+
+note "InvoiceStatus is an enum (e.g., DRAFT, PENDING, PAID, VOID)." as N3
+InvoiceStatus .. N3
+
+@enduml

@@ -1,0 +1,213 @@
+@startuml
+!pragma layout smetana
+
+' Grouping related classes for better readability (conceptual packages)
+
+package "Patient Data" {
+  class Patient {
+    - patientId: String
+    - name: String
+    - dateOfBirth: Date
+    - patientClassification: PatientClassification
+    + getPatientId(): String
+    + getName(): String
+    + getPatientClassification(): PatientClassification
+  }
+
+  enum PatientClassification {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+  }
+}
+
+package "Billing Policies" {
+  interface IBillingPolicy {
+    + calculateAdjustedPrice(service: Service, patient: Patient): BigDecimal
+  }
+
+  class InsuranceBillingPolicy {
+    - coveragePolicyRepo: CoveragePolicyRepository
+    - reimbursementCeilingRepo: ReimbursementCeilingRepository
+    + calculateAdjustedPrice(service: Service, patient: Patient): BigDecimal
+  }
+
+  class GovernmentBillingPolicy {
+    - subsidyScheduleRepo: SubsidyScheduleRepository
+    + calculateAdjustedPrice(service: Service, patient: Patient): BigDecimal
+  }
+
+  class SelfPayBillingPolicy {
+    + calculateAdjustedPrice(service: Service, patient: Patient): BigDecimal
+  }
+
+  class BillingPolicyRegistry {
+    - policies: Map<PatientClassification, IBillingPolicy>
+    + getPolicy(classification: PatientClassification): IBillingPolicy
+  }
+}
+
+package "Policy Data (Regulatory)" {
+  class CoveragePolicy {
+    - policyId: String
+    - insurerId: String
+    - serviceType: String
+    - coveragePercentage: BigDecimal
+    - coPaymentAmount: BigDecimal
+    + getCoveragePercentage(): BigDecimal
+    + getCoPaymentAmount(): BigDecimal
+  }
+
+  class ReimbursementCeiling {
+    - ceilingId: String
+    - insurerId: String
+    - serviceType: String
+    - ceilingAmount: BigDecimal
+    + getCeilingAmount(): BigDecimal
+  }
+
+  class SubsidySchedule {
+    - scheduleId: String
+    - patientClassification: PatientClassification
+    - serviceType: String
+    - subsidyPercentage: BigDecimal
+    + getSubsidyPercentage(): BigDecimal
+  }
+
+  class CoveragePolicyRepository {
+    + findByInsurerAndService(insurerId: String, serviceType: String): CoveragePolicy
+  }
+
+  class ReimbursementCeilingRepository {
+    + findByInsurerAndService(insurerId: String, serviceType: String): ReimbursementCeiling
+  }
+
+  class SubsidyScheduleRepository {
+    + findByClassificationAndService(classification: PatientClassification, serviceType: String): SubsidySchedule
+  }
+}
+
+package "Pricing Elements & Services" {
+  abstract class Service {
+    - serviceId: String
+    - name: String
+    - description: String
+    + calculateBasePrice(): BigDecimal
+    + getServiceId(): String
+    + getName(): String
+  }
+
+  class ClinicalProcedure extends Service {
+    - procedureCode: String
+    + calculateBasePrice(): BigDecimal
+  }
+
+  class Pharmaceutical extends Service {
+    - drugCode: String
+    - dosage: String
+    + calculateBasePrice(): BigDecimal
+  }
+
+  class LaboratoryDiagnostic extends Service {
+    - testCode: String
+    + calculateBasePrice(): BigDecimal
+  }
+
+  class RoomUtilization extends Service {
+    - roomNumber: String
+    - roomType: String
+    - dailyRate: BigDecimal
+    + calculateBasePrice(): BigDecimal
+  }
+
+  class PriceCatalog {
+    ' Internal data structure to store base prices
+    - prices: Map<String, BigDecimal>
+    + getBasePrice(serviceId: String): BigDecimal
+  }
+}
+
+package "Invoice Generation" {
+  class Invoice {
+    - invoiceId: String
+    - invoiceDate: Date
+    - totalAmount: BigDecimal
+    - status: String
+    + generateInvoice(): void
+    + calculateTotal(): BigDecimal
+    + addLineItem(item: InvoiceLineItem): void
+  }
+
+  class InvoiceLineItem {
+    - lineItemId: String
+    - description: String
+    - quantity: int
+    - unitPrice: BigDecimal
+    - lineTotal: BigDecimal
+    + getLineTotal(): BigDecimal
+  }
+}
+
+package "Orchestration" {
+  class BillingService {
+    - policyRegistry: BillingPolicyRegistry
+    - priceCatalog: PriceCatalog
+    + generateInvoice(patient: Patient, services: List<Service>): Invoice
+  }
+}
+
+' Relationships
+
+' Patient and Classification
+Patient "1" -- "1" PatientClassification : has >
+
+' Billing Service and its dependencies
+BillingService "1" --> "1" BillingPolicyRegistry : uses
+BillingService "1" --> "1" PriceCatalog : uses
+BillingService "1" ..> "IBillingPolicy" : <<uses>> (at runtime)
+BillingService "1" ..> "Service" : <<processes>>
+
+' Invoice and its components
+Invoice "1" -- "1" Patient : billedFor >
+Invoice "1" -- "1..*" InvoiceLineItem : contains >
+InvoiceLineItem "1" -- "1" Service : references >
+
+' Service and Pricing
+Service "1" ..> "1" PriceCatalog : <<uses>> for base price
+
+' Billing Policy Strategy
+IBillingPolicy <|.. InsuranceBillingPolicy
+IBillingPolicy <|.. GovernmentBillingPolicy
+IBillingPolicy <|.. SelfPayBillingPolicy
+
+' Billing Policy Registry manages policies
+BillingPolicyRegistry "1" *-- "1..*" IBillingPolicy : manages
+
+' Policy implementations and their data dependencies
+InsuranceBillingPolicy "1" --> "1" CoveragePolicyRepository : uses
+InsuranceBillingPolicy "1" --> "1" ReimbursementCeilingRepository : uses
+
+GovernmentBillingPolicy "1" --> "1" SubsidyScheduleRepository : uses
+
+' Patient Classification and Policy Data
+PatientClassification <.. SubsidySchedule : <<references>>
+
+' Notes for clarity and design principles
+note "Strategy Pattern for\nruntime policy selection" as N1
+IBillingPolicy .. N1
+
+note "Separation of concerns:\nPatient Data, Pricing Elements,\nBilling Policies\n(Loose Coupling)" as N2
+Patient .. N2
+Service .. N2
+IBillingPolicy .. N2
+
+note "Configurable policies\nwithout structural redesign\n(Extensibility)" as N3
+BillingPolicyRegistry .. N3
+IBillingPolicy .. N3
+
+note "Repositories decouple policy\ndata access from policy logic" as N4
+CoveragePolicyRepository .. N4
+ReimbursementCeilingRepository .. N4
+SubsidyScheduleRepository .. N4
+
+@enduml

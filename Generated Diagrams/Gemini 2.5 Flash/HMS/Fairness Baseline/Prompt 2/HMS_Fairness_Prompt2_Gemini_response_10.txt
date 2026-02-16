@@ -1,0 +1,145 @@
+@startuml
+!pragma layout smetana
+
+' Define a value type for monetary amounts
+skinparam classAttributeFontColor #0000FF
+skinparam classAttributeFontColor<<Money>> #0000FF
+class Money << (V,yellow) Value Object >> {
+    - amount: Decimal
+    - currency: String
+}
+hide Money circle
+
+' Core Entities
+class Patient {
+    - patientId: String
+    - name: String
+    - admissionDate: Date
+    - dischargeDate: Date
+    --
+    + getPatientId(): String
+    + getName(): String
+}
+
+class PatientClassification {
+    - type: String ' e.g., "INSURANCE", "GOVERNMENT", "SELF_PAY"
+    --
+    + getType(): String
+}
+
+class Invoice {
+    - invoiceId: String
+    - invoiceDate: Date
+    - totalAmount: Money
+    - status: String ' e.g., "PENDING", "PAID", "CANCELLED"
+    --
+    + calculateTotal(): Money
+    + addBillingEntry(entry: BillingEntry)
+}
+
+class BillingEntry {
+    - entryId: String
+    - description: String
+    - quantity: int
+    - unitPrice: Money
+    - totalEntryAmount: Money
+    --
+    + calculateEntryAmount(): Money
+}
+
+' Abstract base for different types of services/treatments
+abstract class TreatmentItem {
+    - itemId: String
+    - name: String
+    - basePrice: Money
+    --
+    + getBasePrice(): Money
+}
+
+' Concrete Treatment Item types
+class ClinicalProcedure extends TreatmentItem {
+    ' Additional attributes/operations specific to clinical procedures if needed
+}
+
+class Pharmaceutical extends TreatmentItem {
+    ' Additional attributes/operations specific to pharmaceuticals if needed
+}
+
+class LaboratoryDiagnostic extends TreatmentItem {
+    ' Additional attributes/operations specific to lab diagnostics if needed
+}
+
+class RoomUtilization extends TreatmentItem {
+    ' Additional attributes/operations specific to room utilization if needed
+}
+
+' Strategy interface for billing policies
+interface BillingPolicy {
+    + calculateFinalAmount(entry: BillingEntry, patient: Patient): Money
+}
+
+' Concrete Billing Policy implementations
+class InsuranceBillingPolicy implements BillingPolicy {
+    - reimbursementCeiling: Money
+    --
+    + calculateFinalAmount(entry: BillingEntry, patient: Patient): Money
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    --
+    + calculateFinalAmount(entry: BillingEntry, patient: Patient): Money
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    --
+    + calculateFinalAmount(entry: BillingEntry, patient: Patient): Money
+}
+
+' Configuration classes for billing policies (data-driven elements)
+class CoveragePolicy {
+    - policyId: String
+    - rules: List<String> ' e.g., "covers X for Y%"
+    - effectiveDate: Date
+    - expiryDate: Date
+}
+
+class CoPaymentModel {
+    - modelId: String
+    - percentage: double ' e.g., 20.0 for 20%
+    - fixedAmount: Money ' e.g., $50.00
+}
+
+class SubsidySchedule {
+    - scheduleId: String
+    - rules: List<String> ' e.g., "subsidy Z for type A patients"
+    - effectiveDate: Date
+    - expiryDate: Date
+}
+
+' Relationships
+
+' Patient and Classification
+Patient "1" -- "1" PatientClassification : classifies
+
+' Patient and Invoices
+Patient "1" -- "0..*" Invoice : generates
+
+' Invoice and Billing Entries
+Invoice "1" -- "1..*" BillingEntry : contains
+
+' Billing Entry and Treatment Item
+BillingEntry "1" -- "1" TreatmentItem : refersTo
+
+' Policy Configurations and Billing Policies
+InsuranceBillingPolicy "1" -- "1" CoveragePolicy : uses
+InsuranceBillingPolicy "1" -- "1" CoPaymentModel : applies
+
+GovernmentBillingPolicy "1" -- "1" SubsidySchedule : follows
+
+' Notes for clarity and design decisions
+note left of BillingPolicy : **Strategy Pattern**\nAllows billing behavior to vary\nby patient classification and\nbe replaceable at runtime.
+note right of PatientClassification : PatientClassification determines\nwhich BillingPolicy strategy is applied.
+note right of TreatmentItem : Abstract base for different\ntreatment types, each with\nits own base pricing logic.
+note bottom of CoveragePolicy : These configuration classes\nallow policies to be updated\nwithout structural redesign.
+
+@enduml
