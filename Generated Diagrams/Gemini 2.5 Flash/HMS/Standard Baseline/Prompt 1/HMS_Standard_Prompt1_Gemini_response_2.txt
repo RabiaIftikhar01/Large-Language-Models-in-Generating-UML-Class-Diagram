@@ -1,0 +1,177 @@
+@startuml
+!theme plain
+
+' Interfaces for extensibility and runtime interchangeability (Strategy Pattern)
+interface BillingPolicy {
+  + applyPolicy(bill: Bill, stay: HospitalStay, payer: Payer)
+}
+
+interface PricingStrategy {
+  + calculatePrice(service: Service, quantity: int): Money
+}
+
+' Abstract base for diverse charge sources
+abstract class Service {
+  + serviceId: String
+  + name: String
+  + description: String
+  --
+  + calculateBasePrice(): Money
+}
+
+' Concrete Billing Policies (runtime interchangeable, configurable)
+class InsuranceBillingPolicy implements BillingPolicy {
+  + coverageRules: Map<String, Object>  ' e.g., deductible, co-insurance
+  + reimbursementLimits: Map<String, Money>
+  + coPaymentStructures: Map<String, Money>
+  + applyPolicy(bill: Bill, stay: HospitalStay, payer: Payer)
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+  + subsidizedRates: Map<String, Money>
+  + programRules: Map<String, Object> ' e.g., eligibility, service limits
+  + applyPolicy(bill: Bill, stay: HospitalStay, payer: Payer)
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+  + discountRules: Map<String, Object> ' e.g., prompt payment discount
+  + applyPolicy(bill: Bill, stay: HospitalStay, payer: Payer)
+}
+
+' Concrete Pricing Strategies (independent pricing rules)
+class FixedRatePricingStrategy implements PricingStrategy {
+  + rate: Money
+  + calculatePrice(service: Service, quantity: int): Money
+}
+
+class TieredPricingStrategy implements PricingStrategy {
+  + tiers: Map<int, Money> ' e.g., price changes based on quantity
+  + calculatePrice(service: Service, quantity: int): Money
+}
+
+class InsuranceNegotiatedPricingStrategy implements PricingStrategy {
+  + negotiatedRates: Map<String, Money> ' Rates specific to an insurance company
+  + calculatePrice(service: Service, quantity: int): Money
+}
+
+' Core Entities: Patient Records, Hospital Stay, and Billing Components
+class Patient {
+  + patientId: String
+  + name: String
+  + dob: Date
+  + address: String
+}
+
+class Payer {
+  + payerId: String
+  + name: String
+  + type: PayerType
+  + policyDetails: Map<String, Object> ' e.g., insurance policy number, government program ID
+}
+
+enum PayerType {
+  INSURANCE
+  GOVERNMENT
+  SELF_PAY
+}
+
+class HospitalStay {
+  + stayId: String
+  + admissionDate: Date
+  + dischargeDate: Date
+}
+
+class Charge {
+  + chargeId: String
+  + quantity: int
+  + chargeDate: Date
+  + unitPrice: Money ' Price determined by Service's PricingStrategy
+  + totalChargeAmount: Money ' quantity * unitPrice
+}
+
+class Bill {
+  + billId: String
+  + billDate: Date
+  + totalOriginalAmount: Money
+  + totalAdjustedAmount: Money
+  + status: BillStatus
+}
+
+enum BillStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ISSUED
+  PAID
+  CANCELLED
+}
+
+class LineItem {
+  + lineItemId: String
+  + description: String
+  + originalAmount: Money
+  + adjustedAmount: Money
+  + reasonForAdjustment: String ' e.g., "Insurance Adjustment", "Subsidized Rate"
+}
+
+' Concrete Service types (diverse charge sources)
+class ProcedureService extends Service {
+  + procedureCode: String
+}
+
+class MedicationService extends Service {
+  + medicationCode: String
+}
+
+class DiagnosticTestService extends Service {
+  + testCode: String
+}
+
+class RoomOccupancyService extends Service {
+  + roomType: String
+  + dailyRate: Money
+}
+
+' Orchestration Component
+class BillingEngine {
+  + generateBill(stay: HospitalStay, patient: Patient): Bill
+  - selectBillingPolicy(payer: Payer): BillingPolicy
+}
+
+' Value Object for financial amounts
+class Money {
+  + amount: BigDecimal
+  + currency: Currency
+}
+
+' Relationships
+
+Patient "1" -- "1" Payer : has
+Patient "1" -- "*" HospitalStay : has
+
+HospitalStay "1" -- "*" Charge : includes
+HospitalStay "1" -- "1" Bill : generates
+
+Charge "1" -- "1" Service : for
+
+Service "1" -- "1" PricingStrategy : uses
+
+Bill "1" -- "*" LineItem : contains
+LineItem "0..1" -- "1" Charge : derived from (a line item can be an adjustment not directly tied to a single charge)
+
+BillingEngine "1" -- ">" BillingPolicy : uses (strategy pattern)
+BillingEngine "1" -- ">" Payer : determines policy from
+BillingEngine "1" -- ">" HospitalStay : processes
+BillingEngine "1" -- ">" Bill : creates
+
+Payer "1" -- "1" PayerType : is of
+
+' Notes for clarity and requirements
+note left of BillingPolicy : Interchangeable at runtime\n(Strategy Pattern)
+note left of PricingStrategy : Independent pricing rules\nfor each service type
+note right of BillingEngine : Orchestrates bill generation\nby applying appropriate policies\nand strategies based on Payer.
+note right of InsuranceBillingPolicy : Configurable coverage rules,\nreimbursement limits, co-payment structures.
+note right of Service : Base for diverse charge sources\n(procedures, medications, tests, room).
+note right of Charge : Represents an instance of a service\nprovided during a hospital stay.
+note right of Patient : Strong separation from pricing\nand billing policies.
+
+@enduml

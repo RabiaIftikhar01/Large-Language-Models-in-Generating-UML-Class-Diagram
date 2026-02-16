@@ -1,0 +1,140 @@
+@startuml
+!theme plain
+
+' Interfaces
+interface IPricingRule <<interface>> {
+    + calculateBasePrice(charge: Charge): decimal
+}
+
+interface IBillingPolicy <<interface>> {
+    + applyPolicy(patient: Patient, stay: HospitalStay, charges: List<Charge>): PatientBill
+}
+
+' Patient Records Package
+package "Patient Records" {
+    class Patient {
+        + patientId: String
+        + name: String
+        + patientType: PatientType <<enum>>
+    }
+
+    enum PatientType <<enum>> {
+        INSURANCE
+        GOVERNMENT
+        SELF_PAY
+    }
+
+    class HospitalStay {
+        + stayId: String
+        + admissionDate: Date
+        + dischargeDate: Date
+    }
+}
+
+' Pricing Components Package
+package "Pricing Components" {
+    abstract class Charge {
+        + chargeId: String
+        + description: String
+        + date: Date
+        + quantity: int
+        + baseAmount: decimal
+        + getCalculatedBasePrice(): decimal
+    }
+
+    class ProcedureCharge extends Charge {
+        + procedureCode: String
+    }
+
+    class MedicationCharge extends Charge {
+        + medicationName: String
+        + dosage: String
+    }
+
+    class DiagnosticTestCharge extends Charge {
+        + testName: String
+    }
+
+    class RoomCharge extends Charge {
+        + roomNumber: String
+        + dailyRate: decimal
+    }
+
+    ' Pricing Rule Implementations
+    class StandardPricingRule implements IPricingRule {
+        + calculateBasePrice(charge: Charge): decimal
+    }
+
+    class TieredPricingRule implements IPricingRule {
+        + calculateBasePrice(charge: Charge): decimal
+    }
+    ' ... other specific pricing rule implementations
+}
+
+' Billing Policies Package (Strategy Pattern)
+package "Billing Policies" {
+    class InsuranceBillingPolicy implements IBillingPolicy {
+        + applyPolicy(patient: Patient, stay: HospitalStay, charges: List<Charge>): PatientBill
+    }
+
+    class GovernmentProgramBillingPolicy implements IBillingPolicy {
+        + applyPolicy(patient: Patient, stay: HospitalStay, charges: List<Charge>): PatientBill
+    }
+
+    class SelfPayBillingPolicy implements IBillingPolicy {
+        + applyPolicy(patient: Patient, stay: HospitalStay, charges: List<Charge>): PatientBill
+    }
+}
+
+' Billing Process & Output Package
+package "Billing Process & Output" {
+    class DischargeBilling {
+        + generatePatientBill(stay: HospitalStay): PatientBill
+        - selectBillingPolicy(patient: Patient): IBillingPolicy
+    }
+
+    class PatientBill {
+        + billId: String
+        + billingDate: Date
+        + totalAmount: decimal
+        + status: String
+    }
+
+    class BillItem {
+        + itemId: String
+        + description: String
+        + originalAmount: decimal
+        + adjustedAmount: decimal
+        + policyAdjustments: String ' e.g., "Co-pay: $50, Deductible: $200"
+    }
+}
+
+' Relationships
+
+' Patient Records Relationships
+Patient "1" -- "*" HospitalStay : "has"
+
+' Hospital Stay and Charges
+HospitalStay "1" -- "*" Charge : "includes"
+
+' Charge and Pricing Rules
+Charge "1" o-- "1" IPricingRule : "uses" ' Aggregation: A charge instance uses a specific pricing rule
+
+' Discharge Billing Process Relationships
+DischargeBilling "1" ..> IBillingPolicy : "selects & uses"
+DischargeBilling "1" ..> Patient : "reads patient type"
+DischargeBilling "1" ..> HospitalStay : "processes"
+DischargeBilling "1" ..> PatientBill : "generates"
+
+' Patient Bill and Bill Items
+PatientBill "1" *-- "*" BillItem : "contains" ' Composition: BillItem cannot exist without PatientBill
+
+' Bill Item and Charges
+BillItem "1" -- "1" Charge : "derived from"
+
+' Patient and Bills
+Patient "1" -- "*" PatientBill : "receives"
+
+' Hospital Stay and Bills
+HospitalStay "1" -- "0..1" PatientBill : "billed for" ' A stay might not have a bill yet, or only one final bill
+@enduml

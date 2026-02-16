@@ -1,0 +1,156 @@
+@startuml
+
+' Skinparam for better readability
+skinparam classAttributeIconSize 0
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam enumFontName Arial
+skinparam enumFontSize 12
+
+' Abstract classes and Interfaces
+abstract class Treatment {
+    + treatmentId: String
+    + description: String
+    + dateAdministered: Date
+    --
+    + getBasePrice(): BigDecimal
+}
+
+interface PricingRule {
+    + calculateBasePrice(treatment: Treatment): BigDecimal
+}
+
+interface BillingPolicy {
+    + generateBill(patient: Patient, hospitalStay: HospitalStay, treatments: List<Treatment>): Bill
+}
+
+' Concrete Treatment types
+class Procedure extends Treatment {
+    + procedureCode: String
+}
+
+class Medication extends Treatment {
+    + medicationName: String
+    + dosage: String
+}
+
+class DiagnosticTest extends Treatment {
+    + testCode: String
+}
+
+class RoomOccupancy extends Treatment {
+    + roomNumber: String
+    + dailyRate: BigDecimal
+    + numberOfDays: int
+}
+
+' Concrete PricingRule implementations
+class StandardPricingRule implements PricingRule {
+    + calculateBasePrice(treatment: Treatment): BigDecimal
+}
+
+' Patient and Hospital Stay
+class Patient {
+    + patientId: String
+    + name: String
+    + patientType: PatientType
+}
+
+enum PatientType {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+class HospitalStay {
+    + stayId: String
+    + admissionDateTime: Date
+    + dischargeDateTime: Date
+}
+
+' Billing related classes
+class Bill {
+    + billId: String
+    + billDate: Date
+    + totalAmount: BigDecimal
+    + status: BillStatus
+    --
+    + addBillItem(item: BillItem): void
+}
+
+enum BillStatus {
+    DRAFT
+    GENERATED
+    SUBMITTED
+    PAID
+    ADJUSTED
+}
+
+class BillItem {
+    + itemId: String
+    + description: String
+    + quantity: int
+    + unitPrice: BigDecimal
+    + policyAdjustment: BigDecimal ' e.g., co-pay, subsidy, discount
+    + subtotal: BigDecimal
+}
+
+' Concrete BillingPolicy implementations
+class InsuranceBillingPolicy implements BillingPolicy {
+    + coverageRules: String ' Simplified, could be a complex object or list of rules
+    + reimbursementLimits: BigDecimal
+    + coPaymentStructure: BigDecimal
+    --
+    + generateBill(patient: Patient, hospitalStay: HospitalStay, treatments: List<Treatment>): Bill
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    + subsidizedRates: Map<String, BigDecimal> ' Map treatment type to rate or specific codes
+    --
+    + generateBill(patient: Patient, hospitalStay: HospitalStay, treatments: List<Treatment>): Bill
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    + generateBill(patient: Patient, hospitalStay: HospitalStay, treatments: List<Treatment>): Bill
+}
+
+' Supporting classes for Insurance
+class InsurancePlan {
+    + planName: String
+    + provider: String
+    + policyNumber: String
+}
+
+' Orchestration for billing process
+class BillingManager {
+    + generatePatientBill(patient: Patient, hospitalStay: HospitalStay): Bill
+}
+
+
+' Relationships
+
+Patient "1" -- "0..*" HospitalStay : has
+HospitalStay "1" -- "1..*" Treatment : includes
+
+Treatment "1" -- "1" PricingRule : uses
+
+Patient "1" -- "0..*" Bill : generates
+
+Bill "1" -- "1..*" BillItem : contains
+
+' A BillItem is derived from a Treatment for auditing/traceability
+BillItem "0..*" -- "0..1" Treatment : derives from
+
+' Patient can have an insurance plan
+Patient "1" -- "0..1" InsurancePlan : has
+
+' InsuranceBillingPolicy needs details from InsurancePlan to apply rules
+InsuranceBillingPolicy "1" --> "1" InsurancePlan : references
+
+' BillingManager orchestrates the billing process
+' It selects the appropriate BillingPolicy based on PatientType
+BillingManager "1" --> "1" BillingPolicy : <<uses>>
+BillingManager "1" --> "1" Patient : <<accesses>>
+BillingManager "1" --> "1" HospitalStay : <<accesses>>
+
+@enduml

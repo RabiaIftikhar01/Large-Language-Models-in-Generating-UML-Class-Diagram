@@ -1,0 +1,188 @@
+@startuml
+!theme plain
+
+' --- Abstract Classes and Interfaces ---
+
+abstract class Charge {
+    + chargeId: String
+    + description: String
+    + baseAmount: BigDecimal
+    + getFinalAmount(): BigDecimal
+}
+
+interface PricingRule {
+    + applyPricing(baseAmount: BigDecimal): BigDecimal
+}
+
+interface BillingPolicy {
+    + calculateBillItems(stay: HospitalStay): List<BillItem>
+}
+
+' --- Concrete Charge Types ---
+
+class ProcedureCharge {
+    + procedureCode: String
+}
+
+class MedicationCharge {
+    + medicationName: String
+    + dosage: String
+}
+
+class DiagnosticTestCharge {
+    + testCode: String
+}
+
+class RoomOccupancyCharge {
+    + roomType: String
+    + nights: int
+}
+
+' --- Concrete Pricing Rules ---
+
+class StandardPricingRule {
+    + unitPrice: BigDecimal
+    + applyPricing(baseAmount: BigDecimal): BigDecimal
+}
+
+class DiscountPricingRule {
+    + discountPercentage: BigDecimal
+    + applyPricing(baseAmount: BigDecimal): BigDecimal
+}
+
+' --- Configuration Data for Billing Policies (Changeable without structural redesign) ---
+
+class InsuranceCoverageRules {
+    + getCoveragePercentage(chargeType: String): BigDecimal
+    + getApplicableCoverage(charge: Charge): BigDecimal
+}
+note right: Configurable rules for insurance coverage.
+
+class ReimbursementLimits {
+    + getLimit(chargeType: String): BigDecimal
+    + getApplicableLimit(charge: Charge): BigDecimal
+}
+note right: Configurable limits for reimbursements.
+
+class CoPaymentStructure {
+    + getCoPayAmount(chargeType: String, originalAmount: BigDecimal): BigDecimal
+    + calculateCoPay(charge: Charge, originalAmount: BigDecimal): BigDecimal
+}
+note right: Configurable co-payment rates.
+
+class SubsidizedRates {
+    + getSubsidizedRate(chargeType: String, originalAmount: BigDecimal): BigDecimal
+    + applySubsidy(charge: Charge, originalAmount: BigDecimal): BigDecimal
+}
+note right: Configurable fixed subsidized rates.
+
+' --- Concrete Billing Policies (Strategy Pattern Implementations) ---
+
+class InsuranceBillingPolicy {
+    - coverageRules: InsuranceCoverageRules
+    - reimbursementLimits: ReimbursementLimits
+    - coPaymentStructure: CoPaymentStructure
+    + calculateBillItems(stay: HospitalStay): List<BillItem>
+}
+note right: Implements insurance-specific billing logic.
+
+class GovernmentProgramBillingPolicy {
+    - subsidizedRates: SubsidizedRates
+    + calculateBillItems(stay: HospitalStay): List<BillItem>
+}
+note right: Implements government program billing logic.
+
+class SelfPayBillingPolicy {
+    + calculateBillItems(stay: HospitalStay): List<BillItem>
+}
+note right: Patient pays full amount.
+
+' --- Core Business Entities ---
+
+class Patient {
+    + patientId: String
+    + name: String
+    + patientType: PatientType <<enum>>
+    + getBillingPolicy(): BillingPolicy
+}
+
+enum PatientType {
+    INSURANCE
+    GOVERNMENT_PROGRAM
+    SELF_PAY
+}
+
+class HospitalStay {
+    + stayId: String
+    + admissionDate: Date
+    + dischargeDate: Date
+}
+
+class Bill {
+    + billId: String
+    + issueDate: Date
+    + totalAmount: BigDecimal
+    + status: BillStatus <<enum>>
+}
+
+enum BillStatus {
+    PENDING
+    BILLED
+    PAID
+    ADJUSTED
+}
+
+class BillItem {
+    + description: String
+    + originalAmount: BigDecimal
+    + adjustedAmount: BigDecimal
+    + policyAdjustmentDescription: String
+}
+
+' --- Service/Orchestrator ---
+
+class BillingService {
+    + generatePatientBill(stay: HospitalStay): Bill
+}
+note right: Orchestrates bill generation,\nselects policy, aggregates items.
+
+' --- Relationships ---
+
+Patient "1" -- "*" HospitalStay : "has"
+HospitalStay "1" -- "*" Charge : "contains"
+
+Charge <|-- ProcedureCharge
+Charge <|-- MedicationCharge
+Charge <|-- DiagnosticTestCharge
+Charge <|-- RoomOccupancyCharge
+
+Charge "1" -- "1" PricingRule : "uses"
+PricingRule <|-- StandardPricingRule
+PricingRule <|-- DiscountPricingRule
+
+BillingPolicy <|-- InsuranceBillingPolicy
+BillingPolicy <|-- GovernmentProgramBillingPolicy
+BillingPolicy <|-- SelfPayBillingPolicy
+
+Patient "1" -- "1" PatientType
+Patient ..> BillingPolicy : "selects"
+note on link: Based on PatientType or other attributes.
+
+HospitalStay "1" -- "1" Bill : "generates"
+Bill "1" -- "*" BillItem : "includes"
+Bill "1" -- "1" Patient : "for"
+Bill "1" -- "1" BillingPolicy : "applied_by"
+
+BillingService ..> HospitalStay : "processes"
+BillingService ..> BillingPolicy : "applies"
+BillingService ..> Bill : "creates"
+BillingService ..> Patient : "accesses"
+BillingService ..> BillItem : "aggregates"
+
+' Policy Configuration Relationships
+InsuranceBillingPolicy "1" -- "1" InsuranceCoverageRules : "uses"
+InsuranceBillingPolicy "1" -- "1" ReimbursementLimits : "uses"
+InsuranceBillingPolicy "1" -- "1" CoPaymentStructure : "uses"
+GovernmentProgramBillingPolicy "1" -- "1" SubsidizedRates : "uses"
+
+@enduml

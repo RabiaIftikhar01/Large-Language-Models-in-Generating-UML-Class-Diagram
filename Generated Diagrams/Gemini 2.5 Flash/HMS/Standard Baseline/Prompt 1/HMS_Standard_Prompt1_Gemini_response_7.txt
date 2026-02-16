@@ -1,0 +1,232 @@
+@startuml
+!pragma layout smetana
+
+' Theme for better readability
+skinparam class {
+  ArrowColor #3366FF
+  BorderColor #3366FF
+  BackgroundColor #F0F8FF
+  HeaderBackgroundColor #DDEEFF
+}
+skinparam interface {
+  ArrowColor #FF6633
+  BorderColor #FF6633
+  BackgroundColor #FFF8F0
+  HeaderBackgroundColor #FFEEDD
+}
+
+' Interfaces/Abstract Classes
+interface IBillingPolicy {
+  + calculateBill(context: BillingContext): Bill
+}
+
+interface IPricingPolicy {
+  + calculateBasePrice(service: MedicalService, quantity: int): Money
+}
+
+abstract class MedicalService {
+  + serviceId: String
+  + name: String
+  + description: String
+  --
+  + getPricingPolicy(): IPricingPolicy
+}
+
+' Concrete Billing Policies (Strategy Pattern implementations)
+class InsuranceBillingPolicy implements IBillingPolicy {
+  + calculateBill(context: BillingContext): Bill
+}
+
+class GovernmentProgramBillingPolicy implements IBillingPolicy {
+  + calculateBill(context: BillingContext): Bill
+}
+
+class SelfPayBillingPolicy implements IBillingPolicy {
+  + calculateBill(context: BillingContext): Bill
+}
+
+' Concrete Pricing Policies (Strategy Pattern implementations)
+class StandardPricingPolicy implements IPricingPolicy {
+  + fixedRate: Money
+  + calculateBasePrice(service: MedicalService, quantity: int): Money
+}
+
+class VolumeBasedPricingPolicy implements IPricingPolicy {
+  + tiers: Map<int, Money>
+  + calculateBasePrice(service: MedicalService, quantity: int): Money
+}
+
+' Concrete Medical Services (Charge Sources)
+class Procedure extends MedicalService {
+  + procedureCode: String
+}
+
+class Medication extends MedicalService {
+  + drugCode: String
+  + dosage: String
+}
+
+class DiagnosticTest extends MedicalService {
+  + testCode: String
+}
+
+class RoomType extends MedicalService {
+  + roomCategory: String
+  + dailyRate: Money
+}
+
+' Core Entities
+class Patient {
+  + patientId: String
+  + name: String
+  + dateOfBirth: Date
+  + preferredBillingPolicyType: String ' e.g., "Insurance", "Government", "SelfPay"
+}
+
+class PatientRecord {
+  + recordId: String
+  + medicalHistory: String
+  + allergies: List<String>
+}
+
+class HospitalStay {
+  + stayId: String
+  + admissionDate: Date
+  + dischargeDate: Date
+  + status: String ' e.g., "Active", "Discharged"
+  --
+  + addTreatmentEvent(event: TreatmentEvent): void
+}
+
+class TreatmentEvent {
+  + eventId: String
+  + date: Date
+  + quantity: int
+  + notes: String
+}
+
+class Bill {
+  + billId: String
+  + billDate: Date
+  + totalAmount: Money
+  + status: String ' e.g., "Pending", "Billed", "Paid"
+}
+
+class BillItem {
+  + itemId: String
+  + description: String
+  + quantity: int
+  + unitPrice: Money
+  + totalCharge: Money
+  + adjustments: Money ' e.g., insurance discounts, subsidies
+  + netAmount: Money
+}
+
+' Supporting Entities for Policies
+class InsuranceCoverage {
+  + policyNumber: String
+  + provider: String
+  + coverageDetails: Map<String, Object>
+  + reimbursementLimits: Map<String, Money>
+  + coPaymentStructure: Map<String, Money>
+}
+
+class GovernmentProgram {
+  + programId: String
+  + name: String
+  + subsidizedRates: Map<String, Money>
+}
+
+' Orchestration and Management
+class BillingService {
+  + processDischargeBilling(stay: HospitalStay): Bill
+}
+
+class PolicyManager {
+  + getBillingPolicy(policyType: String): IBillingPolicy
+  + getPricingPolicy(serviceId: String): IPricingPolicy
+  + updatePolicy(policy: Object): void
+}
+
+class BillingContext {
+  + patient: Patient
+  + hospitalStay: HospitalStay
+  + insuranceCoverage: InsuranceCoverage
+  + governmentProgram: GovernmentProgram
+  + treatmentEvents: List<TreatmentEvent>
+  ' ... other runtime data needed by policies
+}
+
+' Value Object for Money
+class Money {
+  + amount: BigDecimal
+  + currency: Currency
+}
+
+' Relationships
+
+Patient "1" -- "1" PatientRecord : has >
+Patient "1" -- "0..*" HospitalStay : admits >
+
+HospitalStay "1" *-- "0..*" TreatmentEvent : contains >
+
+TreatmentEvent "1" -- "1" MedicalService : refers to >
+
+MedicalService "1" -- "1" IPricingPolicy : uses >
+StandardPricingPolicy .up.|> IPricingPolicy
+VolumeBasedPricingPolicy .up.|> IPricingPolicy
+
+Procedure -up-|> MedicalService
+Medication -up-|> MedicalService
+DiagnosticTest -up-|> MedicalService
+RoomType -up-|> MedicalService
+
+HospitalStay "1" -- "0..1" Bill : generates >
+Bill "1" *-- "0..*" BillItem : contains >
+BillItem "1" -- "1" TreatmentEvent : derived from >
+
+IBillingPolicy <|.. InsuranceBillingPolicy
+IBillingPolicy <|.. GovernmentProgramBillingPolicy
+IBillingPolicy <|.. SelfPayBillingPolicy
+
+InsuranceBillingPolicy "1" -- "0..1" InsuranceCoverage : applies >
+GovernmentProgramBillingPolicy "1" -- "0..1" GovernmentProgram : applies >
+
+BillingService "1" -- "1" PolicyManager : uses >
+BillingService "1" -- "1" IBillingPolicy : <<uses>> >
+BillingService "1" -- "1" BillingContext : creates >
+
+PolicyManager "1" -- "0..*" IBillingPolicy : manages >
+PolicyManager "1" -- "0..*" IPricingPolicy : manages >
+
+BillingContext "1" -- "1" Patient : for >
+BillingContext "1" -- "1" HospitalStay : for >
+BillingContext "1" -- "0..1" InsuranceCoverage : includes >
+BillingContext "1" -- "0..1" GovernmentProgram : includes >
+
+Money -[hidden]- BillingContext ' Just to group Money visually
+
+' Notes for clarity
+note right of PolicyManager
+  Manages dynamic loading and
+  interchangeability of policies.
+  Allows updates without structural redesign.
+end note
+
+note right of IBillingPolicy
+  **Strategy Pattern:**
+  Billing logic interchangeable at runtime.
+end note
+
+note right of IPricingPolicy
+  **Strategy Pattern:**
+  Pricing logic for services.
+end note
+
+note "Strong separation between Patient Records, Pricing, and Billing Policies" as N1
+PatientRecord -- N1
+MedicalService -- N1
+IBillingPolicy -- N1
+end note
+
+@enduml

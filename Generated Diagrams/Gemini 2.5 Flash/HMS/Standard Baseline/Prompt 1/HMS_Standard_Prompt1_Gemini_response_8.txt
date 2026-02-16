@@ -1,0 +1,175 @@
+@startuml
+!theme plain
+
+' Interfaces for extensibility and runtime interchangeability
+interface IBillingPolicy {
+    + applyPolicy(hospitalStay: HospitalStay, charges: List<Charge>): Bill
+}
+
+interface IPricingRule {
+    + calculateAdjustedPrice(charge: Charge): BigDecimal
+}
+
+' Abstract class for common treatment characteristics
+abstract class Treatment {
+    + treatmentId: String
+    + description: String
+    + dateAdministered: Date
+    + {abstract} getCharges(): List<Charge>
+}
+
+' Core Entities
+class Patient {
+    + patientId: String
+    + name: String
+    + dateOfBirth: Date
+    + contactInfo: String
+}
+
+class HospitalStay {
+    + stayId: String
+    + admissionDate: Date
+    + dischargeDate: Date
+    + getTreatments(): List<Treatment>
+    + getAggregatedCharges(): List<Charge> ' Method to collect all charges from treatments
+}
+
+class Charge {
+    + chargeId: String
+    + description: String
+    + quantity: int
+    + originalUnitPrice: BigDecimal
+    + calculateRawAmount(): BigDecimal
+    + setPricingRule(rule: IPricingRule)
+}
+
+class Bill {
+    + billId: String
+    + issueDate: Date
+    + dueDate: Date
+    + totalAmount: BigDecimal
+    + patientAmountDue: BigDecimal
+    + insurerAmountDue: BigDecimal
+    + status: BillStatus
+    + addBillItem(item: BillItem)
+}
+
+class BillItem {
+    + itemId: String
+    + description: String
+    + originalChargeAmount: BigDecimal
+    + adjustedAmount: BigDecimal
+    + policyAdjustments: String ' e.g., "Copay applied", "Subsidized"
+}
+
+' Concrete Implementations for Treatment (Diverse Sources)
+class Procedure extends Treatment {
+    + procedureCode: String
+    + getCharges(): List<Charge>
+}
+
+class Medication extends Treatment {
+    + medicationName: String
+    + dosage: String
+    + getCharges(): List<Charge>
+}
+
+class DiagnosticTest extends Treatment {
+    + testCode: String
+    + result: String
+    + getCharges(): List<Charge>
+}
+
+class RoomOccupancy extends Treatment {
+    + roomNumber: String
+    + dailyRate: BigDecimal
+    + getCharges(): List<Charge>
+}
+
+' Concrete Implementations for IPricingRule (Independent Pricing Rules)
+class FixedPriceRule implements IPricingRule {
+    + fixedPrice: BigDecimal
+    + calculateAdjustedPrice(charge: Charge): BigDecimal
+}
+
+class TieredPriceRule implements IPricingRule {
+    + tiers: Map<Integer, BigDecimal>
+    + calculateAdjustedPrice(charge: Charge): BigDecimal
+}
+
+' Concrete Implementations for IBillingPolicy (Strategy Pattern - Interchangeable at Runtime)
+class InsuranceBillingPolicy implements IBillingPolicy {
+    + insuranceProvider: String
+    + coverageDetails: String
+    + coPaymentStructure: BigDecimal
+    + reimbursementLimits: Map<String, BigDecimal>
+    + applyPolicy(hospitalStay: HospitalStay, charges: List<Charge>): Bill
+}
+
+class GovernmentBillingPolicy implements IBillingPolicy {
+    + programName: String
+    + subsidizedRates: Map<String, BigDecimal>
+    + applyPolicy(hospitalStay: HospitalStay, charges: List<Charge>): Bill
+}
+
+class SelfPayBillingPolicy implements IBillingPolicy {
+    + applyPolicy(hospitalStay: HospitalStay, charges: List<Charge>): Bill
+}
+
+' Service/Facade to orchestrate billing process
+class BillingEngine {
+    + generateBill(hospitalStay: HospitalStay, policy: IBillingPolicy): Bill
+}
+
+' Enums
+enum BillStatus {
+    PENDING
+    PAID
+    PARTIAL_PAID
+    CANCELLED
+}
+
+' Relationships
+
+' Patient records and Hospital Stays
+Patient "1" -- "0..*" HospitalStay : "has"
+
+' Hospital Stay aggregates treatments
+HospitalStay "1" *-- "0..*" Treatment : "contains"
+
+' Treatments generate charges
+Treatment "1" *-- "1..*" Charge : "generates"
+
+' Charges apply pricing rules
+Charge "1" o-- "1" IPricingRule : "applies"
+
+' Bill includes Bill Items
+Bill "1" *-- "1..*" BillItem : "includes"
+
+' Bill Item is based on a Charge
+BillItem "1" -- "1" Charge : "based on"
+
+' Bill has a status
+Bill "1" -- "1" BillStatus : "has"
+
+' Inheritance for Treatment types
+Treatment <|-- Procedure
+Treatment <|-- Medication
+Treatment <|-- DiagnosticTest
+Treatment <|-- RoomOccupancy
+
+' Implementation for Pricing Rules
+IPricingRule <|-- FixedPriceRule
+IPricingRule <|-- TieredPriceRule
+
+' Implementation for Billing Policies (Strategy Pattern)
+IBillingPolicy <|-- InsuranceBillingPolicy
+IBillingPolicy <|-- GovernmentBillingPolicy
+IBillingPolicy <|-- SelfPayBillingPolicy
+
+' Billing Engine orchestrates the process
+BillingEngine ..> HospitalStay : "uses"
+BillingEngine ..> IBillingPolicy : "uses"
+BillingEngine ..> Bill : "creates"
+
+@enduml

@@ -1,0 +1,199 @@
+@startuml
+!theme mars
+
+' Interfaces and Abstract Classes '
+interface BillingPolicy {
+    + calculateBill(stay: HospitalStay): Bill
+}
+
+abstract class Service {
+    - serviceId: String
+    - name: String
+    - description: String
+    + getBasePrice(): Money
+}
+
+abstract class PricingRule {
+    - ruleId: String
+    - name: String
+    + calculatePrice(service: Service, quantity: int): Money
+}
+
+' Core Domain Classes '
+class Patient {
+    - patientId: String
+    - name: String
+    - dateOfBirth: Date
+    + getPatientType(): PatientType
+}
+
+class HospitalStay {
+    - stayId: String
+    - admissionDate: Date
+    - dischargeDate: Date
+    + getCharges(): List<Charge>
+    + getPatient(): Patient
+}
+
+class Charge {
+    - chargeId: String
+    - amount: Money // The final calculated amount for this specific charge
+    - quantity: int
+    - serviceDate: Date
+    + getService(): Service
+    + getPricingRuleApplied(): PricingRule
+}
+
+class Bill {
+    - billId: String
+    - billingDate: Date
+    - totalAmount: Money
+    + addCharge(charge: Charge): void
+    + getCharges(): List<Charge>
+}
+
+' Concrete Service Implementations '
+class Procedure extends Service {
+    // specific attributes for procedure
+}
+
+class Medication extends Service {
+    // specific attributes for medication
+    - dosage: String
+}
+
+class DiagnosticTest extends Service {
+    // specific attributes for diagnostic test
+    - testCode: String
+}
+
+class RoomOccupancy extends Service {
+    // specific attributes for room occupancy
+    - roomType: String
+    - dailyRate: Money
+}
+
+' Concrete PricingRule Implementations '
+class FixedPriceRule extends PricingRule {
+    - fixedAmount: Money
+}
+
+class TieredPriceRule extends PricingRule {
+    - tiers: Map<Quantity, Money>
+}
+
+class PercentageDiscountRule extends PricingRule {
+    - discountPercentage: BigDecimal
+}
+
+' Billing Policy Configuration and Implementations '
+class PolicyConfiguration {
+    // Stores dynamic rules and parameters for billing policies
+    // e.g., coverage limits, co-payments, subsidized rates
+    - parameters: Map<String, String> // A generic way to store config values
+    + getParameter(key: String): String
+}
+
+class InsurancePlan {
+    - planId: String
+    - name: String
+    - carrier: String
+    - coverageRules: List<CoverageRule>
+    - reimbursementLimits: List<ReimbursementLimit>
+    - coPaymentStructure: CoPaymentStructure
+}
+
+class GovernmentProgram {
+    - programId: String
+    - name: String
+    - agency: String
+    - subsidizedRates: List<SubsidizedRate>
+    - eligibilityRules: List<EligibilityRule>
+}
+
+class InsuranceBillingPolicy implements BillingPolicy {
+    - insurancePlan: InsurancePlan
+    - policyConfiguration: PolicyConfiguration // Specific parameters for insurance billing
+}
+
+class GovernmentProgramBillingPolicy implements BillingPolicy {
+    - governmentProgram: GovernmentProgram
+    - policyConfiguration: PolicyConfiguration // Specific parameters for government billing
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    - policyConfiguration: PolicyConfiguration // Specific parameters for self-pay (e.g., prompt-pay discounts)
+}
+
+' Helper Classes for Policy Configuration Details '
+class CoverageRule {
+    - ruleId: String
+    - description: String
+    - coveragePercentage: BigDecimal
+    - maxCoverageAmount: Money
+}
+class ReimbursementLimit {
+    - limitId: String
+    - description: String
+    - maxAmountPerService: Money
+    - maxAmountPerStay: Money
+}
+class CoPaymentStructure {
+    - structureId: String
+    - description: String
+    - fixedCoPay: Money
+    - percentageCoPay: BigDecimal
+}
+class SubsidizedRate {
+    - rateId: String
+    - description: String
+    - fixedSubsidizedAmount: Money
+    - percentageDiscount: BigDecimal
+}
+class EligibilityRule {
+    - ruleId: String
+    - description: String
+}
+
+' Relationships '
+Patient "1" -- "0..*" HospitalStay : has
+HospitalStay "1" -- "0..*" Charge : contains
+HospitalStay "1" -- "1" Bill : generates_for >
+
+Bill "1" -- "0..*" Charge : aggregates
+
+Charge "1" -- "1" Service : for
+Charge "1" -- "1" PricingRule : applied_by
+
+Service "1" -- "0..*" PricingRule : can_be_priced_by
+
+HospitalStay "1" --> "1" BillingPolicy : <<uses>> to calculate Bill
+' This implies HospitalStay (or a BillGenerator) selects the policy based on Patient type '
+
+InsuranceBillingPolicy "1" -- "1" InsurancePlan : uses
+GovernmentProgramBillingPolicy "1" -- "1" GovernmentProgram : uses
+
+BillingPolicy "1" -- "1" PolicyConfiguration : configures_with
+
+InsurancePlan "1" -- "0..*" CoverageRule
+InsurancePlan "1" -- "0..*" ReimbursementLimit
+InsurancePlan "1" -- "1" CoPaymentStructure
+
+GovernmentProgram "1" -- "0..*" SubsidizedRate
+GovernmentProgram "1" -- "0..*" EligibilityRule
+
+' Enum for Patient Type '
+enum PatientType {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+Patient "1" -- "1" PatientType : has
+
+' Value Object for Money '
+class Money {
+    - amount: BigDecimal
+    - currency: String
+}
+
+@enduml

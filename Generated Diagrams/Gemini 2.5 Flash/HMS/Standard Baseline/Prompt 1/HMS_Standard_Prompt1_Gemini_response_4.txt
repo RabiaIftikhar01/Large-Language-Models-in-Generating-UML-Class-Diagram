@@ -1,0 +1,172 @@
+@startuml
+!theme mars
+
+title Hospital Billing Management Platform
+
+' --- Interfaces and Abstract Classes ---
+
+interface BillingPolicy {
+    + calculatePatientLiability(bill: Bill, patient: Patient): BigDecimal
+    + getPolicyName(): String
+}
+
+abstract class PricingRule {
+    - ruleId: String
+    - effectiveDate: Date
+    + applyPricing(charge: Charge): BigDecimal
+}
+
+abstract class Charge {
+    - chargeId: String
+    - description: String
+    - quantity: int
+    - rawUnitPrice: BigDecimal
+    + calculateFinalPrice(): BigDecimal
+}
+
+' --- Concrete Implementations ---
+
+class InsuranceBillingPolicy implements BillingPolicy {
+    - coverageRules: Map<String, String>
+    - reimbursementLimits: Map<String, BigDecimal>
+    - coPaymentStructures: Map<String, BigDecimal>
+    + updateCoverageRules(rules: Map<String, String>)
+    + updateReimbursementLimits(limits: Map<String, BigDecimal>)
+    + updateCoPaymentStructures(structures: Map<String, BigDecimal>)
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - subsidizedRates: Map<String, BigDecimal>
+    + updateSubsidizedRates(rates: Map<String, BigDecimal>)
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    // Implements calculatePatientLiability to return full amount
+}
+
+class FixedPriceRule extends PricingRule {
+    - fixedAmount: BigDecimal
+}
+
+class TieredPriceRule extends PricingRule {
+    - tiers: Map<Integer, BigDecimal> // e.g., quantity -> price
+}
+
+class PercentageDiscountRule extends PricingRule {
+    - discountPercentage: BigDecimal
+}
+
+class ProcedureCharge extends Charge {
+    - procedureCode: String
+}
+
+class MedicationCharge extends Charge {
+    - medicationCode: String
+}
+
+class DiagnosticTestCharge extends Charge {
+    - testCode: String
+}
+
+class RoomOccupancyCharge extends Charge {
+    - roomType: String
+    - dailyRate: BigDecimal
+}
+
+' --- Core Entities ---
+
+class Patient {
+    - patientId: String
+    - name: String
+    - dateOfBirth: Date
+    - patientType: PatientType
+}
+
+enum PatientType {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+class HospitalStay {
+    - stayId: String
+    - admissionDate: Date
+    - dischargeDate: Date
+}
+
+class Bill {
+    - billId: String
+    - billDate: Date
+    - totalChargesAmount: BigDecimal
+    - patientLiability: BigDecimal
+    - insurerShare: BigDecimal
+    - governmentShare: BigDecimal
+    - status: BillStatus
+}
+
+enum BillStatus {
+    DRAFT
+    FINALIZED
+    PAID
+    ADJUSTED
+}
+
+class BillingEngine {
+    + generateBill(stay: HospitalStay, patient: Patient): Bill
+    - selectBillingPolicy(patientType: PatientType): BillingPolicy
+}
+
+' --- Relationships ---
+
+Patient "1" -- "0..*" HospitalStay : has
+
+HospitalStay "1" -- "0..*" Charge : accumulates
+
+Charge "1" -- "1" PricingRule : applies_to
+
+HospitalStay "1" -- "0..1" Bill : generates
+
+Bill "1" -- "1" BillingPolicy : calculated_using
+
+' BillingEngine orchestrates the process '
+BillingEngine ..> BillingPolicy : <<uses>>
+BillingEngine ..> HospitalStay
+BillingEngine ..> Patient
+BillingEngine ..> Charge
+
+Patient "1" --> "1" PatientType : is_of_type
+
+' --- Packages for Strong Separation ---
+
+package "Patient Records" {
+    Patient
+    PatientType
+}
+
+package "Pricing Components" {
+    Charge
+    ProcedureCharge
+    MedicationCharge
+    DiagnosticTestCharge
+    RoomOccupancyCharge
+    PricingRule
+    FixedPriceRule
+    TieredPriceRule
+    PercentageDiscountRule
+}
+
+package "Billing Policies" {
+    BillingPolicy
+    InsuranceBillingPolicy
+    GovernmentBillingPolicy
+    SelfPayBillingPolicy
+}
+
+package "Billing Core" {
+    HospitalStay
+    Bill
+    BillStatus
+    BillingEngine
+}
+
+@enduml

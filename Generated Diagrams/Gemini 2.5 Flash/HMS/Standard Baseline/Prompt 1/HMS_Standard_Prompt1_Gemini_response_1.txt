@@ -1,0 +1,178 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+' Core Entities'
+class Patient {
+    - patientId: String
+    - name: String
+    - dateOfBirth: Date
+    - contactInfo: String
+    - patientType: PatientType
+}
+
+enum PatientType {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+class HospitalStay {
+    - stayId: String
+    - admissionDate: Date
+    - dischargeDate: Date
+}
+
+class Charge {
+    - chargeId: String
+    - description: String
+    - originalAmount: BigDecimal
+    - chargeDate: Date
+}
+
+class Bill {
+    - billId: String
+    - billDate: Date
+    - totalOriginalAmount: BigDecimal
+    - totalAdjustedAmount: BigDecimal
+    - patientResponsibility: BigDecimal
+    - insurerResponsibility: BigDecimal
+    - governmentResponsibility: BigDecimal
+}
+
+class BillItem {
+    - itemId: String
+    - description: String
+    - originalChargeAmount: BigDecimal
+    - adjustedChargeAmount: BigDecimal
+    - policyAdjustments: String
+}
+
+' Pricing Components (Strategy Pattern for individual charge pricing)'
+abstract class PricingRule {
+    + calculatePrice(charge: Charge): BigDecimal
+}
+
+class ProcedurePricingRule {
+    - baseRate: BigDecimal
+    - procedureCode: String
+}
+
+class MedicationPricingRule {
+    - drugCode: String
+    - unitPrice: BigDecimal
+}
+
+class DiagnosticTestPricingRule {
+    - testCode: String
+    - flatFee: BigDecimal
+}
+
+class RoomOccupancyPricingRule {
+    - roomType: String
+    - dailyRate: BigDecimal
+}
+
+' Billing Policies (Strategy Pattern for overall billing logic)'
+abstract class BillingPolicy {
+    + applyPolicy(bill: Bill): void
+}
+
+class InsuranceBillingPolicy {
+    - policyName: String
+    - insurerId: String
+}
+
+class GovernmentBillingPolicy {
+    - programName: String
+    - programId: String
+}
+
+class SelfPayBillingPolicy {
+    - discountPercentage: BigDecimal
+}
+
+' Policy Components (Configurable rules that govern policies)'
+abstract class PolicyComponent {
+    - componentId: String
+    - name: String
+}
+
+class CoverageRule {
+    - coveredServices: List<String>
+    - deductibleAmount: BigDecimal
+}
+
+class ReimbursementLimit {
+    - maxAmountPerService: BigDecimal
+    - annualLimit: BigDecimal
+}
+
+class CoPaymentStructure {
+    - coPayPercentage: BigDecimal
+    - fixedCoPayAmount: BigDecimal
+}
+
+class SubsidizedRate {
+    - subsidyPercentage: BigDecimal
+    - fixedSubsidyAmount: BigDecimal
+}
+
+' Orchestration Component'
+class BillingEngine {
+    + generateBill(stay: HospitalStay, policy: BillingPolicy): Bill
+}
+
+
+' Relationships'
+
+' Patient and Stay'
+Patient "1" -- "0..*" HospitalStay : has
+Patient "1" -- "1" PatientType : has
+
+' HospitalStay and Charges'
+HospitalStay "1" -- "1..*" Charge : accumulates
+
+' Charge and PricingRule (Composition: a Charge uses a specific PricingRule)'
+Charge "1" *-- "1" PricingRule : uses >
+
+' PricingRule Hierarchy'
+PricingRule <|-- ProcedurePricingRule
+PricingRule <|-- MedicationPricingRule
+PricingRule <|-- DiagnosticTestPricingRule
+PricingRule <|-- RoomOccupancyPricingRule
+
+' BillingPolicy Hierarchy'
+BillingPolicy <|-- InsuranceBillingPolicy
+BillingPolicy <|-- GovernmentBillingPolicy
+BillingPolicy <|-- SelfPayBillingPolicy
+
+' Policy Components and Billing Policies (Composition: policies are configured by components)'
+InsuranceBillingPolicy "1" *-- "0..*" CoverageRule : applies
+InsuranceBillingPolicy "1" *-- "0..*" ReimbursementLimit : applies
+InsuranceBillingPolicy "1" *-- "0..*" CoPaymentStructure : applies
+
+GovernmentBillingPolicy "1" *-- "0..*" SubsidizedRate : applies
+GovernmentBillingPolicy "1" *-- "0..*" ReimbursementLimit : applies
+
+' Bill and Bill Items'
+Bill "1" -- "1..*" BillItem : contains
+
+' BillItem and Charge (Traceability: a BillItem is derived from a Charge)'
+BillItem "0..*" -- "1" Charge : derived from
+
+' BillingEngine and its dependencies (Orchestration)'
+BillingEngine .> BillingPolicy : <<uses>>
+BillingEngine .> HospitalStay : <<uses>>
+BillingEngine .> Bill : <<creates>>
+
+' Notes for clarity'
+note "Strategy Pattern for billing logic.\nInterchangeable at runtime." as BillingPolicyNote
+BillingPolicy .. BillingPolicyNote
+
+note "Strategy Pattern for individual charge pricing.\nExtensible for new charge types." as PricingRuleNote
+PricingRule .. PricingRuleNote
+
+note "Configurable rules, frequently changing.\nComposed by Billing Policies." as PolicyComponentNote
+PolicyComponent .. PolicyComponentNote
+
+@enduml

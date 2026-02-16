@@ -1,0 +1,196 @@
+@startuml
+!theme plain
+
+' --- Abstract Classes and Interfaces ---
+
+' Base for all charges, defining common properties and an abstract method for amount calculation.
+abstract class Charge {
+    + chargeId: String
+    + description: String
+    + dateOfService: Date
+    + calculateAmount(): Money
+}
+
+' Interface for pricing rules, allowing different strategies for calculating the price of a charge.
+interface PricingRule {
+    + calculatePrice(charge: Charge): Money
+}
+
+' Strategy interface for billing policies, allowing interchangeable billing logic at runtime.
+interface BillingPolicy {
+    + calculateBill(stay: HospitalStay, charges: List<Charge>): Bill
+}
+
+' Abstract base for policy-specific configurations, enabling dynamic updates to policy rules.
+abstract class BillingPolicyConfiguration {
+    ' Base for policy-specific configurations
+}
+
+' --- Concrete Classes ---
+
+' Represents a patient in the system.
+class Patient {
+    + patientId: String
+    + name: String
+    + address: String
+    + insuranceInfo: String
+    + patientType: PatientType <<enum>>
+}
+
+' Represents a patient's stay in the hospital, acting as the context for billing.
+class HospitalStay {
+    + stayId: String
+    + admissionDate: Date
+    + dischargeDate: Date
+    + generateDischargeBill(): Bill
+}
+
+' The final generated bill for a patient's hospital stay.
+class Bill {
+    + billId: String
+    + issueDate: Date
+    + dueDate: Date
+    + totalAmount: Money
+}
+
+' A single line item within a bill, detailing a specific charge and its adjustments.
+class BillLineItem {
+    + description: String
+    + originalAmount: Money
+    + adjustedAmount: Money
+    + policyAdjustmentReason: String
+}
+
+' --- Concrete Charge Types ---
+class ProcedureCharge extends Charge {
+    + procedureCode: String
+    + procedureName: String
+}
+
+class MedicationCharge extends Charge {
+    + medicationName: String
+    + dosage: String
+}
+
+class DiagnosticTestCharge extends Charge {
+    + testName: String
+    + testCode: String
+}
+
+class RoomCharge extends Charge {
+    + roomNumber: String
+    + dailyRate: Money
+}
+
+' --- Concrete Pricing Rules ---
+class StandardPricingRule implements PricingRule {
+    + baseRate: Money
+    + calculatePrice(charge: Charge): Money
+}
+
+class DiscountPricingRule implements PricingRule {
+    + discountPercentage: Double
+    + calculatePrice(charge: Charge): Money
+}
+
+' --- Concrete Billing Policies (Strategy Pattern Implementations) ---
+class InsuranceBillingPolicy implements BillingPolicy {
+    - config: InsurancePolicyConfiguration
+    + calculateBill(stay: HospitalStay, charges: List<Charge>): Bill
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - config: GovernmentPolicyConfiguration
+    + calculateBill(stay: HospitalStay, charges: List<Charge>): Bill
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    - config: SelfPayPolicyConfiguration
+    + calculateBill(stay: HospitalStay, charges: List<Charge>): Bill
+}
+
+' --- Concrete Billing Policy Configurations ---
+class InsurancePolicyConfiguration extends BillingPolicyConfiguration {
+    + coverageRules: String
+    + reimbursementLimits: String
+    + coPaymentStructure: String
+}
+
+class GovernmentPolicyConfiguration extends BillingPolicyConfiguration {
+    + subsidizedRates: String
+    + programLimits: String
+}
+
+class SelfPayPolicyConfiguration extends BillingPolicyConfiguration {
+    + selfPayDiscount: Double
+}
+
+' --- Enums and Value Objects ---
+enum PatientType {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+' Value object for monetary amounts to ensure consistency.
+class Money {
+    + amount: Double
+    + currency: String
+}
+
+' --- Relationships ---
+
+' A Patient can have multiple HospitalStays.
+Patient "1" -- "*" HospitalStay : "has"
+
+' A HospitalStay includes multiple Charges.
+HospitalStay "1" -- "*" Charge : "includes"
+
+' A HospitalStay uses one BillingPolicy to generate its bill (Strategy pattern).
+HospitalStay "1" o-- "1" BillingPolicy : "uses" >
+
+' A HospitalStay generates exactly one Bill.
+HospitalStay "1" -- "1" Bill : "generates"
+
+' A Bill contains multiple BillLineItems.
+Bill "1" -- "*" BillLineItem : "contains"
+
+' Each BillLineItem references a specific Charge.
+BillLineItem "1" -- "1" Charge : "references"
+
+' Each Charge uses a PricingRule to determine its amount.
+Charge "1" o-- "1" PricingRule : "uses"
+
+' A BillingPolicy is configured by a specific BillingPolicyConfiguration.
+BillingPolicy "1" o-- "1" BillingPolicyConfiguration : "configured by"
+
+' A Patient is associated with a PatientType, which can influence policy selection.
+Patient "1" -- "1" PatientType : "is of type"
+
+' --- Notes for Clarity ---
+
+note right of HospitalStay::generateDischargeBill
+  Delegates bill calculation
+  to the current BillingPolicy
+end note
+
+note bottom of BillingPolicy
+  **Strategy Pattern:**
+  Billing logic is interchangeable
+  at runtime based on patient type.
+end note
+
+note bottom of BillingPolicyConfiguration
+  Separates policy configuration data
+  (e.g., rates, limits) from policy logic,
+  allowing frequent updates without
+  code changes to policy classes.
+end note
+
+note right of Charge
+  Each charge type (procedure, medication, etc.)
+  can have its own specific pricing logic
+  via its associated PricingRule.
+end note
+
+@enduml
