@@ -1,0 +1,34 @@
+@startuml
+
+class WeatherStation {
+    +String stationId
+    +String location
+    +void requestData()
+    +void transmitData()
+}
+
+class Sensor {
+    +String sensorId
+    +String sensorType
+    +float readMeasurement()
+}
+
+class WeatherInformationSystem {
+    +void linkToStation(WeatherStation station)
+    +void requestDataFromStation(WeatherStation station)
+    +void processData(SensorData data)
+}
+
+class SensorData {
+    +String stationId
+    +String sensorId
+    +float measurementValue
+    +Date timestamp
+}
+
+WeatherStation "1" -- "0..*" Sensor : contains >
+WeatherStation "1" -- "0..*" SensorData : sends >
+WeatherInformationSystem "1" -- "0..*" WeatherStation : links to >
+WeatherInformationSystem "1" -- "0..*" SensorData : processes >
+
+@enduml
