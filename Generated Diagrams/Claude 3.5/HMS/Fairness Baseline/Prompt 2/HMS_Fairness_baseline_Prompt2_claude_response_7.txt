@@ -1,0 +1,138 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+interface BillingStrategy {
+  + calculateAmount(items: List<BillItem>): Money
+  + applyPolicy(bill: Bill): void
+}
+
+class InsuranceStrategy {
+  - coverageLimit: Money
+  - copaymentRate: float
+  - approvedProcedures: List<String>
+  + calculateAmount(items: List<BillItem>): Money
+  + applyPolicy(bill: Bill): void
+  - validateCoverage(item: BillItem): boolean
+}
+
+class GovernmentSubsidyStrategy {
+  - subsidyRate: float
+  - eligibilityCriteria: String
+  + calculateAmount(items: List<BillItem>): Money
+  + applyPolicy(bill: Bill): void
+  - applySubsidy(amount: Money): Money
+}
+
+class SelfPayStrategy {
+  + calculateAmount(items: List<BillItem>): Money
+  + applyPolicy(bill: Bill): void
+}
+
+class Patient {
+  - patientId: String
+  - name: String
+  - contactInfo: String
+  - admissionDate: Date
+  - dischargeDate: Date
+  + getPatientId(): String
+  + getName(): String
+  + getAdmissionDate(): Date
+  + getDischargeDate(): Date
+}
+
+class Bill {
+  - billId: String
+  - billDate: Date
+  - totalAmount: Money
+  - status: String
+  + addItem(item: BillItem): void
+  + removeItem(item: BillItem): void
+  + calculateTotal(): Money
+  + setStrategy(strategy: BillingStrategy): void
+  + generateInvoice(): Invoice
+  + getBillId(): String
+  + getTotalAmount(): Money
+}
+
+abstract class BillItem {
+  - itemId: String
+  - description: String
+  - quantity: int
+  - unitPrice: Money
+  + calculateAmount(): Money
+  + getItemId(): String
+  + getDescription(): String
+  + getQuantity(): int
+  + getUnitPrice(): Money
+}
+
+class ProcedureItem {
+  - procedureCode: String
+  - procedureName: String
+  + calculateAmount(): Money
+}
+
+class PharmaceuticalItem {
+  - medicationCode: String
+  - dosage: String
+  + calculateAmount(): Money
+}
+
+class LaboratoryItem {
+  - testCode: String
+  - testName: String
+  + calculateAmount(): Money
+}
+
+class RoomItem {
+  - roomType: String
+  - numberOfDays: int
+  + calculateAmount(): Money
+}
+
+class Invoice {
+  - invoiceNumber: String
+  - issueDate: Date
+  - dueDate: Date
+  - paymentStatus: String
+  + getInvoiceNumber(): String
+  + getIssueDate(): Date
+  + markAsPaid(): void
+  + generateDocument(): Document
+}
+
+class Money {
+  - amount: float
+  - currency: String
+  + add(other: Money): Money
+  + subtract(other: Money): Money
+  + multiply(factor: float): Money
+  + getAmount(): float
+  + getCurrency(): String
+}
+
+class BillingService {
+  + processBill(patient: Patient, bill: Bill): Invoice
+  + applyBillingPolicy(bill: Bill, strategy: BillingStrategy): void
+  + validateBill(bill: Bill): boolean
+}
+
+BillingStrategy <|.. InsuranceStrategy
+BillingStrategy <|.. GovernmentSubsidyStrategy
+BillingStrategy <|.. SelfPayStrategy
+
+Patient "1" -- "0..*" Bill : generates >
+Bill "1" *-- "1..*" BillItem : contains
+Bill "1" -- "1" BillingStrategy : applies >
+Bill "1" -- "1" Invoice : produces >
+
+BillItem <|-- ProcedureItem
+BillItem <|-- PharmaceuticalItem
+BillItem <|-- LaboratoryItem
+BillItem <|-- RoomItem
+
+BillItem "1" -- "1" Money : priced in >
+Bill "1" -- "1" Money : totals to >
+
+BillingService ..> Bill : processes
+BillingService ..> Patient : acc
