@@ -1,0 +1,60 @@
+
+@startuml
+abstract class Patient {
+    - id : int
+    - name : string
+    + getInfo() : string
+}
+
+abstract class BillingPolicy {
+    + calculateBill(patient : Patient) : float
+}
+
+class InsuranceBillingPolicy extends BillingPolicy {
+    + calculateBill(patient : Patient) : float
+}
+
+class GovernmentBillingPolicy extends BillingPolicy {
+    + calculateBill(patient : Patient) : float
+}
+
+class SelfPayBillingPolicy extends BillingPolicy {
+    + calculateBill(patient : Patient) : float
+}
+
+class Charge {
+    - amount : float
+    - description : string
+    + getAmount() : float
+    + getDescription() : string
+}
+
+class Procedure extends Charge {
+    - code : string
+}
+
+class Medication extends Charge {
+    - medicationName : string
+}
+
+class DiagnosticTest extends Charge {
+    - testName : string
+}
+
+class RoomOccupancy extends Charge {
+    - days : int
+}
+
+class Bill {
+    - totalAmount : float
+    - charges : List<Charge>
+    + addCharge(charge : Charge)
+    + calculateTotal() : float
+}
+
+Patient o-- Bill : has
+Bill o-- Charge : includes
+BillingPolicy <|-- InsuranceBillingPolicy
+BillingPolicy <|-- GovernmentBillingPolicy
+BillingPolicy <|-- SelfPayBillingPolicy
+@enduml
