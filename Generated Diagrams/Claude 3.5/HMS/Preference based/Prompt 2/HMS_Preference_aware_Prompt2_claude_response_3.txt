@@ -1,0 +1,95 @@
+@startuml
+abstract class BillingStrategy {
+    + {abstract} calculateBill(invoice : Invoice) : double
+    + {abstract} applyPolicy(amount : double) : double
+}
+
+class InsuranceBilling extends BillingStrategy {
+    - coverageLimit : double
+    - coPaymentRate : double
+    + calculateBill(invoice : Invoice) : double
+    + applyPolicy(amount : double) : double
+    + setCoverageLimit(limit : double)
+    + setCoPaymentRate(rate : double)
+}
+
+class GovernmentBilling extends BillingStrategy {
+    - subsidyRate : double
+    + calculateBill(invoice : Invoice) : double
+    + applyPolicy(amount : double) : double
+    + setSubsidyRate(rate : double)
+}
+
+class SelfPayBilling extends BillingStrategy {
+    + calculateBill(invoice : Invoice) : double
+    + applyPolicy(amount : double) : double
+}
+
+class Patient {
+    - id : int
+    - name : string
+    - patientType : string
+    + getId() : int
+    + getName() : string
+    + getPatientType() : string
+    + setPatientType(type : string)
+}
+
+class Invoice {
+    - invoiceId : int
+    - patient : Patient
+    - totalAmount : double
+    + addBillingEntry(entry : BillingEntry)
+    + removeBillingEntry(entry : BillingEntry)
+    + calculateTotal() : double
+    + getInvoiceId() : int
+    + getTotalAmount() : double
+}
+
+abstract class BillingEntry {
+    - entryId : int
+    - description : string
+    - amount : double
+    + {abstract} calculateAmount() : double
+    + getEntryId() : int
+    + getDescription() : string
+    + getAmount() : double
+}
+
+class ClinicalProcedure extends BillingEntry {
+    - procedureCode : string
+    + calculateAmount() : double
+    + setProcedureCode(code : string)
+}
+
+class Pharmaceutical extends BillingEntry {
+    - medicationName : string
+    - quantity : int
+    + calculateAmount() : double
+    + setQuantity(qty : int)
+}
+
+class LaboratoryTest extends BillingEntry {
+    - testType : string
+    + calculateAmount() : double
+    + setTestType(type : string)
+}
+
+class RoomCharge extends BillingEntry {
+    - roomType : string
+    - numberOfDays : int
+    + calculateAmount() : double
+    + setNumberOfDays(days : int)
+}
+
+class BillingProcessor {
+    - strategy : BillingStrategy
+    + setStrategy(strategy : BillingStrategy)
+    + processBilling(invoice : Invoice) : double
+}
+
+Invoice --> Patient
+Invoice o-- BillingEntry
+BillingProcessor --> BillingStrategy
+BillingProcessor --> Invoice
+@enduml
