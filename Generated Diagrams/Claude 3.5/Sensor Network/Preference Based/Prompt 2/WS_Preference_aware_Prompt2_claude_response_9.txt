@@ -1,0 +1,94 @@
+@startuml
+abstract class Station {
+    - id : string
+    - location : string
+    - reportingInterval : int
+    + {abstract} collectData()
+    + {abstract} transmitData()
+    + getId() : string
+    + getLocation() : string
+    + setReportingInterval(interval : int)
+}
+
+class GovernmentStation extends Station {
+    + collectData()
+    + transmitData()
+}
+
+class AcademicStation extends Station {
+    + collectData()
+    + transmitData()
+}
+
+class InfrastructureStation extends Station {
+    + collectData()
+    + transmitData()
+}
+
+abstract class Sensor {
+    - id : string
+    - manufacturer : string
+    + {abstract} readMeasurement() : string
+    + getId() : string
+    + getManufacturer() : string
+}
+
+class TemperatureSensor extends Sensor {
+    + readMeasurement() : string
+}
+
+class HumiditySensor extends Sensor {
+    + readMeasurement() : string
+}
+
+class PressureSensor extends Sensor {
+    + readMeasurement() : string
+}
+
+abstract class DataNormalizer {
+    + {abstract} normalize(rawData : string) : TelemetryData
+}
+
+class ManufacturerANormalizer extends DataNormalizer {
+    + normalize(rawData : string) : TelemetryData
+}
+
+class ManufacturerBNormalizer extends DataNormalizer {
+    + normalize(rawData : string) : TelemetryData
+}
+
+class ManufacturerCNormalizer extends DataNormalizer {
+    + normalize(rawData : string) : TelemetryData
+}
+
+class TelemetryData {
+    - stationId : string
+    - timestamp : long
+    - measurements : Map<string, double>
+    + getStationId() : string
+    + getTimestamp() : long
+    + getMeasurements() : Map<string, double>
+}
+
+class WeatherInformationSystem {
+    - static instance : WeatherInformationSystem
+    - stations : List<Station>
+    + getInstance() : WeatherInformationSystem
+    + registerStation(station : Station)
+    + initiateDataCollection()
+    + ingestData(data : TelemetryData)
+}
+
+class DataIngestionService {
+    - normalizers : Map<string, DataNormalizer>
+    + processRawData(rawData : string, manufacturer : string) : TelemetryData
+    + registerNormalizer(manufacturer : string, normalizer : DataNormalizer)
+}
+
+Station "1" o-- "1..*" Sensor
+WeatherInformationSystem "1" --> "1..*" Station : manages
+WeatherInformationSystem --> DataIngestionService : uses
+DataIngestionService --> DataNormalizer : uses
+DataNormalizer ..> TelemetryData : creates
+Station ..> TelemetryData : produces
+@enduml
