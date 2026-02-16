@@ -1,0 +1,168 @@
+@startuml
+!theme plain
+
+' Abstract Classes and Interfaces for extensibility and runtime configurability
+abstract class BillingPolicy {
+    + policyId: String
+    + policyName: String
+    + getPolicyType(): PolicyType
+    + calculateBilledAmount(entry: BillingEntry, patient: Patient): BigDecimal
+    + getDescription(): String
+}
+
+interface IPricingStrategy {
+    + calculatePrice(baseAmount: BigDecimal, quantity: int): BigDecimal
+}
+
+' Concrete Implementations of Billing Policies
+class InsuranceBillingPolicy extends BillingPolicy {
+    + insurerId: String
+    + coverageRules: Map<String, Object> ' e.g., co-pay, deductibles, coverage limits
+    + reimbursementCeilings: Map<String, BigDecimal>
+    + coPaymentModels: Map<String, BigDecimal>
+    + calculateBilledAmount(entry: BillingEntry, patient: Patient): BigDecimal
+}
+
+class GovernmentBillingPolicy extends BillingPolicy {
+    + subsidySchedules: Map<String, BigDecimal> ' e.g., service-specific subsidies
+    + calculateBilledAmount(entry: BillingEntry, patient: Patient): BigDecimal
+}
+
+class SelfPayBillingPolicy extends BillingPolicy {
+    + calculateBilledAmount(entry: BillingEntry, patient: Patient): BigDecimal ' Charges full amount
+}
+
+' Patient Data
+class Patient {
+    + patientId: String
+    + name: String
+    + classification: PatientClassification <<enum>>
+    + admissionDate: Date
+    + dischargeDate: Date
+    + insurerDetails: String ' Applicable for INSURANCE classification
+    + getPolicyType(): PolicyType
+}
+
+enum PatientClassification {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+' Pricing Elements - Separated and extensible
+class Pricing {
+    + pricingId: String
+    + description: String
+    + baseAmount: BigDecimal
+    + effectiveDate: Date
+    + currency: String
+    + pricingStrategy: IPricingStrategy
+    + calculateFinalPrice(quantity: int): BigDecimal
+}
+
+class StandardPricingStrategy implements IPricingStrategy {
+    + calculatePrice(baseAmount: BigDecimal, quantity: int): BigDecimal
+}
+
+class VolumeDiscountPricingStrategy implements IPricingStrategy {
+    + discountThreshold: int
+    + discountRate: BigDecimal
+    + calculatePrice(baseAmount: BigDecimal, quantity: int): BigDecimal
+}
+
+' Billing Entries (Treatments/Services) - Originating from various domains
+class BillingEntry {
+    + entryId: String
+    + description: String
+    + quantity: int
+    + datePerformed: Date
+    + domain: BillingDomain <<enum>>
+    + pricingReference: Pricing
+    + getCalculatedBasePrice(): BigDecimal ' Uses pricingReference and its strategy
+}
+
+enum BillingDomain {
+    CLINICAL_PROCEDURE
+    PHARMACEUTICAL
+    LAB_DIAGNOSTIC
+    ROOM_UTILIZATION
+    CONSULTATION
+    OTHER
+}
+
+' Invoice Structure
+class Invoice {
+    + invoiceId: String
+    + invoiceDate: Date
+    + patient: Patient
+    + totalAmount: BigDecimal
+    + status: InvoiceStatus <<enum>>
+    + lineItems: List<InvoiceLineItem>
+    + addLineItem(item: InvoiceLineItem): void
+    + calculateTotal(): void
+}
+
+class InvoiceLineItem {
+    + lineItemId: String
+    + description: String
+    + quantity: int
+    + unitPrice: BigDecimal ' Price per unit after policy application
+    + billedAmount: BigDecimal ' Total for this line item after policy application
+    + originalBillingEntry: BillingEntry ' Reference to the original service
+}
+
+enum InvoiceStatus {
+    DRAFT
+    ISSUED
+    PAID
+    CANCELLED
+    ADJUSTED
+}
+
+' Billing Orchestration and Policy Management
+class BillingEngine {
+    + generateInvoice(patient: Patient, entries: List<BillingEntry>): Invoice
+    - getPolicyForPatient(patient: Patient): BillingPolicy
+}
+
+class PolicyRegistry {
+    - policies: Map<PolicyType, BillingPolicy>
+    + registerPolicy(type: PolicyType, policy: BillingPolicy): void
+    + getPolicy(type: PolicyType): BillingPolicy
+    + updatePolicy(type: PolicyType, newPolicy: BillingPolicy): void
+    + removePolicy(type: PolicyType): void
+}
+
+enum PolicyType {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+' Relationships
+
+Patient "1" -- "0..*" Invoice : generates >
+Invoice "1" -- "0..*" InvoiceLineItem : contains >
+InvoiceLineItem "1" -- "1" BillingEntry : derives from >
+
+BillingEntry "1" -- "1" Pricing : uses >
+Pricing "1" -- "1" IPricingStrategy : delegates to >
+
+BillingPolicy <|-- InsuranceBillingPolicy
+BillingPolicy <|-- GovernmentBillingPolicy
+BillingPolicy <|-- SelfPayBillingPolicy
+
+IPricingStrategy <|.. StandardPricingStrategy
+IPricingStrategy <|.. VolumeDiscountPricingStrategy
+
+PatientClassification "1" -- "1" PolicyType : maps to >
+
+BillingEngine "1" -- "1" PolicyRegistry : uses >
+BillingEngine ..> BillingPolicy : <<uses>>
+BillingEngine ..> Patient : <<uses>>
+BillingEngine ..> BillingEntry : <<uses>>
+BillingEngine ..> Invoice : <<creates>>
+
+PolicyRegistry "1" -- "0..*" BillingPolicy : manages >
+
+@enduml

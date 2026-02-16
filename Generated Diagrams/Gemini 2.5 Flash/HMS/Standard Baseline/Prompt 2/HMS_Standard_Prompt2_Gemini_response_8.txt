@@ -1,0 +1,201 @@
+@startuml
+!theme mars
+
+' Interfaces and Abstract Classes '
+interface BillingPolicy {
+    + policyId: String
+    + name: String
+    + applyPolicy(treatment: Treatment, patient: Patient): BigDecimal
+    + isValidFor(classification: PatientClassification): boolean
+}
+
+abstract class Treatment {
+    + treatmentId: String
+    + name: String
+    + basePrice: BigDecimal
+    + treatmentDate: Date
+    + quantity: int
+    --
+    + getDomain(): String
+}
+
+' Concrete Implementations of BillingPolicy '
+class InsuranceBillingPolicy implements BillingPolicy {
+    + insurerSpecificCoverage: Map<String, Object>
+    + reimbursementCeilings: Map<String, BigDecimal>
+    + coPaymentModel: String
+    --
+    + applyPolicy(treatment: Treatment, patient: Patient): BigDecimal
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    + subsidySchedule: Map<String, BigDecimal>
+    --
+    + applyPolicy(treatment: Treatment, patient: Patient): BigDecimal
+}
+
+class SelfPayingBillingPolicy implements BillingPolicy {
+    --
+    + applyPolicy(treatment: Treatment, patient: Patient): BigDecimal
+}
+
+' Concrete Implementations of Treatment '
+class ClinicalProcedure extends Treatment {
+    + procedureCode: String
+}
+
+class Pharmaceutical extends Treatment {
+    + drugCode: String
+    + dosage: String
+}
+
+class LaboratoryDiagnostic extends Treatment {
+    + testCode: String
+    + result: String
+}
+
+class RoomUtilization extends Treatment {
+    + roomNumber: String
+    + dailyRate: BigDecimal
+    + numberOfDays: int
+}
+
+' Core Entities '
+class Patient {
+    + patientId: String
+    + name: String
+    + admissionDate: Date
+    + dischargeDate: Date
+    + classification: PatientClassification
+    + insurer: Insurer
+}
+
+class Insurer {
+    + insurerId: String
+    + name: String
+    + contactInfo: String
+}
+
+class Invoice {
+    + invoiceId: String
+    + issueDate: Date
+    + dueDate: Date
+    + totalAmount: BigDecimal
+    + status: InvoiceStatus
+    --
+    + addBillingEntry(entry: BillingEntry): void
+    + calculateTotal(): void
+}
+
+class BillingEntry {
+    + entryId: String
+    + description: String
+    + quantity: int
+    + unitPrice: BigDecimal // Price after policy application
+    + totalAmount: BigDecimal
+    + originalBasePrice: BigDecimal // For audit/comparison
+}
+
+' Manager/Service Classes '
+class PolicyManager {
+    - policies: Map<String, BillingPolicy>
+    --
+    + getPolicy(classification: PatientClassification, insurerId: String = null): BillingPolicy
+    + registerPolicy(policy: BillingPolicy): void
+    + updatePolicy(policy: BillingPolicy): void
+}
+
+class PricingService {
+    - priceCatalog: Map<String, BigDecimal> // Stores base prices for treatments
+    --
+    + getBasePrice(treatmentId: String): BigDecimal
+}
+
+class DischargeBillingSystem {
+    - policyManager: PolicyManager
+    - pricingService: PricingService
+    --
+    + generateInvoice(patient: Patient, treatments: List<Treatment>): Invoice
+    + applyBillingPolicy(treatment: Treatment, patient: Patient, policy: BillingPolicy): BillingEntry
+}
+
+' Enumerations '
+enum PatientClassification {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAYING
+}
+
+enum InvoiceStatus {
+    DRAFT
+    ISSUED
+    PAID
+    CANCELLED
+}
+
+' Relationships '
+
+' Patient and Classification '
+Patient "1" --> "1" PatientClassification : has
+Patient "1" -- "0..1" Insurer : covered by
+
+' Insurer and Policies '
+Insurer "1" -- "0..*" InsuranceBillingPolicy : defines policies for
+
+' Treatment Hierarchy '
+Treatment <|-- ClinicalProcedure
+Treatment <|-- Pharmaceutical
+Treatment <|-- LaboratoryDiagnostic
+Treatment <|-- RoomUtilization
+
+' Invoice and Billing Entries '
+Invoice "1" *-- "0..*" BillingEntry : contains
+
+' Billing Entry and Treatment '
+BillingEntry "1" --> "1" Treatment : refers to
+
+' Patient and Invoices '
+Patient "1" -- "0..*" Invoice : generates
+
+' Policy Management '
+PolicyManager "1" o-- "0..*" BillingPolicy : manages
+BillingPolicy <|.. InsuranceBillingPolicy
+BillingPolicy <|.. GovernmentBillingPolicy
+BillingPolicy <|.. SelfPayingBillingPolicy
+
+' System Orchestration '
+DischargeBillingSystem "1" --> "1" PolicyManager : uses
+DischargeBillingSystem "1" --> "1" PricingService : uses
+DischargeBillingSystem "1" --> "0..*" Patient : processes
+DischargeBillingSystem "1" --> "0..*" Treatment : processes
+DischargeBillingSystem "1" --> "0..*" Invoice : creates
+
+' Notes '
+note top of DischargeBillingSystem
+  Orchestrates the billing process:
+  1. Retrieves patient and delivered treatments.
+  2. Selects appropriate BillingPolicy from PolicyManager.
+  3. Applies policy to each treatment via PricingService.
+  4. Generates Invoice with BillingEntries.
+end note
+
+note right of BillingPolicy
+  Configurable policies,
+  replaceable at runtime,
+  supporting updates without
+  structural redesign.
+end note
+
+note left of Treatment
+  Abstract base for all billable
+  services, each with its
+  own specific attributes.
+end note
+
+note "Clear separation of:\n- Patient Data (Patient)\n- Pricing Elements (Treatment, PricingService)\n- Billing Policies (BillingPolicy hierarchy, PolicyManager)" as N1
+Patient -[hidden]right- N1
+Treatment -[hidden]right- N1
+BillingPolicy -[hidden]right- N1
+end note
+
+@enduml

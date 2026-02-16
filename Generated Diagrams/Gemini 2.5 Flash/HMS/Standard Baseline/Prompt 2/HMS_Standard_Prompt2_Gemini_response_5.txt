@@ -1,0 +1,122 @@
+@startuml
+!pragma layout smetana
+
+' Interfaces/Abstract Classes
+interface BillingPolicy <<Policy>> {
+    + applyPolicy(invoiceItem: InvoiceItem, patient: Patient): void
+}
+
+interface PricingStrategy <<Strategy>> {
+    + calculateBasePrice(service: TreatmentService): BigDecimal
+}
+
+abstract class TreatmentService {
+    + serviceId: String
+    + name: String
+    + getBasePrice(): BigDecimal
+}
+
+' Concrete Implementations
+class Patient {
+    + patientId: String
+    + name: String
+    + classification: PatientClassification
+}
+
+enum PatientClassification {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAYING
+}
+
+class Invoice {
+    + invoiceId: String
+    + issueDate: Date
+    + totalAmount: BigDecimal
+    + addInvoiceItem(item: InvoiceItem): void
+}
+
+class InvoiceItem {
+    + description: String
+    + quantity: int
+    + unitPrice: BigDecimal ' Price after base pricing, before policy application
+    + billedAmount: BigDecimal ' Final amount after policy application
+    + originalBaseCost: BigDecimal ' Stored for audit/reference
+}
+
+class ClinicalProcedure extends TreatmentService {
+    + procedureCode: String
+    + durationMinutes: int
+}
+
+class Pharmaceutical extends TreatmentService {
+    + drugCode: String
+    + dosage: String
+}
+
+class LaboratoryDiagnostic extends TreatmentService {
+    + testCode: String
+    + specimenType: String
+}
+
+class RoomUtilization extends TreatmentService {
+    + roomNumber: String
+    + startDate: Date
+    + endDate: Date
+}
+
+class StandardPricingStrategy implements PricingStrategy {
+    + calculateBasePrice(service: TreatmentService): BigDecimal
+}
+
+' Specific Billing Policies
+class InsuranceBillingPolicy implements BillingPolicy {
+    + insurerId: String
+    + coverageRules: Map<String, Object>
+    + reimbursementCeilings: Map<String, BigDecimal>
+    + applyPolicy(invoiceItem: InvoiceItem, patient: Patient): void
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    + subsidySchedule: Map<String, BigDecimal>
+    + applyPolicy(invoiceItem: InvoiceItem, patient: Patient): void
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    + applyPolicy(invoiceItem: InvoiceItem, patient: Patient): void
+}
+
+class Insurer {
+    + insurerId: String
+    + name: String
+    + contactInfo: String
+}
+
+class CoPaymentModel {
+    + type: String // e.g., "PERCENTAGE", "FIXED"
+    + value: BigDecimal
+}
+
+class PolicyManager {
+    - policies: Map<PatientClassification, BillingPolicy>
+    + getPolicyForPatient(patient: Patient): BillingPolicy
+    + registerPolicy(classification: PatientClassification, policy: BillingPolicy): void
+    + updatePolicy(classification: PatientClassification, newPolicy: BillingPolicy): void
+}
+
+' Relationships
+
+Patient "1" -- "0..*" Invoice : creates
+Invoice "1" -- "1..*" InvoiceItem : contains
+InvoiceItem "1" -- "1" TreatmentService : refers to
+
+TreatmentService "1" -- "1" PricingStrategy : uses
+
+PolicyManager "1" -- "*" BillingPolicy : manages
+
+Patient "1" --> "1" PatientClassification : has
+
+InsuranceBillingPolicy "1" -- "1" Insurer : applies to
+InsuranceBillingPolicy "1" -- "1" CoPaymentModel : uses
+
+@enduml

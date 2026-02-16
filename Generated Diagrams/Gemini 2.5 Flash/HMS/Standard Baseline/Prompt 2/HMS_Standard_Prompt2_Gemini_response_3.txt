@@ -1,0 +1,172 @@
+
+@startuml
+!theme plain
+
+' Value Objects
+class Money << (V,yellow) Value Object >> {
+    + amount: BigDecimal
+    + currency: Currency
+}
+
+' Patient and Classification
+class Patient {
+    + patientId: String
+    + name: String
+    + classification: PatientClassification
+}
+
+enum PatientClassification {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+' Treatments (Pricing Elements)
+abstract class Treatment {
+    + treatmentId: String
+    + name: String
+    + description: String
+    --
+    + calculateBasePrice(): Money
+}
+
+class ClinicalProcedure extends Treatment {
+    + procedureCode: String
+    + specialty: String
+    --
+    + calculateBasePrice(): Money
+}
+
+class Pharmaceutical extends Treatment {
+    + drugName: String
+    + dosage: String
+    + NDC: String
+    --
+    + calculateBasePrice(): Money
+}
+
+class LaboratoryDiagnostic extends Treatment {
+    + testName: String
+    + resultUnit: String
+    --
+    + calculateBasePrice(): Money
+}
+
+class RoomUtilization extends Treatment {
+    + roomNumber: String
+    + startDate: Date
+    + endDate: Date
+    + dailyRate: Money
+    --
+    + calculateBasePrice(): Money
+}
+
+' Billing Policies (Configurable and Replaceable)
+interface BillingPolicy {
+    + getPolicyName(): String
+    + calculateBilledAmount(treatment: Treatment, patient: Patient): Money
+    + getPolicyDetails(treatment: Treatment, patient: Patient): String
+}
+
+class InsuranceBillingPolicy implements BillingPolicy {
+    + insurerId: String
+    + coverageRules: String
+    + reimbursementCeilings: Money
+    + coPaymentModel: String
+    --
+    + calculateBilledAmount(treatment: Treatment, patient: Patient): Money
+    + getPolicyDetails(treatment: Treatment, patient: Patient): String
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    + subsidySchedule: String
+    + programId: String
+    --
+    + calculateBilledAmount(treatment: Treatment, patient: Patient): Money
+    + getPolicyDetails(treatment: Treatment, patient: Patient): String
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    --
+    + calculateBilledAmount(treatment: Treatment, patient: Patient): Money
+    + getPolicyDetails(treatment: Treatment, patient: Patient): String
+}
+
+class Insurer {
+    + insurerId: String
+    + name: String
+    + contactInfo: String
+}
+
+' Invoice and Invoice Items
+class Invoice {
+    + invoiceId: String
+    + invoiceDate: Date
+    + totalAmount: Money
+    + status: InvoiceStatus
+}
+
+enum InvoiceStatus {
+    DRAFT
+    PENDING_PAYMENT
+    PAID
+    CANCELLED
+}
+
+class InvoiceItem {
+    + itemId: String
+    + description: String
+    + quantity: int
+    + unitPrice: Money
+    + billedAmount: Money
+    + appliedPolicyDetails: String
+}
+
+' Billing System Core Components
+class BillingPolicyManager {
+    - policies: Map<PatientClassification, BillingPolicy>
+    --
+    + getPolicyForPatient(patient: Patient): BillingPolicy
+    + registerPolicy(classification: PatientClassification, policy: BillingPolicy): void
+    + updatePolicy(classification: PatientClassification, newPolicy: BillingPolicy): void
+}
+
+class BillingService {
+    + generateInvoice(patient: Patient, treatments: List<Treatment>): Invoice
+}
+
+' Relationships
+
+Patient "1" -- "1" PatientClassification : has
+Patient "1" -- "*" Invoice : generates
+
+Invoice "1" -- "*" InvoiceItem : contains
+InvoiceItem "1" -- "1" Treatment : references
+
+Insurer "1" -- "*" InsuranceBillingPolicy : defines
+
+BillingPolicyManager "1" -- "*" BillingPolicy : manages
+
+BillingService "1" --> "1" BillingPolicyManager : uses
+BillingService "1" --> "1" Patient : processes
+BillingService "1" --> "*" Treatment : processes
+
+' Notes for clarity
+note left of BillingPolicyManager
+  Handles runtime replacement
+  and configuration updates of policies.
+end note
+
+note right of BillingService
+  Orchestrates invoice generation,
+  applying appropriate policies
+  via BillingPolicyManager.
+end note
+
+note "Separation of Concerns:\n- Patient Data (Patient)\n- Pricing Elements (Treatment hierarchy)\n- Billing Policies (BillingPolicy hierarchy)" as SeparationNote
+SeparationNote .. Patient
+SeparationNote .. Treatment
+SeparationNote .. BillingPolicy
+end note
+
+@enduml

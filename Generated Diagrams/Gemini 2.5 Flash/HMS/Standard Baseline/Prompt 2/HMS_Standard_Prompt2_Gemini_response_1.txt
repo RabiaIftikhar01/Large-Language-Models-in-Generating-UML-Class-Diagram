@@ -1,0 +1,195 @@
+@startuml
+!theme mars
+
+' Interfaces for extensibility and runtime replacement '
+interface IBillingPolicy {
+  + calculateBilledAmount(entry: BillingEntry, patient: Patient): BigDecimal
+}
+
+interface IPricingStrategy {
+  + calculatePrice(service: TreatmentService): BigDecimal
+}
+
+' Core Data Entities '
+class Patient {
+  + patientId: String
+  + name: String
+  + classification: PatientClassification
+}
+
+enum PatientClassification {
+  INSURANCE
+  GOVERNMENT
+  SELF_PAYING
+}
+
+class Invoice {
+  + invoiceId: String
+  + issueDate: Date
+  + totalAmount: BigDecimal
+  + status: InvoiceStatus
+  --
+  + addEntry(entry: BillingEntry)
+  + finalizeInvoice()
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ISSUED
+  PAID
+  CANCELLED
+}
+
+class BillingEntry {
+  + entryId: String
+  + quantity: int
+  + unitPrice: BigDecimal // Price after pricing strategy
+  + billedAmount: BigDecimal // Amount after billing policy
+  + description: String
+}
+
+abstract class TreatmentService {
+  + serviceId: String
+  + name: String
+  + listPrice: BigDecimal // Base or default price
+}
+
+class ClinicalProcedure extends TreatmentService {
+  + procedureCode: String
+}
+
+class Pharmaceutical extends TreatmentService {
+  + drugCode: String
+  + dosage: String
+}
+
+class LaboratoryDiagnostic extends TreatmentService {
+  + testCode: String
+}
+
+class RoomUtilization extends TreatmentService {
+  + roomNumber: String
+  + durationHours: int
+}
+
+' Concrete Strategies and Policies '
+class DefaultPricingStrategy implements IPricingStrategy {
+  + calculatePrice(service: TreatmentService): BigDecimal
+}
+
+class ComplexProcedurePricingStrategy implements IPricingStrategy {
+  + calculatePrice(service: TreatmentService): BigDecimal
+}
+
+class InsuranceBillingPolicy implements IBillingPolicy {
+  + insurerCoverage: InsurerCoveragePolicy
+  --
+  + calculateBilledAmount(entry: BillingEntry, patient: Patient): BigDecimal
+}
+
+class GovernmentBillingPolicy implements IBillingPolicy {
+  + subsidySchedule: SubsidySchedule
+  --
+  + calculateBilledAmount(entry: BillingEntry, patient: Patient): BigDecimal
+}
+
+class SelfPayingBillingPolicy implements IBillingPolicy {
+  + calculateBilledAmount(entry: BillingEntry, patient: Patient): BigDecimal
+}
+
+' Configuration Data for Policies '
+class InsurerCoveragePolicy {
+  + insurerId: String
+  + policyName: String
+  + coverageRules: Map<String, BigDecimal> // e.g., serviceType -> coveragePercentage/limit
+  + reimbursementCeiling: BigDecimal
+  + coPaymentModel: CoPaymentModel
+  --
+  + getCoverageForService(service: TreatmentService): BigDecimal
+}
+
+enum CoPaymentModel {
+  NONE
+  FIXED_AMOUNT
+  PERCENTAGE
+}
+
+class SubsidySchedule {
+  + scheduleId: String
+  + name: String
+  + subsidizedPricingRules: Map<String, BigDecimal> // e.g., serviceType -> subsidizedPrice
+  --
+  + getSubsidizedPrice(service: TreatmentService): BigDecimal
+}
+
+' Orchestration Engine '
+class BillingEngine {
+  - policyRegistry: Map<PatientClassification, IBillingPolicy>
+  - pricingStrategyRegistry: Map<Class<? extends TreatmentService>, IPricingStrategy>
+  --
+  + generateInvoice(patient: Patient, providedServices: List<TreatmentService>): Invoice
+  - getBillingPolicy(classification: PatientClassification): IBillingPolicy
+  - getPricingStrategy(serviceType: Class<? extends TreatmentService>): IPricingStrategy
+}
+
+' Relationships '
+
+Patient "1" --> "1" PatientClassification
+Patient "1" --> "0..*" Invoice : generates
+
+Invoice "1" *-- "0..*" BillingEntry : contains
+
+BillingEntry "1" --> "1" TreatmentService : references
+
+' Strategy/Policy Implementations '
+IBillingPolicy <|.. InsuranceBillingPolicy
+IBillingPolicy <|.. GovernmentBillingPolicy
+IBillingPolicy <|.. SelfPayingBillingPolicy
+
+IPricingStrategy <|.. DefaultPricingStrategy
+IPricingStrategy <|.. ComplexProcedurePricingStrategy
+
+TreatmentService <|-- ClinicalProcedure
+TreatmentService <|-- Pharmaceutical
+TreatmentService <|-- LaboratoryDiagnostic
+TreatmentService <|-- RoomUtilization
+
+' Policy Configuration Data '
+InsuranceBillingPolicy "1" --> "1" InsurerCoveragePolicy : uses >
+GovernmentBillingPolicy "1" --> "1" SubsidySchedule : uses >
+InsurerCoveragePolicy "1" --> "1" CoPaymentModel
+
+' Orchestration '
+BillingEngine "1" --> "0..*" Patient : processes
+BillingEngine "1" --> "0..*" TreatmentService : processes
+BillingEngine "1" --> "0..*" Invoice : creates
+BillingEngine "1" o-- "0..*" IBillingPolicy : manages/registers
+BillingEngine "1" o-- "0..*" IPricingStrategy : manages/registers
+
+' Notes '
+note top of BillingEngine : Orchestrates invoice generation\nby applying policies and strategies.\nPolicies and strategies are registered\nand retrieved at runtime.
+note left of IBillingPolicy : Configurable and replaceable\nat runtime based on patient classification.
+note left of IPricingStrategy : Specific pricing logic for\ndifferent service types, replaceable.
+note right of InsurerCoveragePolicy : Defines insurer-specific coverage,\nreimbursement ceilings, co-payments.\nData is regularly revised.
+note right of SubsidySchedule : Defines predetermined subsidized\npricing rules. Data is regularly revised.
+note bottom of TreatmentService : Base class for all billable services.\nEach subclass represents a domain.
+note bottom of BillingEntry : Represents a single line item\non an invoice, storing calculated amounts.
+note top of Patient : Patient classification drives\nbilling policy selection by BillingEngine.
+note "Clear separation among patient data, pricing elements, and billing policies" as SeparationNote
+note "Extensibility to support continuously evolving regulatory demands" as ExtensibilityNote
+note "Configurable policies replaceable at runtime" as RuntimeConfigNote
+
+Patient .. SeparationNote
+TreatmentService .. SeparationNote
+IBillingPolicy .. SeparationNote
+
+IBillingPolicy .. ExtensibilityNote
+IPricingStrategy .. ExtensibilityNote
+TreatmentService .. ExtensibilityNote
+
+IBillingPolicy .. RuntimeConfigNote
+InsurerCoveragePolicy .. RuntimeConfigNote
+SubsidySchedule .. RuntimeConfigNote
+
+@enduml

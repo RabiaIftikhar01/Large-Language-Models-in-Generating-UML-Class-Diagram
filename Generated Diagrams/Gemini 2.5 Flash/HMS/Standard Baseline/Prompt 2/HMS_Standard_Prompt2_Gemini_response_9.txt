@@ -1,0 +1,191 @@
+@startuml
+' Styling for better readability
+skinparam classAttributeIconSize 0
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam enumFontName Arial
+skinparam enumFontSize 14
+
+' Enums
+enum PatientClassification {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAYING
+}
+
+' Patient Data
+class Patient {
+    + id: String
+    + name: String
+    + classification: PatientClassification
+    --
+    + getClassification(): PatientClassification
+}
+
+' Chargeable Items (Billing Entries)
+' Represents the raw services/products delivered
+interface ChargeableItem {
+    + getItemId(): String
+    + getDescription(): String
+    + getDomainType(): String
+    + getQuantity(): int
+}
+
+class ClinicalProcedure implements ChargeableItem {
+    + procedureCode: String
+    + procedureName: String
+    + physicianId: String
+}
+
+class Pharmaceutical implements ChargeableItem {
+    + drugCode: String
+    + drugName: String
+    + dosage: String
+}
+
+class LaboratoryDiagnostic implements ChargeableItem {
+    + testCode: String
+    + testName: String
+    + specimenType: String
+}
+
+class RoomUtilization implements ChargeableItem {
+    + roomNumber: String
+    + roomType: String
+    + durationHours: int
+}
+
+' Pricing Elements
+' Encapsulates the logic for determining the base price of a ChargeableItem
+class PricingService {
+    + getBasePrice(item: ChargeableItem): BigDecimal
+}
+
+' Billing Policies (Strategy Pattern)
+' Defines the interface for applying billing rules based on patient classification
+interface BillingPolicy {
+    + calculateLineItem(item: ChargeableItem, patient: Patient, basePrice: BigDecimal): InvoiceLineItem
+    + supports(classification: PatientClassification): boolean
+}
+
+' Concrete Billing Policies
+' Implement specific billing rules for each patient classification
+class InsuranceBillingPolicy implements BillingPolicy {
+    - coveragePolicies: Map<String, CoveragePolicy>
+    - reimbursementCeilings: Map<String, ReimbursementCeiling>
+    - coPaymentModels: Map<String, CoPaymentModel>
+    --
+    + calculateLineItem(...): InvoiceLineItem
+    + supports(...): boolean
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - subsidySchedules: Map<String, SubsidySchedule>
+    --
+    + calculateLineItem(...): InvoiceLineItem
+    + supports(...): boolean
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    --
+    + calculateLineItem(...): InvoiceLineItem
+    + supports(...): boolean
+}
+
+' Policy Data (Configurable Elements)
+' These are the data structures holding the definitions and schedules that policies use.
+' They are regularly revised without structural changes to policies themselves.
+class CoveragePolicy {
+    + policyId: String
+    + insurerName: String
+    + coveredServiceCodes: List<String>
+    + deductible: BigDecimal
+    + coInsuranceRate: BigDecimal
+}
+
+class ReimbursementCeiling {
+    + serviceCode: String
+    + maxAmount: BigDecimal
+    + effectiveDate: Date
+}
+
+class CoPaymentModel {
+    + modelId: String
+    + description: String
+    + fixedCoPay: BigDecimal
+    + percentageCoPay: BigDecimal
+}
+
+class SubsidySchedule {
+    + scheduleId: String
+    + serviceCode: String
+    + subsidyAmountOrPercentage: BigDecimal
+    + effectiveDate: Date
+}
+
+' Billing Engine
+' Orchestrates the billing process, selecting and applying the correct policy
+class BillingEngine {
+    - pricingService: PricingService
+    - policies: Map<PatientClassification, BillingPolicy>
+    --
+    + generateInvoice(patient: Patient, items: List<ChargeableItem>): Invoice
+}
+
+' Invoice and Line Items
+' The final output of the billing process
+class Invoice {
+    + invoiceId: String
+    + issueDate: Date
+    + totalAmount: BigDecimal
+    + status: String
+    --
+    + addLineItem(item: InvoiceLineItem): void
+}
+
+class InvoiceLineItem {
+    + lineItemId: String
+    + description: String
+    + originalPrice: BigDecimal
+    + adjustedPrice: BigDecimal
+    + finalCharge: BigDecimal
+    + notes: String
+}
+
+' Relationships
+
+' Patient and Classification
+Patient "1" -- "1" PatientClassification : has
+
+' Invoice and Patient
+Patient "1" -- "0..*" Invoice : generates
+
+' Invoice and Line Items
+Invoice "1" -- "1..*" InvoiceLineItem : contains
+
+' InvoiceLineItem references the original ChargeableItem for audit/traceability
+InvoiceLineItem "1" -- "1" ChargeableItem : references >
+
+' Billing Engine dependencies
+BillingEngine "1" --> "1" PricingService : uses
+BillingEngine "1" --> "1..*" BillingPolicy : applies
+
+' Billing Policy implementations
+BillingPolicy <|.. InsuranceBillingPolicy
+BillingPolicy <|.. GovernmentBillingPolicy
+BillingPolicy <|.. SelfPayBillingPolicy
+
+' ChargeableItem implementations
+ChargeableItem <|.. ClinicalProcedure
+ChargeableItem <|.. Pharmaceutical
+ChargeableItem <|.. LaboratoryDiagnostic
+ChargeableItem <|.. RoomUtilization
+
+' Policy Data dependencies (policies use this data)
+InsuranceBillingPolicy ..> CoveragePolicy : uses
+InsuranceBillingPolicy ..> ReimbursementCeiling : uses
+InsuranceBillingPolicy ..> CoPaymentModel : uses
+
+GovernmentBillingPolicy ..> SubsidySchedule : uses
+
+@enduml

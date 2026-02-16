@@ -1,0 +1,231 @@
+@startuml
+!pragma layout smetana
+
+' Enums for classification and service types
+enum PatientClassificationType {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+enum ServiceType {
+    PROCEDURE
+    PHARMACY
+    LAB
+    ROOM
+}
+
+' --- Patient Data ---
+package "Patient Data" {
+    class Patient {
+        - patientId: String
+        - name: String
+        - patientClassificationType: PatientClassificationType
+        --
+        + getInsurancePlan(): InsurancePlan
+        + getGovernmentProgram(): GovernmentProgram
+    }
+}
+
+' --- Billing Output ---
+package "Billing Output" {
+    class Invoice {
+        - invoiceId: String
+        - issueDate: Date
+        - totalAmount: BigDecimal
+        --
+        + calculateTotal(): void
+    }
+
+    class InvoiceItem {
+        - description: String
+        - quantity: int
+        - unitPrice: BigDecimal ' Price after PricingStrategy, before billing policy
+        - originalCharge: BigDecimal ' Same as unitPrice * quantity
+        - discountAmount: BigDecimal
+        - subsidyAmount: BigDecimal
+        - coPayAmount: BigDecimal
+        - billedAmount: BigDecimal ' Final amount after all policies
+        --
+        + calculateBilledAmount(): void
+    }
+}
+
+' --- Service & Pricing ---
+package "Service & Pricing" {
+    class ServiceEntry {
+        - entryId: String
+        - description: String
+        - datePerformed: Date
+        - baseCharge: BigDecimal ' Raw cost from service domain
+        - serviceType: ServiceType
+        --
+        + getServiceType(): ServiceType
+    }
+
+    interface PricingStrategy {
+        + calculatePrice(entry: ServiceEntry): BigDecimal
+    }
+
+    class ProcedurePricingStrategy implements PricingStrategy {
+        + calculatePrice(entry: ServiceEntry): BigDecimal
+    }
+
+    class PharmacyPricingStrategy implements PricingStrategy {
+        + calculatePrice(entry: ServiceEntry): BigDecimal
+    }
+
+    class LabPricingStrategy implements PricingStrategy {
+        + calculatePrice(entry: ServiceEntry): BigDecimal
+    }
+
+    class RoomPricingStrategy implements PricingStrategy {
+        + calculatePrice(entry: ServiceEntry): BigDecimal
+    }
+}
+
+' --- Billing Policies & Rules ---
+package "Billing Policies & Rules" {
+    interface BillingPolicy {
+        + applyPolicy(item: InvoiceItem, patient: Patient): void
+    }
+
+    class InsuranceBillingPolicy implements BillingPolicy {
+        - insurancePlan: InsurancePlan
+        --
+        + applyPolicy(item: InvoiceItem, patient: Patient): void
+    }
+
+    class GovernmentBillingPolicy implements BillingPolicy {
+        - subsidySchedule: SubsidySchedule
+        --
+        + applyPolicy(item: InvoiceItem, patient: Patient): void
+    }
+
+    class SelfPayBillingPolicy implements BillingPolicy {
+        + applyPolicy(item: InvoiceItem, patient: Patient): void
+    }
+
+    ' Policy Data Models (Configurable and regularly revised)
+    class InsurancePlan {
+        - planId: String
+        - name: String
+        - insurerName: String
+        --
+        + getCoveragePolicy(): CoveragePolicy
+        + getReimbursementPolicy(): ReimbursementPolicy
+        + getCoPaymentPolicy(): CoPaymentPolicy
+    }
+
+    class CoveragePolicy {
+        - policyId: String
+        - name: String
+        ' Rules could be a List<CoverageRule> or a data-driven map
+        --
+        + isCovered(serviceType: ServiceType): boolean
+        + getCoveragePercentage(serviceType: ServiceType): BigDecimal
+    }
+
+    class ReimbursementPolicy {
+        - policyId: String
+        - name: String
+        ' Ceilings could be a Map<ServiceType, BigDecimal>
+        --
+        + getReimbursementCeiling(serviceType: ServiceType): BigDecimal
+    }
+
+    class CoPaymentPolicy {
+        - policyId: String
+        - name: String
+        ' Co-pay rates could be a Map<ServiceType, BigDecimal>
+        --
+        + getCoPayAmount(serviceType: ServiceType): BigDecimal
+    }
+
+    class GovernmentProgram {
+        - programId: String
+        - name: String
+        --
+        + getSubsidySchedule(): SubsidySchedule
+    }
+
+    class SubsidySchedule {
+        - scheduleId: String
+        - name: String
+        ' Subsidy rates could be a Map<ServiceType, BigDecimal>
+        --
+        + getSubsidyRate(serviceType: ServiceType): BigDecimal
+    }
+}
+
+' --- System Core ---
+package "System Core" {
+    class BillingEngine {
+        - policyRegistry: PolicyRegistry
+        --
+        + generateInvoice(patient: Patient, services: List<ServiceEntry>): Invoice
+    }
+
+    class PolicyRegistry {
+        - billingPolicies: Map<PatientClassificationType, BillingPolicy>
+        - pricingStrategies: Map<ServiceType, PricingStrategy>
+        --
+        + getBillingPolicy(type: PatientClassificationType): BillingPolicy
+        + getPricingStrategy(type: ServiceType): PricingStrategy
+        + registerBillingPolicy(type: PatientClassificationType, policy: BillingPolicy): void
+        + registerPricingStrategy(type: ServiceType, strategy: PricingStrategy): void
+    }
+}
+
+' --- Relationships ---
+
+' Patient and Classification
+Patient "1" -- "1" PatientClassificationType : has
+
+' Patient and Plans/Programs (Optional associations)
+Patient "1" -- "0..1" InsurancePlan : "is enrolled in"
+Patient "1" -- "0..1" GovernmentProgram : "is participant of"
+
+' Invoice Composition
+Invoice "1" -- "*" InvoiceItem : contains
+
+' InvoiceItem and ServiceEntry
+InvoiceItem "1" -- "1" ServiceEntry : derived from
+
+' Billing Engine Orchestration
+BillingEngine "1" -- "1" PolicyRegistry : uses
+
+' Policy Registry manages strategies and policies for runtime lookup
+PolicyRegistry "1" -- "*" BillingPolicy : manages
+PolicyRegistry "1" -- "*" PricingStrategy : manages
+
+' Insurance Billing Policy and its components
+InsuranceBillingPolicy "1" -- "1" InsurancePlan : applies policy from
+
+' Insurance Plan includes various sub-policies
+InsurancePlan "1" -- "1" CoveragePolicy : includes
+InsurancePlan "1" -- "1" ReimbursementPolicy : includes
+InsurancePlan "1" -- "1" CoPaymentPolicy : includes
+
+' Government Billing Policy and its components
+GovernmentBillingPolicy "1" -- "1" SubsidySchedule : applies schedule from
+GovernmentProgram "1" -- "1" SubsidySchedule : defines
+
+' Notes for clarity
+note right of BillingEngine
+  Orchestrates the billing process:
+  1. Calculates base price for ServiceEntries
+     using PricingStrategy from PolicyRegistry.
+  2. Creates InvoiceItems.
+  3. Applies relevant BillingPolicy
+     (from PolicyRegistry) to each InvoiceItem.
+  4. Generates final Invoice.
+end note
+
+note right of PolicyRegistry
+  Manages dynamic loading and
+  replacement of policy and strategy
+  implementations at runtime.
+end note
+
+@enduml

@@ -1,0 +1,172 @@
+@startuml
+!theme mars
+
+' Interfaces for extensibility and runtime configuration '
+interface IBillingPolicy {
+    + applyPolicy(InvoiceEntry entry, Patient patient): BigDecimal
+}
+
+interface IPricingStrategy {
+    + calculateBasePrice(Service service): BigDecimal
+}
+
+' Concrete Billing Policies (Strategy Pattern) '
+class InsuranceBillingPolicy implements IBillingPolicy {
+    - String insurerName
+    - Map<String, Object> coverageRules // e.g., service type -> coverage %/limit
+    - Map<String, Object> coPaymentRules // e.g., service type -> co-pay amount
+    + applyPolicy(InvoiceEntry entry, Patient patient): BigDecimal
+}
+
+class GovernmentBillingPolicy implements IBillingPolicy {
+    - Map<String, BigDecimal> subsidySchedules // e.g., service type -> subsidized rate
+    + applyPolicy(InvoiceEntry entry, Patient patient): BigDecimal
+}
+
+class SelfPayBillingPolicy implements IBillingPolicy {
+    + applyPolicy(InvoiceEntry entry, Patient patient): BigDecimal
+}
+
+' Concrete Pricing Strategies '
+class StandardPricingStrategy implements IPricingStrategy {
+    + calculateBasePrice(Service service): BigDecimal
+}
+
+class VolumePricingStrategy implements IPricingStrategy {
+    + calculateBasePrice(Service service): BigDecimal
+}
+
+' Abstract Service (Treatment) and its concrete implementations '
+abstract class Service {
+    - String serviceId
+    - String name
+    - String description
+    - IPricingStrategy pricingStrategy
+    + getServiceId(): String
+    + getName(): String
+    + getDescription(): String
+    + getPricingStrategy(): IPricingStrategy
+    + setPricingStrategy(IPricingStrategy strategy)
+}
+
+class ClinicalProcedure extends Service {
+    - String procedureCode
+    - String department
+}
+
+class Pharmaceutical extends Service {
+    - String drugName
+    - String dosage
+}
+
+class LabDiagnostic extends Service {
+    - String testCode
+    - String specimenType
+}
+
+class RoomUtilization extends Service {
+    - String roomNumber
+    - int durationHours
+}
+
+' Patient Data '
+class Patient {
+    - String patientId
+    - String name
+    - String address
+    - Date dob
+    - PatientClassification classification
+    + getPatientId(): String
+    + getName(): String
+    + getClassification(): PatientClassification
+}
+
+enum PatientClassification {
+    INSURANCE
+    GOVERNMENT_SPONSORED
+    SELF_PAYING
+}
+
+' Invoice and Invoice Entries '
+class Invoice {
+    - String invoiceId
+    - Date issueDate
+    - Date dueDate
+    - BigDecimal totalAmount
+    - InvoiceStatus status
+    + addEntry(InvoiceEntry entry)
+    + calculateTotal(): BigDecimal
+    + getInvoiceId(): String
+}
+
+enum InvoiceStatus {
+    PENDING
+    PAID
+    PARTIALLY_PAID
+    CANCELLED
+}
+
+class InvoiceEntry {
+    - String entryId
+    - String description
+    - int quantity
+    - BigDecimal baseUnitPrice // Price from PricingStrategy
+    - BigDecimal billedAmount // Price after BillingPolicy application
+    + getEntryId(): String
+    + getDescription(): String
+    + getQuantity(): int
+    + getBaseUnitPrice(): BigDecimal
+    + getBilledAmount(): BigDecimal
+    + setBilledAmount(BigDecimal amount)
+}
+
+' Core Billing Logic '
+class BillingEngine {
+    - PolicyManager policyManager
+    + generateInvoice(Patient patient, List<Service> services): Invoice
+    - determineBillingPolicy(Patient patient): IBillingPolicy
+    - calculateServicePrice(Service service): BigDecimal
+}
+
+' Manager for runtime policy updates '
+class PolicyManager {
+    - Map<PatientClassification, IBillingPolicy> policies
+    + getPolicy(PatientClassification classification): IBillingPolicy
+    + updatePolicy(PatientClassification classification, IBillingPolicy newPolicy)
+}
+
+' Relationships '
+
+Patient "1" -- "1" PatientClassification : has a
+
+Patient "1" -- "0..*" Invoice : generates
+
+Invoice "1" -- "1..*" InvoiceEntry : contains
+
+InvoiceEntry "1" -- "1" Service : references
+
+Service "1" -- "1" IPricingStrategy : uses
+
+IBillingPolicy <|.. InsuranceBillingPolicy
+IBillingPolicy <|.. GovernmentBillingPolicy
+IBillingPolicy <|.. SelfPayBillingPolicy
+
+IPricingStrategy <|.. StandardPricingStrategy
+IPricingStrategy <|.. VolumePricingStrategy
+
+Service <|-- ClinicalProcedure
+Service <|-- Pharmaceutical
+Service <|-- LabDiagnostic
+Service <|-- RoomUtilization
+
+BillingEngine "1" -- "1" PolicyManager : uses
+BillingEngine ..> Patient : interacts with
+BillingEngine ..> Service : processes
+BillingEngine ..> Invoice : creates
+BillingEngine ..> InvoiceEntry : creates
+BillingEngine ..> IBillingPolicy : applies
+BillingEngine ..> IPricingStrategy : applies
+
+PolicyManager "1" -- "*" IBillingPolicy : manages
+
+@enduml

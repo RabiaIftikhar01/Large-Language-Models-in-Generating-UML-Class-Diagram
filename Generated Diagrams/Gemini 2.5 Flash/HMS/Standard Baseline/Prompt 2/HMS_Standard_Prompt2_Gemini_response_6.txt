@@ -1,0 +1,239 @@
+@startuml
+!theme mars
+
+' Title for the diagram
+title Hospital Discharge Billing System
+
+' Interfaces and Abstract Classes
+interface IBillingPolicy {
+    + policyId: String
+    + policyName: String
+    --
+    + calculateBilledAmount(billingEntry: BillingEntry, patient: Patient): decimal
+}
+
+abstract class Patient {
+    + patientId: String
+    + name: String
+    + admissionDate: Date
+    + dischargeDate: Date
+    --
+    + getPatientClassification(): String
+    + getBillingPolicy(): IBillingPolicy
+    + setBillingPolicy(policy: IBillingPolicy): void
+}
+
+abstract class Treatment {
+    + treatmentId: String
+    + name: String
+    + description: String
+    --
+    + getBasePrice(): Price
+}
+
+' Core Data Classes
+class Price {
+    + amount: decimal
+    + currency: String
+    + effectiveDate: Date
+    + endDate: Date ' Optional, for price validity periods
+}
+
+class BillingEntry {
+    + entryId: String
+    + quantity: int
+    + treatmentDate: Date
+    + grossAmount: decimal ' quantity * basePrice
+    + discountAmount: decimal
+    + subsidizedAmount: decimal
+    + coPaymentAmount: decimal
+    + netAmount: decimal ' Final amount to be billed to patient/insurer
+    + status: String ' e.g., "Pending", "Billed", "Paid"
+}
+
+class Invoice {
+    + invoiceId: String
+    + invoiceDate: Date
+    + totalAmount: decimal
+    + status: String ' e.g., "Draft", "Issued", "Paid", "Cancelled"
+}
+
+class AuditLog {
+    + logId: String
+    + timestamp: Date
+    + userId: String
+    + action: String
+    + details: String
+}
+
+' Concrete Patient Types
+class InsurancePatient extends Patient {
+    + insurerName: String
+    + policyNumber: String
+}
+
+class GovernmentPatient extends Patient {
+    + governmentSchemeId: String
+}
+
+class SelfPayingPatient extends Patient {
+    ' No specific attributes beyond base Patient
+}
+
+' Concrete Billing Policies
+class InsuranceBillingPolicy implements IBillingPolicy {
+    + policyId: String
+    + policyName: String
+    --
+    + calculateBilledAmount(billingEntry: BillingEntry, patient: Patient): decimal
+}
+
+class GovernmentBillingPolicy implements IBillingPolicy {
+    + policyId: String
+    + policyName: String
+    --
+    + calculateBilledAmount(billingEntry: BillingEntry, patient: Patient): decimal
+}
+
+class SelfPayBillingPolicy implements IBillingPolicy {
+    + policyId: String
+    + policyName: String
+    --
+    + calculateBilledAmount(billingEntry: BillingEntry, patient: Patient): decimal
+}
+
+' Policy Configuration Data (managed by PolicyManager)
+class CoveragePolicy {
+    + coverageId: String
+    + description: String
+    + coveragePercentage: decimal
+    + deductible: decimal
+    + effectiveDate: Date
+    + endDate: Date
+}
+
+class CoPaymentModel {
+    + modelId: String
+    + description: String
+    + coPaymentPercentage: decimal
+    + fixedCoPayment: decimal
+    + effectiveDate: Date
+    + endDate: Date
+}
+
+class ReimbursementCeiling {
+    + ceilingId: String
+    + description: String
+    + maxAmount: decimal
+    + effectiveDate: Date
+    + endDate: Date
+}
+
+class SubsidySchedule {
+    + scheduleId: String
+    + description: String
+    + subsidyPercentage: decimal
+    + fixedSubsidy: decimal
+    + effectiveDate: Date
+    + endDate: Date
+}
+
+' Concrete Treatment Types
+class ClinicalProcedure extends Treatment {
+    + procedureCode: String
+}
+
+class Pharmaceutical extends Treatment {
+    + drugCode: String
+    + dosage: String
+}
+
+class LabDiagnostic extends Treatment {
+    + testCode: String
+}
+
+class RoomUtilization extends Treatment {
+    + roomNumber: String
+    + roomType: String
+}
+
+' Service Layer
+class PricingService {
+    + getPriceForTreatment(treatmentId: String, date: Date): Price
+    + updateTreatmentPrice(treatmentId: String, newPrice: Price): void
+}
+
+class PolicyManager {
+    + getCoveragePolicy(policyId: String, date: Date): CoveragePolicy
+    + getCoPaymentModel(modelId: String, date: Date): CoPaymentModel
+    + getReimbursementCeiling(ceilingId: String, date: Date): ReimbursementCeiling
+    + getSubsidySchedule(scheduleId: String, date: Date): SubsidySchedule
+    + createOrUpdatePolicyData(data: Object): void
+    + getBillingPolicyInstance(patientClassification: String, policyId: String): IBillingPolicy
+}
+
+class DischargeBillingService {
+    + generateInvoice(patient: Patient, treatments: List<Treatment>): Invoice
+    + createBillingEntry(patient: Patient, treatment: Treatment, quantity: int): BillingEntry
+}
+
+' Relationships
+
+' Patient and Billing Policy (Strategy Pattern)
+Patient "1" *-- "1" IBillingPolicy : "applies"
+InsurancePatient --|> Patient
+GovernmentPatient --|> Patient
+SelfPayingPatient --|> Patient
+
+' Billing Policies and their configuration data
+' Policies dynamically retrieve their configuration data from PolicyManager.
+InsuranceBillingPolicy ..> PolicyManager : "uses"
+GovernmentBillingPolicy ..> PolicyManager : "uses"
+
+' Treatments and Pricing
+Treatment "1" -- "1" Price : "has base"
+ClinicalProcedure --|> Treatment
+Pharmaceutical --|> Treatment
+LabDiagnostic --|> Treatment
+RoomUtilization --|> Treatment
+
+' Billing Entries and Invoice
+Invoice "1" *-- "0..*" BillingEntry : "contains"
+Invoice "1" -- "1" Patient : "for"
+BillingEntry "1" -- "1" Treatment : "references"
+
+' Services and their dependencies
+DischargeBillingService ..> Invoice : "creates"
+DischargeBillingService ..> Patient : "processes"
+DischargeBillingService ..> Treatment : "uses"
+DischargeBillingService ..> BillingEntry : "generates"
+DischargeBillingService ..> PricingService : "uses"
+DischargeBillingService ..> PolicyManager : "uses" ' To manage/assign policies and policy data
+
+PricingService "1" -- "0..*" Price : "manages"
+
+PolicyManager "1" -- "0..*" CoveragePolicy : "manages"
+PolicyManager "1" -- "0..*" CoPaymentModel : "manages"
+PolicyManager "1" -- "0..*" ReimbursementCeiling : "manages"
+PolicyManager "1" -- "0..*" SubsidySchedule : "manages"
+PolicyManager "1" -- "0..*" IBillingPolicy : "configures/provides"
+
+' Audit Trail for regulatory constraints
+DischargeBillingService ..> AuditLog : "generates"
+PolicyManager ..> AuditLog : "generates"
+PricingService ..> AuditLog : "generates"
+
+' Notes for clarity
+note "Patient's billing behavior is determined by the assigned IBillingPolicy instance, allowing runtime replacement (Strategy Pattern)." as N1
+Patient .. N1
+
+note "Billing Policies dynamically retrieve their configuration (coverage, subsidy, etc.) from PolicyManager, enabling updates without structural redesign." as N2
+IBillingPolicy .. N2
+
+note "PricingService manages and provides current prices for treatments, supporting evolving pricing logic." as N3
+PricingService .. N3
+
+note "AuditLog captures all significant actions for rigorous regulatory compliance and auditability." as N4
+AuditLog .. N4
+
+@enduml

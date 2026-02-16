@@ -1,0 +1,195 @@
+@startuml
+' Styling
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam class {
+    BorderColor #347C98
+    BackgroundColor White
+    ArrowColor #347C98
+    FontColor #333333
+}
+skinparam interface {
+    BorderColor #347C98
+    BackgroundColor #E0F2F7
+    FontColor #333333
+}
+skinparam enum {
+    BorderColor #347C98
+    BackgroundColor #F0F8FF
+    FontColor #333333
+}
+skinparam note {
+    BackgroundColor #FFFFCC
+    BorderColor #CCCC00
+    FontColor #333333
+}
+
+' Enums
+enum PatientClassification {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAYING
+}
+
+enum InvoiceStatus {
+    DRAFT
+    ISSUED
+    PAID
+    CANCELLED
+}
+
+' Core Entities: Patient Data
+class Patient {
+    - patientId: String
+    - name: String
+    - dateOfBirth: Date
+    - contactInfo: String
+    --
+    + getClassification(): PatientClassification
+}
+
+class Hospitalization {
+    - hospitalizationId: String
+    - admissionDate: Date
+    - dischargeDate: Date
+    --
+    + addTreatment(treatment: Treatment)
+    + getTreatments(): List<Treatment>
+}
+
+' Pricing Elements: Treatments (Abstract and Concrete)
+abstract class Treatment {
+    - treatmentId: String
+    - description: String
+    - datePerformed: Date
+    --
+    + {abstract} getRawCost(): BigDecimal
+}
+
+class ClinicalProcedure extends Treatment {
+    - procedureCode: String
+    - baseCost: BigDecimal
+    --
+    + getRawCost(): BigDecimal
+}
+
+class Pharmaceutical extends Treatment {
+    - drugCode: String
+    - quantity: int
+    - unitPrice: BigDecimal
+    --
+    + getRawCost(): BigDecimal
+}
+
+class LaboratoryDiagnostic extends Treatment {
+    - testCode: String
+    - baseCost: BigDecimal
+    --
+    + getRawCost(): BigDecimal
+}
+
+class RoomUtilization extends Treatment {
+    - roomNumber: String
+    - dailyRate: BigDecimal
+    - daysUsed: int
+    --
+    + getRawCost(): BigDecimal
+}
+
+note right of Treatment::getRawCost
+  Represents the base pricing logic
+  for each specific treatment type.
+end note
+
+' Billing Policies (Strategy Pattern for runtime configurability)
+interface IBillingPolicy {
+    + applyPolicy(treatment: Treatment, patient: Patient): BigDecimal
+}
+
+class InsuranceBillingPolicy implements IBillingPolicy {
+    - insurerSpecificCoverage: Map<String, CoverageRule>
+    - reimbursementCeilings: Map<String, BigDecimal>
+    - coPaymentModels: Map<String, CoPaymentModel>
+    --
+    + applyPolicy(treatment: Treatment, patient: Patient): BigDecimal
+}
+
+class GovernmentBillingPolicy implements IBillingPolicy {
+    - subsidySchedules: Map<String, SubsidySchedule>
+    --
+    + applyPolicy(treatment: Treatment, patient: Patient): BigDecimal
+}
+
+class SelfPayingBillingPolicy implements IBillingPolicy {
+    + applyPolicy(treatment: Treatment, patient: Patient): BigDecimal
+}
+
+note right of IBillingPolicy
+  Policies define coverage, reimbursement,
+  co-payment, and subsidy logic based on
+  patient classification and external rules.
+end note
+
+' Policy Management (for runtime updates)
+class PolicyManager {
+    - policies: Map<PatientClassification, IBillingPolicy>
+    --
+    + getPolicy(classification: PatientClassification): IBillingPolicy
+    + updatePolicy(classification: PatientClassification, newPolicy: IBillingPolicy)
+}
+
+note right of PolicyManager::updatePolicy
+  Enables runtime policy updates
+  without necessitating structural redesign.
+end note
+
+' Invoice Generation
+class BillingService {
+    - policyManager: PolicyManager
+    --
+    + generateInvoice(hospitalization: Hospitalization): Invoice
+}
+
+class Invoice {
+    - invoiceId: String
+    - issueDate: Date
+    - totalAmount: BigDecimal
+    --
+    + addInvoiceItem(item: InvoiceItem)
+    + calculateTotal(): void
+}
+
+class InvoiceItem {
+    - description: String
+    - rawCost: BigDecimal
+    - billedAmount: BigDecimal
+    - discountAmount: BigDecimal
+    - coPaymentAmount: BigDecimal
+    --
+    + getNetBilledAmount(): BigDecimal
+}
+
+' Relationships
+
+Patient "1" -- "1" PatientClassification : has >
+
+Hospitalization "1" -- "1" Patient : for >
+Hospitalization "1" -- "*" Treatment : includes >
+
+Invoice "1" -- "1" Hospitalization : generated for >
+Invoice "1" -- "*" InvoiceItem : contains >
+InvoiceItem "1" -- "1" Treatment : details >
+Invoice "1" -- "1" InvoiceStatus : has >
+
+BillingService "1" -- "1" PolicyManager : uses >
+PolicyManager "1" -- "*" IBillingPolicy : manages >
+
+' Separation of Concerns Notes
+note "Clear separation of:\n- Patient Data\n- Pricing Elements\n- Billing Policies" as SeparationNote
+Patient .. SeparationNote
+Treatment .. SeparationNote
+IBillingPolicy .. SeparationNote
+end note
+
+@enduml
