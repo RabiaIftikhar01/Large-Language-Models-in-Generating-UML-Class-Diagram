@@ -1,0 +1,133 @@
+```plantuml
+@startuml
+class WeatherStation {
+  - stationId: String
+  - location: GeoLocation
+  - owner: String
+  - ownerType: OwnerType
+  - dataCadence: Integer
+  + transmitData(): SensorData
+  + updateCadence(newCadence: Integer): void
+}
+
+class GeoLocation {
+  - latitude: Double
+  - longitude: Double
+  - altitude: Double
+}
+
+enum OwnerType {
+  PUBLIC_AGENCY
+  RESEARCH_CENTER
+  INFRASTRUCTURE_ENTITY
+}
+
+class Sensor {
+  - sensorId: String
+  - sensorType: SensorType
+  - vendor: String
+  - nativeFormat: String
+  + readData(): RawSensorData
+}
+
+enum SensorType {
+  TEMPERATURE
+  HUMIDITY
+  PRESSURE
+  WIND_SPEED
+  WIND_DIRECTION
+  PRECIPITATION
+}
+
+class RawSensorData {
+  - timestamp: DateTime
+  - value: Object
+  - format: String
+  - sensorId: String
+}
+
+class SensorData {
+  - stationId: String
+  - timestamp: DateTime
+  - readings: List<RawSensorData>
+}
+
+class IngestionPlatform {
+  - platformId: String
+  + requestDataTransfer(station: WeatherStation): void
+  + ingestData(data: SensorData): void
+}
+
+class DataStandardizer {
+  - formatMappings: Map<String, FormatConverter>
+  + standardize(rawData: RawSensorData): StandardizedData
+  + registerFormatConverter(format: String, converter: FormatConverter): void
+}
+
+interface FormatConverter {
+  + convert(rawData: RawSensorData): StandardizedData
+}
+
+class StandardizedData {
+  - timestamp: DateTime
+  - sensorId: String
+  - sensorType: SensorType
+  - value: Double
+  - unit: String
+}
+
+class DistributedNode {
+  - nodeId: String
+  - region: String
+  - status: NodeStatus
+  + processIngestion(data: SensorData): void
+  + synchronize(): void
+}
+
+enum NodeStatus {
+  ACTIVE
+  STANDBY
+  OFFLINE
+}
+
+class TelemetryConsolidator {
+  + consolidate(data: List<StandardizedData>): ConsolidatedTelemetry
+  + aggregate(): void
+}
+
+class ConsolidatedTelemetry {
+  - timestamp: DateTime
+  - dataPoints: List<StandardizedData>
+  - metadata: Map<String, String>
+}
+
+class ReliabilityManager {
+  + monitorHealth(): void
+  + handleFailure(node: DistributedNode): void
+  + ensureRedundancy(): void
+}
+
+WeatherStation "1" *-- "1" GeoLocation
+WeatherStation "1" -- "1" OwnerType
+WeatherStation "1" *-- "1..*" Sensor
+Sensor "1" -- "1" SensorType
+Sensor "1" ..> "1..*" RawSensorData : produces
+WeatherStation "1" ..> "1" SensorData : transmits
+SensorData "1" *-- "*" RawSensorData
+
+IngestionPlatform "1" --> "*" WeatherStation : requests from
+IngestionPlatform "1" ..> "*" SensorData : ingests
+IngestionPlatform "1" *-- "1..*" DistributedNode
+IngestionPlatform "1" --> "1" DataStandardizer : uses
+IngestionPlatform "1" --> "1" TelemetryConsolidator : uses
+IngestionPlatform "1" --> "1" ReliabilityManager : uses
+
+DataStandardizer "1" --> "*" FormatConverter : uses
+DataStandardizer "1" ..> "1" StandardizedData : produces
+FormatConverter ..> StandardizedData : creates
+
+DistributedNode "1" -- "1" NodeStatus
+DistributedNode "*" ..> "*" SensorData : processes
+
+TelemetryConsolidator "1" ..> "*" StandardizedData : consolidates
+TelemetryConsolidator "1
