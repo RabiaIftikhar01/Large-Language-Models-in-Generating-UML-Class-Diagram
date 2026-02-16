@@ -1,0 +1,86 @@
+@startuml
+!theme plain
+
+' Enums/Value Types
+enum StationStatus {
+    Active
+    Inactive
+    Maintenance
+}
+
+' Core Classes
+class WeatherStation {
+    - stationId: String
+    - name: String
+    - location: String
+    - status: StationStatus
+    --
+    + transmitData(): List<Measurement>
+}
+
+class Sensor {
+    - sensorId: String
+    - type: String
+    - unit: String
+    - nativeFormat: String
+    --
+    + generateMeasurement(): Measurement
+}
+
+class Measurement {
+    - measurementId: String
+    - value: Double
+    - timestamp: DateTime
+    - normalizedValue: Double
+}
+
+class Organization {
+    - organizationId: String
+    - name: String
+    - type: String
+}
+
+class Manufacturer {
+    - manufacturerId: String
+    - name: String
+}
+
+class WeatherInformationSystem {
+    - systemId: String
+    - name: String
+    --
+    + establishLink(stationId: String): void
+    + requestData(stationId: String): List<Measurement>
+    + ingestData(measurements: List<Measurement>): void
+    + normalizeData(measurement: Measurement): Measurement
+}
+
+' Association Class for dynamic relationship attributes
+association "1" -- "1" WeatherInformationSystem
+association "1" -- "1" WeatherStation
+class MonitoringAgreement {
+    - agreementId: String
+    - transmissionFrequency: String
+    - lastTransmissionTime: DateTime
+    --
+    + updateFrequency(newFrequency: String): void
+}
+WeatherInformationSystem "1" -- MonitoringAgreement
+WeatherStation "1" -- MonitoringAgreement
+
+
+' Relationships between classes
+WeatherStation "1" *-- "0..*" Sensor : hosts >
+Organization "1" -- "0..*" WeatherStation : operates >
+Manufacturer "1" -- "0..*" Sensor : supplies >
+Sensor "1" --> "1" Measurement : generates >
+WeatherInformationSystem "1" <-- "0..*" Measurement : ingests <
+
+' Notes for clarity and additional context
+note right of WeatherInformationSystem : The central platform responsible for \ndata ingestion, processing, and storage.
+note right of MonitoringAgreement : Defines the specific terms and frequency \nof data transmission for each monitored station.
+note right of Measurement : Represents a single reading from a sensor, \nincluding its raw and normalized values.
+note top of Sensor : Represents heterogeneous sensors from \ndifferent manufacturers, reporting in native formats.
+note top of WeatherStation : Aggregates data from its hosted sensors \nand transmits it to the platform.
+
+@enduml

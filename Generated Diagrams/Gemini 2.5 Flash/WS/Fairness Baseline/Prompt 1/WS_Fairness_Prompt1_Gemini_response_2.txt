@@ -1,0 +1,97 @@
+@startuml
+!pragma layout smetana
+
+' Purpose: UML Class Diagram for a Distributed Environmental Monitoring Platform
+' This diagram models the core entities and their interactions for data ingestion and processing.
+
+' Design Practices Applied:
+' - Simplicity: Focuses on essential classes and relationships to avoid clutter.
+' - Naming Conventions: Classes use PascalCase (e.g., WeatherInformationSystem), attributes and operations use camelCase. All singular nouns.
+' - Attribute Assignment: Attributes are carefully placed in relevant classes. TelemetryData encapsulates raw and normalized values.
+' - Operations: Operations reflect key responsibilities. Data-centric classes (TelemetryData, Manufacturer) have minimal explicit operations, adhering to the principle that classes encapsulate information and behavior.
+' - Responsibilities: Each class has a clear, manageable set of responsibilities.
+' - Access Specifiers: Attributes are private ('-'), operations are public ('+').
+' - Loose Coupling: Relationships are designed to minimize direct dependencies.
+' - Unidirectional Associations: Used where appropriate to simplify maintenance and improve reusability.
+' - Multiplicity: Clearly defined for all associations, reflecting business rules.
+' - Role/Relationship Names: Used to clarify the purpose of associations (e.g., 'manages', 'hosts', 'produces', 'suppliedBy').
+' - Standard UML Notations: Adheres to standard UML for clarity and consistency.
+' - Explanatory Notes: Added to clarify complex sections or provide additional context.
+
+' Classes Definition
+
+class WeatherInformationSystem {
+  - systemId: String
+  - name: String
+  --
+  + requestTelemetry(stationId: String): TelemetryData[]
+  + ingestTelemetry(data: TelemetryData[]): void
+  + normalizeData(rawData: String, nativeFormat: String): String
+  + processTelemetry(data: TelemetryData[]): void
+}
+
+class WeatherStation {
+  - stationId: String
+  - location: String
+  - transmissionFrequencyHours: int
+  - lastTransmissionTimestamp: DateTime
+  --
+  + collectSensorData(): TelemetryData[]
+  + transmitData(): TelemetryData[]
+  + configureTransmission(frequencyHours: int): void
+}
+
+class Sensor {
+  - sensorId: String
+  - type: String
+  - unit: String
+  - nativeFormat: String
+  --
+  + readValue(): String
+}
+
+class Manufacturer {
+  - manufacturerId: String
+  - name: String
+}
+
+class TelemetryData {
+  - dataId: String
+  - sensorId: String
+  - stationId: String
+  - rawValue: String
+  - normalizedValue: String
+  - timestamp: DateTime
+}
+
+' Relationships Definition
+
+WeatherInformationSystem "1" -- "0..*" WeatherStation : manages >
+note on link
+  A WeatherInformationSystem manages
+  multiple WeatherStations.
+  The system requests data transmission
+  from these stations.
+end note
+
+WeatherStation "1" *-- "1..*" Sensor : hosts >
+note on link
+  A WeatherStation hosts one or more Sensors.
+  This is a composition relationship,
+  implying Sensors are an integral part of a station.
+end note
+
+Sensor "1" --> "0..*" TelemetryData : produces >
+note on link
+  A Sensor produces many TelemetryData points over time.
+  TelemetryData carries both the raw and
+  the normalized measurement values.
+end note
+
+Sensor "0..*" --> "1" Manufacturer : suppliedBy >
+note on link
+  A Sensor is supplied by exactly one Manufacturer.
+  A Manufacturer can supply many Sensors.
+end note
+
+@enduml

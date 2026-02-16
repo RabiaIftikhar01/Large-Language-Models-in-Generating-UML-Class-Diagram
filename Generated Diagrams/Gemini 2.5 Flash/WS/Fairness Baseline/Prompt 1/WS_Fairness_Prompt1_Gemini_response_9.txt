@@ -1,0 +1,144 @@
+@startuml
+!pragma layout smetana
+
+' Design Practices Adhered To:
+' 1. Simplicity: Focused on core entities to avoid clutter.
+' 2. Naming: Classes are singular nouns (e.g., Platform, Sensor).
+' 3. Short Names: Class names are concise.
+' 4. Naming Convention: PascalCase for classes, camelCase for attributes and operations.
+' 5. Attributes: Carefully assigned to appropriate classes.
+' 6. Operations: Each class has a manageable set of responsibilities and operations.
+' 7. Classes with Operations: All classes have at least one operation, indicating behavior.
+' 8. Manageable Responsibilities: Classes are not overloaded with operations.
+' 9. Access Methods: Implied by public (+) access for attributes or explicit get/set operations.
+' 10. Operation Categories: Operations are assigned access specifiers based on usage (public for core logic/access).
+' 11. Reduced Relationships: Relationships are kept to a necessary minimum.
+' 12. Unidirectional Associations: Used where possible to simplify maintenance and improve reusability.
+' 15. Multiplicity: Clearly defined for all relationships.
+' 16. Relationship/Role Names: Used to explain the purpose of relationships.
+' 17. Role Names: Noun phrases (e.g., "operated by", "supplied by").
+' 21. Identified Relationships: Clear associations between classes.
+' 22. Standard UML Notations: Used for classes and relationships.
+' 23. Descriptive Names: Meaningful names for classes, attributes, and methods.
+' 24. Consistent Style: Maintained throughout the diagram.
+' 25. Explanatory Notes: Added for complex sections or additional context.
+' 27. Loose Coupling: Classes are designed to be loosely coupled.
+
+' Classes Definition
+
+class Platform {
+  -platformId: String
+  -name: String
+  --
+  +ingestData(measurement: Measurement): void
+  +requestStationData(stationId: String): List<Measurement>
+  +normalizeMeasurement(rawMeasurement: Measurement): Measurement
+}
+
+class WeatherStation {
+  -stationId: String
+  -name: String
+  -latitude: double
+  -longitude: double
+  -altitude: double
+  -deploymentDate: Date
+  -reportingFrequency: String ' e.g., "hourly", "daily", "custom"
+  --
+  +sendTelemetry(): List<Measurement>
+  +establishLink(): boolean
+  +getStationInfo(): Map<String, String>
+}
+
+class Sensor {
+  -sensorId: String
+  -type: String ' e.g., "temperature", "humidity", "windSpeed"
+  -model: String
+  -serialNumber: String
+  -calibrationDate: Date
+  -measurementUnit: String ' e.g., "Celsius", "percent", "m/s"
+  --
+  +readRawMeasurement(): Measurement
+  +getSensorInfo(): Map<String, String>
+}
+
+class Measurement {
+  -measurementId: String
+  -value: double
+  -timestamp: Date
+  -originalFormat: String
+  -normalizedValue: double
+  --
+  +getMeasurementValue(): double
+  +getTimestamp(): Date
+}
+
+class Organization {
+  -organizationId: String
+  -name: String
+  -type: String ' e.g., "GovernmentAgency", "ResearchInstitution", "InfrastructureProvider"
+  --
+  +getOrganizationInfo(): Map<String, String>
+}
+
+class Manufacturer {
+  -manufacturerId: String
+  -name: String
+  -country: String
+  --
+  +getManufacturerInfo(): Map<String, String>
+}
+
+' Relationships Definition
+
+' The Platform manages multiple WeatherStations.
+Platform "1" o-- "0..*" WeatherStation : manages
+
+' A WeatherStation is operated by exactly one Organization.
+WeatherStation "1" --> "1" Organization : operated by
+
+' A WeatherStation hosts one or more Sensors (composition, Sensor cannot exist without Station).
+WeatherStation "1" *-- "1..*" Sensor : hosts
+
+' A Sensor is supplied by exactly one Manufacturer.
+Sensor "1" --> "1" Manufacturer : supplied by
+
+' A Sensor produces zero or more Measurements over time.
+Sensor "1" --> "0..*" Measurement : produces
+
+' Explanatory Notes
+
+note top of Platform
+  Represents the central distributed
+  environmental monitoring platform.
+  Responsible for orchestrating data
+  ingestion, requesting data from stations,
+  and normalizing raw measurements.
+end note
+
+note right of WeatherStation
+  Represents a physical weather station.
+  It hosts various sensors and is capable
+  of establishing a link and sending
+  telemetry data to the platform.
+end note
+
+note left of Sensor
+  Represents an individual sensor unit
+  (e.g., thermometer, anemometer) hosted
+  by a weather station. It reads and
+  produces raw measurement data.
+end note
+
+note bottom of Measurement
+  Represents a single data point collected
+  by a sensor at a specific time.
+  It includes both the original raw value
+  and the value after normalization.
+end note
+
+note "The platform establishes a link and requests data from stations, \nwhich then transmit telemetry containing raw measurements. \nThese measurements are subsequently normalized by the platform." as CommunicationFlow
+Platform .. CommunicationFlow
+WeatherStation .. CommunicationFlow
+Measurement .. CommunicationFlow
+
+@enduml

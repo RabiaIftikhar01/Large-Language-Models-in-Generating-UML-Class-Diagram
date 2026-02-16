@@ -1,0 +1,130 @@
+@startuml
+'
+' Distributed Environmental Monitoring Platform Class Diagram
+'
+' This diagram models the core entities and their interactions for a distributed
+' environmental monitoring platform, focusing on data ingestion, normalization,
+' and consumption. It adheres to good design practices for clarity, simplicity,
+' and maintainability.
+'
+
+' --- Classes Definition ---
+
+class Platform {
+  - platformId: String
+  - name: String
+  -- Operations --
+  + ingestRawData(rawData: RawData): void
+  + processData(rawData: RawData): Measurement
+  + storeMeasurement(measurement: Measurement): void
+}
+
+class WeatherStation {
+  - stationId: String
+  - name: String
+  - location: String ' e.g., "latitude,longitude"
+  - reportingFrequency: String ' e.g., "hourly", "30min", "daily"
+  -- Operations --
+  + establishLink(): boolean
+  + requestDataTransmission(): boolean
+  + transmitRawDataToPlatform(platform: Platform): void
+}
+
+class Sensor {
+  - sensorId: String
+  - type: String ' e.g., "Temperature", "Humidity", "WindSpeed"
+  - unit: String ' e.g., "Celsius", "%", "m/s"
+  - model: String
+  - nativeFormat: String ' Format of data reported by this sensor (e.g., JSON, XML)
+  -- Operations --
+  + readRawData(): RawData
+}
+
+class RawData {
+  - timestamp: DateTime
+  - rawValue: String ' The actual raw data string/payload from the sensor
+  - sensorId: String ' Identifier of the sensor that produced this data
+  - stationId: String ' Identifier of the station hosting the sensor
+}
+
+class Measurement {
+  - measurementId: String
+  - value: Double
+  - unit: String
+  - timestamp: DateTime
+  - sensorType: String
+  - stationId: String ' For traceability back to the source station
+}
+
+class Operator {
+  - operatorId: String
+  - name: String
+  - type: String ' e.g., "GovernmentAgency", "ResearchInstitution", "InfrastructureProvider"
+}
+
+class Manufacturer {
+  - manufacturerId: String
+  - name: String
+}
+
+class WeatherInformationSystem {
+  - systemId: String
+  - name: String
+  -- Operations --
+  + requestData(platform: Platform): List<Measurement>
+  + receiveData(measurement: Measurement): void
+}
+
+
+' --- Relationships Definition ---
+
+' Platform manages WeatherStations
+Platform "1" -- "0..*" WeatherStation : manages >
+
+' WeatherStation hosts Sensors (Composition: sensors are integral parts of a station)
+WeatherStation "1" *-- "1..*" Sensor : hosts >
+
+' Operator operates WeatherStations
+Operator "1" -- "1..*" WeatherStation : operates >
+
+' Manufacturer supplies Sensors
+Manufacturer "1" -- "1..*" Sensor : supplies >
+
+' WeatherStation transmits RawData to the Platform for ingestion
+WeatherStation "1" --> "1" Platform : transmitsRawDataTo >
+
+' Platform aggregates and stores processed Measurement data
+Platform "1" o-- "0..*" Measurement : aggregates >
+
+' WeatherInformationSystem requests normalized Measurement data from the Platform
+WeatherInformationSystem "1" --> "1" Platform : requestsDataFrom >
+
+
+' --- Data Flow / Dependencies (Conceptual) ---
+
+' Sensor produces RawData (conceptual flow, not a direct association)
+Sensor ..> RawData : <<produces>>
+
+' Platform processes RawData into Measurement (conceptual transformation)
+RawData <.. Platform : <<processes>>
+Measurement <.. Platform : <<creates>>
+
+
+' --- Explanatory Notes for Clarity ---
+
+note "Platform is the central component for large-scale data ingestion,\nnormalization, aggregation, and storage of environmental telemetry.\nIt ensures reliability in geographically dispersed deployments." as PlatformNote
+Platform .. PlatformNote
+
+note "RawData represents sensor output in its native format.\nIt is produced by a Sensor and transmitted by a WeatherStation to the Platform for ingestion and processing." as RawDataNote
+RawData .. RawDataNote
+
+note "Measurement represents normalized sensor data after processing by the Platform.\nIt is stored by the Platform and consumed by the WeatherInformationSystem." as MeasurementNote
+Measurement .. MeasurementNote
+
+note "WeatherStation's reporting frequency can be configured and modified.\nIt establishes links and transmits raw data to the Platform." as ReportingFrequencyNote
+WeatherStation .. ReportingFrequencyNote
+
+note "WeatherInformationSystem consumes normalized data from the Platform.\nIt might also initiate data transmission from stations towards the Platform." as WISNote
+WeatherInformationSystem .. WISNote
+
+@enduml

@@ -1,0 +1,138 @@
+@startuml
+!pragma layout smetana
+
+' Global styling for clarity and consistency
+skinparam class {
+    BackgroundColor White
+    BorderColor #347C98
+    ArrowColor #347C98
+    FontColor #333333
+    StereotypeFontColor #347C98
+    AttributeFontColor #333333
+    OperationFontColor #333333
+}
+skinparam arrow {
+    Thickness 1.5
+    Color #347C98
+}
+hide empty members
+
+' Define the classes based on the scenario and design principles
+
+class WeatherStation {
+    + stationId: String
+    + location: String
+    + deploymentDate: Date
+    + reportingFrequencyHours: Integer
+    --
+    + updateReportingFrequency(newFrequency: Integer) : void
+    + collectSensorData() : List<RawMeasurement>
+    + transmitData(target: WeatherInformationSystem) : void
+}
+
+class Sensor {
+    + sensorId: String
+    + type: String
+    + model: String
+    + serialNumber: String
+    + nativeFormat: String
+    --
+    + readRawMeasurement() : RawMeasurement
+}
+
+' RawMeasurement represents data as received from sensors before normalization
+class RawMeasurement {
+    + measurementId: String
+    + rawValue: String
+    + timestamp: DateTime
+    + sensorId: String
+}
+
+' NormalizedMeasurement represents data after processing and standardization
+class NormalizedMeasurement {
+    + measurementId: String
+    + value: Double
+    + unit: String
+    + timestamp: DateTime
+    + dataType: String
+    + sensorId: String
+}
+
+class Operator {
+    + operatorId: String
+    + name: String
+    + type: String
+}
+
+class Manufacturer {
+    + manufacturerId: String
+    + name: String
+}
+
+' WeatherInformationSystem acts as the platform's interface to the stations
+class WeatherInformationSystem {
+    + systemId: String
+    + name: String
+    --
+    + establishLink(stationId: String) : Boolean
+    + configureStation(stationId: String, frequency: Integer) : void
+    + receiveData(data: List<RawMeasurement>) : void
+    + processIngestedData(data: List<RawMeasurement>) : void
+}
+
+' DataIngestionService is a core platform component for handling incoming data
+class DataIngestionService {
+    --
+    + ingest(rawMeasurements: List<RawMeasurement>) : List<NormalizedMeasurement>
+    + storeRawData(rawMeasurements: List<RawMeasurement>) : void
+    + storeNormalizedData(normalizedMeasurements: List<NormalizedMeasurement>) : void
+}
+
+' DataNormalizer standardizes raw measurements into a consistent format
+class DataNormalizer {
+    --
+    + normalize(rawMeasurement: RawMeasurement) : NormalizedMeasurement
+}
+
+' Define relationships between classes
+
+' WeatherStation hosts multiple Sensors (Composition)
+WeatherStation "1" *-- "0..*" Sensor : hosts >
+
+' WeatherStation is operated by an Operator (Unidirectional association)
+WeatherStation "0..*" --> "1" Operator : operatedBy >
+
+' Sensor is supplied by a Manufacturer (Unidirectional association)
+Sensor "0..*" --> "1" Manufacturer : suppliedBy >
+
+' Sensor produces RawMeasurements (Unidirectional association from measurement to sensor)
+RawMeasurement "0..*" --> "1" Sensor : producedBy >
+
+' WeatherInformationSystem manages WeatherStations, and WeatherStations report to it.
+' This bidirectional association covers configuration, monitoring, and data transmission.
+WeatherInformationSystem "1" -- "0..*" WeatherStation : manages / reportsTo
+
+' WeatherInformationSystem uses the DataIngestionService to process received data
+WeatherInformationSystem "1" --> "1" DataIngestionService : uses >
+
+' DataIngestionService delegates normalization tasks to the DataNormalizer
+DataIngestionService "1" --> "1" DataNormalizer : delegatesTo >
+
+' DataNormalizer transforms RawMeasurements into NormalizedMeasurements (Dependency)
+RawMeasurement <.. DataNormalizer : transforms
+NormalizedMeasurement <.. DataNormalizer : creates
+
+' DataIngestionService processes both raw and normalized measurements (Dependency)
+RawMeasurement <.. DataIngestionService : processes
+NormalizedMeasurement <.. DataIngestionService : processes
+
+
+' Explanatory notes for complex sections or additional information
+note bottom of WeatherInformationSystem : Acts as the platform's external interface,\nmanaging station communication and initial data reception.
+note bottom of DataIngestionService : Core platform service responsible for\ncollecting, storing, and routing data within the system.
+note bottom of DataNormalizer : Ensures all incoming measurements are\nconverted into a consistent, standardized format.
+note bottom of WeatherStation : Represents a physical weather station\nresponsible for collecting and transmitting sensor data.
+note bottom of RawMeasurement : Represents sensor data in its original,\nnative format before any processing.
+note bottom of NormalizedMeasurement : Represents sensor data after it has\nbeen standardized and processed by the platform.
+
+@enduml

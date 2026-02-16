@@ -1,0 +1,100 @@
+@startuml
+' Design Principles Adherence:
+' - Simplicity: The model focuses on core entities and their interactions, avoiding over-complication.
+' - Naming: Classes are singular nouns (PascalCase), attributes and operations are camelCase.
+' - Attributes: Carefully assigned to relevant classes, avoiding bloated or sparse classes.
+' - Operations: Each class has a clear set of responsibilities and operations. Data-centric classes have no operations.
+' - Relationships: Multiplicity is defined, and relationships are named with verbs to clarify purpose.
+' - Unidirectional Associations: Used where appropriate to reduce coupling and improve maintainability.
+' - No Inheritance/Circular Dependencies: The model avoids complex inheritance hierarchies and circular dependencies.
+' - Clarity: Descriptive names, notes, and standard UML notations are used to ensure the diagram is self-explanatory.
+
+' Classes
+class MonitoringPlatform {
+  - platformId: String
+  + requestTelemetry(stationId: String)
+  + processRawTelemetry(rawMeasurements: List<RawMeasurementData>)
+}
+
+class WeatherStation {
+  - stationId: String
+  - location: String
+  - transmissionFrequency: Duration ' e.g., "1 hour"
+  + collectSensorData(): List<RawMeasurementData>
+  + transmitData(platform: MonitoringPlatform, data: List<RawMeasurementData>)
+}
+
+class Sensor {
+  - sensorId: String
+  - type: String ' e.g., Temperature, Humidity, WindSpeed
+  - model: String
+  - serialNumber: String
+  - unit: String ' e.g., Celsius, %RH, m/s
+  + readRawMeasurement(): RawMeasurementData
+}
+
+class RawMeasurementData {
+  - rawData: String ' Sensor data in its native, unnormalized format (e.g., JSON, XML string)
+  - timestamp: DateTime
+  - sensorId: String
+  - stationId: String
+}
+
+class DataIngestionService {
+  + ingestAndNormalize(rawMeasurements: List<RawMeasurementData>): List<Measurement>
+}
+
+class Measurement {
+  - measurementId: String
+  - value: Double
+  - timestamp: DateTime
+  - sensorType: String ' Type of sensor that produced this measurement
+  - unit: String ' Unit of the measured value
+}
+
+class Organization {
+  - organizationId: String
+  - name: String
+  - type: String ' e.g., Government, Research, Infrastructure Provider
+}
+
+class Manufacturer {
+  - manufacturerId: String
+  - name: String
+}
+
+' Relationships
+
+' MonitoringPlatform and WeatherStation interaction
+MonitoringPlatform "1" -- "0..*" WeatherStation : manages >
+WeatherStation "1" .right.> "1" MonitoringPlatform : sendsTo
+
+' WeatherStation and Sensor (Composition: Sensors are part of a WeatherStation)
+WeatherStation "1" *-- "1..*" Sensor : hosts
+
+' Sensor and RawMeasurementData (Dependency: Sensor generates raw data)
+Sensor "1" .right.> "0..*" RawMeasurementData : generates
+
+' WeatherStation and Organization
+WeatherStation "1" -- "1" Organization : operatedBy >
+
+' Sensor and Manufacturer
+Sensor "1" -- "1" Manufacturer : suppliedBy >
+
+' MonitoringPlatform and DataIngestionService
+MonitoringPlatform "1" -- "1" DataIngestionService : uses >
+
+' DataIngestionService and RawMeasurementData / Measurement (Dependencies: processes input, produces output)
+DataIngestionService "1" .left.> "0..*" RawMeasurementData : processes
+DataIngestionService "1" .right.> "0..*" Measurement : produces
+
+' Explanatory Notes
+note top of MonitoringPlatform : The central platform orchestrates data requests, reception, and processing.
+note top of WeatherStation : Deployed station hosting sensors, responsible for collecting and transmitting raw data.
+note top of Sensor : Device that measures environmental parameters and generates raw data.
+note top of RawMeasurementData : Represents sensor readings in their original, native format before any processing.
+note top of DataIngestionService : Component responsible for receiving raw data, normalizing it, and transforming it into structured Measurement objects.
+note top of Measurement : Represents a standardized, normalized, and structured environmental data point ready for analysis.
+note top of Organization : Entity (e.g., government agency) that operates a weather station.
+note top of Manufacturer : Company that supplies sensors.
+@enduml

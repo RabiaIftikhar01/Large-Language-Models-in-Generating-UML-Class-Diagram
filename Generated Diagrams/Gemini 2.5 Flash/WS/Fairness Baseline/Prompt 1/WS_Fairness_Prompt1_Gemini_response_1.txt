@@ -1,0 +1,189 @@
+@startuml
+' -------------------------------------------------------------------
+' Distributed Environmental Monitoring Platform - Class Diagram
+' -------------------------------------------------------------------
+
+' General styling for improved readability and professional look
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 14
+skinparam class {
+    BorderColor #34495E
+    BackgroundColor #ECF0F1
+    ArrowColor #2C3E50
+    HeaderBackgroundColor #BDC3C7
+    FontColor #2C3E50
+}
+skinparam association {
+    FontColor #2C3E50
+    FontSize 12
+}
+skinparam note {
+    BackgroundColor #FFFACD
+    BorderColor #DAA520
+    FontColor #333333
+}
+
+' -------------------------------------------------------------------
+' Class Definitions
+' -------------------------------------------------------------------
+
+' The central platform for data aggregation and processing
+class WeatherInformationSystem {
+    -- Operations --
+    + WeatherInformationSystem()
+    + registerStation(station: WeatherStation): void
+    + requestDataFromStation(stationId: String): List<Measurement>
+    + ingestRawMeasurements(measurements: List<Measurement>, stationId: String): void
+    + processAndStoreMeasurements(measurements: List<Measurement>): void
+}
+
+' Represents a physical weather station
+class WeatherStation {
+    -- Attributes --
+    - id: String
+    - name: String
+    - location: String
+    - transmissionFrequency: String
+    -- Operations --
+    + WeatherStation(id: String, name: String, location: String, frequency: String)
+    + getId(): String
+    + getName(): String
+    + getLocation(): String
+    + getTransmissionFrequency(): String
+    + setTransmissionFrequency(frequency: String): void
+    + collectSensorData(): List<Measurement>
+    + transmitData(data: List<Measurement>): void
+}
+
+' Represents a sensor device within a station
+class Sensor {
+    -- Attributes --
+    - id: String
+    - type: String
+    - model: String
+    - serialNumber: String
+    - nativeFormat: String
+    -- Operations --
+    + Sensor(id: String, type: String, model: String, serialNumber: String, nativeFormat: String)
+    + getId(): String
+    + getType(): String
+    + getModel(): String
+    + getSerialNumber(): String
+    + getNativeFormat(): String
+    + readRawData(): String
+    + createRawMeasurement(rawData: String): Measurement
+}
+
+' Represents a single data point from a sensor
+class Measurement {
+    -- Attributes --
+    - id: String
+    - value: double
+    - unit: String
+    - timestamp: DateTime
+    - sensorType: String
+    - rawData: String
+    -- Operations --
+    + Measurement(id: String, value: double, unit: String, timestamp: DateTime, sensorType: String, rawData: String)
+    + getId(): String
+    + getValue(): double
+    + getUnit(): String
+    + getTimestamp(): DateTime
+    + getSensorType(): String
+    + getRawData(): String
+    + setValue(value: double): void
+    + setUnit(unit: String): void
+}
+
+' Represents the manufacturer of a sensor
+class Manufacturer {
+    -- Attributes --
+    - id: String
+    - name: String
+    - country: String
+    -- Operations --
+    + Manufacturer(id: String, name: String, country: String)
+    + getId(): String
+    + getName(): String
+    + getCountry(): String
+}
+
+' Represents an entity operating a weather station
+class Organization {
+    -- Attributes --
+    - id: String
+    - name: String
+    - type: String
+    -- Operations --
+    + Organization(id: String, name: String, type: String)
+    + getId(): String
+    + getName(): String
+    + getType(): String
+}
+
+' Responsible for converting raw sensor data into a standardized format and unit
+class DataNormalizer {
+    -- Operations --
+    + DataNormalizer()
+    + normalizeMeasurement(measurement: Measurement): Measurement
+}
+
+' -------------------------------------------------------------------
+' Relationships
+' -------------------------------------------------------------------
+
+' Weather Information System communicates with Weather Stations
+WeatherInformationSystem "1" -- "0..*" WeatherStation : communicatesWith
+
+' A Weather Station hosts one or more Sensors (Composition: Sensors are part of a Station)
+WeatherStation "1" *-- "1..*" Sensor : hosts
+
+' Sensors are supplied by a Manufacturer
+Sensor "*" -- "1" Manufacturer : suppliedBy
+
+' Weather Stations are operated by an Organization
+WeatherStation "*" -- "1" Organization : operatedBy
+
+' A Sensor creates multiple Measurements over time
+Sensor "1" --> "*" Measurement : creates
+
+' The Weather Information System uses a Data Normalizer service
+WeatherInformationSystem "1" --> "1" DataNormalizer : uses
+
+' The Data Normalizer modifies Measurement objects to standardize their values
+DataNormalizer "1" --> "1" Measurement : modifies
+
+' -------------------------------------------------------------------
+' Explanatory Notes
+' -------------------------------------------------------------------
+note top of WeatherInformationSystem
+  The central platform for data aggregation,
+  orchestrating data ingestion, processing, and storage.
+end note
+
+note top of WeatherStation
+  Represents a physical weather station,
+  collecting data from its hosted sensors
+  and transmitting it to the platform.
+end note
+
+note top of Sensor
+  Represents a specific sensor device
+  (e.g., temperature, humidity) within a station,
+  reporting data in its native format.
+end note
+
+note top of Measurement
+  Represents a single data point reported by a sensor.
+  It stores both the original raw data and
+  the potentially normalized value and unit.
+end note
+
+note top of DataNormalizer
+  This service is responsible for transforming
+  raw sensor data from various native formats
+  into a consistent, standardized format and unit.
+end note
+
+@enduml

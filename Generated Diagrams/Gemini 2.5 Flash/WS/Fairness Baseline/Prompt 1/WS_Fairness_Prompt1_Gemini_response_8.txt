@@ -1,0 +1,136 @@
+@startuml
+' Design Practices followed:
+' 1. Simplicity: Focus on core entities and their direct interactions, avoiding unnecessary complexity.
+' 2. Naming: All classes are named as singular nouns, without spaces, and in UPPERCASE for consistency.
+' 3. Short Names: Class names are concise and descriptive.
+' 4. Naming Convention: UPPERCASE convention is consistently applied to all classes.
+' 5. Attribute Assignment: Attributes are carefully assigned to appropriate classes, ensuring each class holds relevant data.
+' 6. Operations: Classes have a manageable set of operations, focusing on their core responsibilities. Data-centric classes (RAWMESUREMENT, MEASUREMENT) have no operations, which is appropriate for DTOs.
+' 7. No Operation Classes: RAWMESUREMENT and MEASUREMENT are modeled as classes as they represent complex data structures passed between components, not simple attributes.
+' 8. Manageable Responsibilities: Each class has a clear and focused set of responsibilities.
+' 9. Access Methods: Public methods are used for interactions; explicit getters/setters are not shown for brevity but are implied for data access.
+' 10. Operation Categories: Access specifiers (+ for public, - for private) are used. `normalize` is a private helper method.
+' 11. Reduced Relationships: The number of relationships is reasonable, focusing on essential interactions.
+' 12. Unidirectional Associations: Where logical, associations are unidirectional (`>`) to indicate primary dependency and data flow.
+' 13. Multi-level Inheritance: Not used, maintaining a flat hierarchy.
+' 14. Circular Dependency: No circular dependencies are present at the class level.
+' 15. Multiplicity: Clearly defined for all relationships, reflecting business rules (e.g., one organization operates many stations).
+' 16. Relationship/Role Names: Used to clarify the purpose of associations (e.g., "hosts", "operates", "supplies").
+' 17. Link Elements/Association Class: Not required for this simplified model.
+' 18. Identify Relationships: All key interactions between classes are modeled as relationships.
+' 19. Standard UML Notations: Standard PlantUML syntax and UML notations are used.
+' 20. Descriptive Names: Names for classes, attributes, and methods are clear and meaningful.
+' 21. Consistent Style: Naming conventions and layout are uniform for improved readability.
+' 22. Explanatory Notes: Added to provide additional context and explain design choices.
+' 23. Avoid Redundancy: Data like sensorId and stationId are included in RAWMESUREMENT/MEASUREMENT for self-containment in a distributed context, rather than relying solely on associations for every data point.
+' 24. Loose Coupling: Classes interact through well-defined interfaces, minimizing direct dependencies between unrelated components.
+' 25. Understandability: The diagram is designed to be easily understood by practitioners.
+
+' Classes
+class MONITORINGPLATFORM {
+    - platformId: String
+    + requestStationData(stationId: String)
+    + handleRawData(rawMeasurements: List<RAWMESUREMENT>)
+    + storeNormalizedData(measurements: List<MEASUREMENT>)
+}
+
+class WEATHERSTATION {
+    - stationId: String
+    - name: String
+    - location: String ' e.g., "Lat: 34.05, Lon: -118.25"
+    - transmissionFrequencyHours: int
+    + transmitRawData(): List<RAWMESUREMENT>
+    + setTransmissionFrequency(frequencyHours: int)
+}
+
+class SENSOR {
+    - sensorId: String
+    - type: String ' e.g., "Temperature", "Humidity", "Pressure"
+    - model: String
+    - nativeUnit: String
+    + readRawValue(): String ' Returns raw value in native format
+    + calibrate()
+}
+
+class RAWMESUREMENT {
+    - rawValue: String ' Value in native format, could be complex string
+    - nativeUnit: String
+    - timestamp: DateTime
+    - sensorId: String ' Reference to the originating sensor
+    - stationId: String ' Reference to the originating station
+}
+
+class MEASUREMENT {
+    - measurementId: String
+    - value: double ' Normalized numerical value
+    - unit: String ' Standardized unit (e.g., "Celsius", "hPa")
+    - timestamp: DateTime
+    - sensorId: String ' Reference to the originating sensor
+    - stationId: String ' Reference to the originating station
+}
+
+class MANUFACTURER {
+    - manufacturerId: String
+    - name: String
+}
+
+class ORGANIZATION {
+    - organizationId: String
+    - name: String
+    - type: String ' e.g., "Government", "Research", "Infrastructure"
+}
+
+class DATAINGESTIONSERVICE {
+    + ingest(rawMeasurements: List<RAWMESUREMENT>): List<MEASUREMENT>
+    - normalize(rawMeasurement: RAWMESUREMENT): MEASUREMENT
+}
+
+' Relationships
+
+' MonitoringPlatform interacts with WeatherStation and DataIngestionService
+MONITORINGPLATFORM "1" --> "*" WEATHERSTATION : requests data from >
+MONITORINGPLATFORM "1" --> "1" DATAINGESTIONSERVICE : uses >
+MONITORINGPLATFORM "1" --> "*" MEASUREMENT : aggregates / stores >
+
+' WeatherStation hosts Sensors
+WEATHERSTATION "1" -- "*" SENSOR : hosts
+
+' Sensor generates RawMeasurements
+SENSOR "1" --> "*" RAWMESUREMENT : generates
+
+' WeatherStation is operated by Organization
+ORGANIZATION "1" -- "*" WEATHERSTATION : operates
+
+' Sensor is supplied by Manufacturer
+MANUFACTURER "1" -- "*" SENSOR : supplies
+
+' DataIngestionService processes RawMeasurements into Measurements
+RAWMESUREMENT "*" -- "1" DATAINGESTIONSERVICE : processed by >
+DATAINGESTIONSERVICE "1" --> "*" MEASUREMENT : produces >
+
+' Notes for clarity
+note top of MONITORINGPLATFORM
+  Central component for data aggregation
+  and platform management. Orchestrates
+  data flow from stations to storage.
+end note
+
+note top of DATAINGESTIONSERVICE
+  Handles transformation from native
+  sensor formats to a standardized format.
+  Ensures data consistency and quality.
+end note
+
+note "The frequency of data transmission\ncan vary per station and is configurable." as N1
+WEATHERSTATION .. N1
+
+note "Sensors are heterogeneous, meaning\nthey can be of various types\n(temperature, humidity, pressure, etc.)\nand from different manufacturers." as N2
+SENSOR .. N2
+
+note "RAWMESUREMENT represents data in its\nnative, original format as reported\nby the sensor. Includes origin metadata\nfor traceability in a distributed system." as N3
+RAWMESUREMENT .. N3
+
+note "MEASUREMENT represents data in a\nstandardized, normalized format\nready for analysis and storage. Includes\norigin metadata for context." as N4
+MEASUREMENT .. N4
+
+@enduml
