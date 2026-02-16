@@ -1,0 +1,79 @@
+```plantuml
+@startuml
+' Define classes
+class Patient {
+    - patientId: String
+    - name: String
+    - address: String
+    + getPatientId(): String
+    + getName(): String
+    + getAddress(): String
+}
+
+class Bill {
+    - billId: String
+    - totalAmount: double
+    + calculateTotal(): double
+    + getBillId(): String
+    + getTotalAmount(): double
+}
+
+class Treatment {
+    - treatmentId: String
+    - description: String
+    - cost: double
+    + getTreatmentId(): String
+    + getDescription(): String
+    + getCost(): double
+}
+
+class PricingRule {
+    - ruleId: String
+    - description: String
+    + applyRule(treatment: Treatment): double
+    + getRuleId(): String
+    + getDescription(): String
+}
+
+class BillingPolicy {
+    - policyId: String
+    - policyType: String
+    + calculateBill(patient: Patient, treatments: List<Treatment>): double
+    + getPolicyId(): String
+    + getPolicyType(): String
+}
+
+class CoverageRule {
+    - ruleId: String
+    - coveragePercentage: double
+    + applyCoverage(patient: Patient, bill: Bill): double
+    + getRuleId(): String
+    + getCoveragePercentage(): double
+}
+
+class GovernmentSubsidy {
+    - subsidyId: String
+    - fixedRate: double
+    + applySubsidy(bill: Bill): double
+    + getSubsidyId(): String
+    + getFixedRate(): double
+}
+
+class InsuranceCoverage {
+    - coverageId: String
+    - coPayment: double
+    + applyInsurance(bill: Bill): double
+    + getCoverageId(): String
+    + getCoPayment(): double
+}
+
+' Define relationships
+Patient "1" -- "0..*" Bill : generates >
+Bill "1" -- "0..*" Treatment : includes >
+BillingPolicy "1" -- "0..*" PricingRule : governs >
+Bill "1" -- "0..1" CoverageRule : applies >
+Bill "1" -- "0..1" GovernmentSubsidy : applies >
+Bill "1" -- "0..1" InsuranceCoverage : applies >
+
+@enduml
+```
