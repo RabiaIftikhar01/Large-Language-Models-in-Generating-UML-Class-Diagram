@@ -1,0 +1,120 @@
+@startuml
+' Global settings for clarity and consistency
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 14
+
+' Explanatory notes to clarify the overall purpose of the diagram (Practice 25)
+note "This diagram models a distributed environmental monitoring platform.\nIt focuses on data collection, normalization, and management of stations and sensors." as DiagramPurpose
+
+' Classes are named as singular nouns, relatively short, and follow PascalCase convention (Practice 2, 3, 4, 23)
+class Platform {
+    - id : String
+    - name : String
+    --
+    + requestTelemetry(stationId : String) : void
+    + ingestRawData(rawData : String) : Telemetry
+    + processTelemetry(telemetry : Telemetry) : void
+}
+
+class WeatherStation {
+    - id : String
+    - location : String
+    - reportingIntervalHours : int
+    --
+    + collectSensorData() : List<Telemetry>
+    + transmitData(platform : Platform) : void
+}
+
+class Sensor {
+    - id : String
+    - type : String
+    - unit : String
+    - dataFormat : String ' Proprietary format identifier for normalization (Practice 23)
+    --
+    + readMeasurement() : Telemetry
+}
+
+class Telemetry {
+    - id : String
+    - timestamp : DateTime
+    - rawValue : String
+    - normalizedValue : String
+    --
+    + getRawValue() : String
+    + getNormalizedValue() : String
+}
+
+class Manufacturer {
+    - id : String
+    - name : String
+    --
+    + getSensorModels() : List<String>
+}
+
+class Organization {
+    - id : String
+    - name : String
+    - type : String ' e.g., "Government", "Academic", "Infrastructure Operator"
+    --
+    + registerStation(station : WeatherStation) : void
+}
+
+class DataNormalizer {
+    --
+    + normalize(rawData : String, format : String) : String
+}
+
+' Relationships are identified, refined to unidirectional where possible, and include multiplicity and descriptive names (Practice 11, 12, 15, 18, 21, 27)
+
+' Platform monitors WeatherStations
+' Unidirectional from Platform to WeatherStation as Platform initiates communication (Practice 12)
+Platform "1" -- "0..*" WeatherStation : monitors >
+note on link
+Platform initiates communication
+and requests data transmission.
+(Practice 18, 25)
+end note
+
+' WeatherStation contains Sensors (Composition: Sensors are integral parts of a station)
+WeatherStation "1" *-- "1..*" Sensor : contains
+
+' Sensor produces Telemetry readings
+' Unidirectional from Sensor to Telemetry (Practice 12)
+Sensor "1" --> "0..*" Telemetry : produces >
+note on link
+Each sensor generates multiple raw measurements over time.
+(Practice 18, 25)
+end note
+
+' Organization manages WeatherStations
+' Unidirectional from Organization to WeatherStation (Practice 12)
+Organization "1" --> "0..*" WeatherStation : manages >
+note on link
+Government bodies, academic organizations,
+and infrastructure operators manage stations.
+(Practice 18, 25)
+end note
+
+' Manufacturer supplies Sensors
+' Unidirectional from Manufacturer to Sensor (Practice 12)
+Manufacturer "1" --> "0..*" Sensor : supplies >
+note on link
+Sensors are produced by various manufacturers.
+(Practice 18, 25)
+end note
+
+' Platform uses DataNormalizer for data ingestion and processing
+' Unidirectional from Platform to DataNormalizer (Practice 12)
+Platform "1" --> "1" DataNormalizer : uses >
+note on link
+Handles normalization of proprietary sensor data formats
+during high-volume data ingestion.
+(Practice 18, 25)
+end note
+
+' Additional notes for specific classes to provide more context (Practice 25)
+note right of Telemetry : Stores both raw and normalized\nvalues to accommodate processing stages.
+note right of Sensor : The `dataFormat` attribute is crucial\nfor the `DataNormalizer` to process\nproprietary sensor outputs.
+
+@enduml

@@ -1,0 +1,123 @@
+@startuml
+' Set a consistent style for readability
+skinparam class {
+  AttributeFontColor #111
+  AttributeFontSize 12
+  OperationFontColor #111
+  OperationFontSize 12
+  BackgroundColor #DDEEFF
+  BorderColor #88AAEE
+}
+hide empty members
+
+' Main orchestrating system for environmental monitoring
+class EnvironmentalMonitoringSystem {
+    - id : String
+    + requestTelemetry(stationId : String) : void
+    + handleRawTelemetry(stationId : String, rawDataList : List<RawSensorData>) : void
+}
+
+' Represents raw data from a sensor before normalization
+class RawSensorData {
+    - sensorId : String
+    - rawValue : String
+    - proprietaryFormatSpec : String
+    - timestamp : DateTime
+}
+
+' Handles high-volume data ingestion and processing, including normalization
+class DataIngestor {
+    - id : String
+    + ingest(stationId : String, rawDataList : List<RawSensorData>) : List<SensorReading>
+}
+
+' Component responsible for normalizing proprietary sensor data formats
+class DataNormalizer {
+    + normalize(rawData : String, formatSpec : String) : double
+}
+
+' Represents a physical weather station collecting telemetry
+class WeatherStation {
+    - id : String
+    - location : String
+    - geographicRegion : String
+    - reportingInterval : Duration
+    + collectRawReadings() : List<RawSensorData>
+}
+
+' Represents an individual sensor within a weather station
+class Sensor {
+    - id : String
+    - type : String
+    - proprietaryFormatSpec : String
+    + readRawValue() : String
+}
+
+' Represents a single, normalized measurement from a sensor
+class SensorReading {
+    - id : String
+    - sensorId : String
+    - timestamp : DateTime
+    - rawValue : String
+    - normalizedValue : double
+    - unit : String
+}
+
+' Represents an entity (government, academic, operator) managing weather stations
+class Organization {
+    - id : String
+    - name : String
+    - type : String ' e.g., Government, Academic, Infrastructure
+    + addStation(station : WeatherStation) : void
+    + removeStation(station : WeatherStation) : void
+}
+
+' Represents a manufacturer of sensors
+class Manufacturer {
+    - id : String
+    - name : String
+}
+
+' Relationships
+
+' The monitoring system interacts with and requests data from multiple weather stations.
+EnvironmentalMonitoringSystem "1" --> "*" WeatherStation : monitors / requests data from
+
+' The monitoring system utilizes a data ingestor to process incoming raw telemetry.
+EnvironmentalMonitoringSystem "1" --> "1" DataIngestor : uses
+
+' The monitoring system handles raw sensor data received from stations.
+EnvironmentalMonitoringSystem "1" --> "*" RawSensorData : handles
+
+' The data ingestor relies on the data normalizer to process proprietary formats.
+DataIngestor "1" --> "1" DataNormalizer : uses
+
+' The data ingestor processes raw sensor data.
+DataIngestor "1" --> "*" RawSensorData : processes
+
+' The data ingestor creates normalized sensor readings.
+DataIngestor "1" --> "*" SensorReading : creates
+
+' A weather station is composed of multiple sensors.
+WeatherStation "1" *-- "*" Sensor : contains
+
+' A weather station collects raw data from its sensors to form RawSensorData objects.
+WeatherStation "1" --> "*" RawSensorData : collects
+
+' A sensor is produced by a single manufacturer.
+Sensor "1" --> "1" Manufacturer : produced by
+
+' An organization manages multiple weather stations.
+Organization "1" --> "*" WeatherStation : manages
+
+' Notes for clarity
+note "Duration can be represented by an int for hours or a more complex type (e.g., java.time.Duration)." as N1
+WeatherStation .. N1
+
+note "ProprietaryFormatSpec could be a string representing a parser ID or a structured format description (e.g., JSON schema)." as N2
+Sensor .. N2
+
+note "Type can be 'Government', 'Academic', 'Infrastructure Operator' as per requirements." as N3
+Organization .. N3
+
+@enduml

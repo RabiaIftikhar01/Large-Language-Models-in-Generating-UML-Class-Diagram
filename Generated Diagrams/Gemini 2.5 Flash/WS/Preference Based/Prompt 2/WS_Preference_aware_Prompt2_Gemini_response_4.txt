@@ -1,0 +1,93 @@
+@startuml
+' Class Definitions
+class Platform {
+    - id : string
+    + requestData(stationId : string) : void
+    + ingestRawData(rawData : RawMeasurement) : void
+    + storeMeasurement(measurement : Measurement) : void
+}
+
+class WeatherStation {
+    - id : string
+    - location : string
+    - reportingInterval : Duration
+    - lastReportTime : DateTime
+    + collectRawData() : List<RawMeasurement>
+    + getStatus() : string
+}
+
+class Sensor {
+    - id : string
+    - type : string
+    - manufacturer : string
+    - proprietaryFormatDetails : string
+    + readRawData() : RawMeasurement
+}
+
+class RawMeasurement {
+    - sensorId : string
+    - stationId : string
+    - timestamp : DateTime
+    - rawValue : string
+    + getSensorId() : string
+    + getTimestamp() : DateTime
+    + getRawValue() : string
+}
+
+class DataNormalizer {
+    + normalize(raw : RawMeasurement) : Measurement
+}
+
+class Measurement {
+    - sensorId : string
+    - stationId : string
+    - timestamp : DateTime
+    - value : double
+    - unit : string
+    + getSensorId() : string
+    + getStationId() : string
+    + getTimestamp() : DateTime
+    + getValue() : double
+    + getUnit() : string
+}
+
+class Organization {
+    - id : string
+    - name : string
+    - type : string ' e.g., Government, Academic, Infrastructure
+    + getName() : string
+}
+
+' Relationships
+
+' Platform orchestrates data collection and ingestion
+Platform "1" --> "1..*" WeatherStation : requests data from >
+Platform "1" --> "1" DataNormalizer : uses >
+Platform "1" <-- "1..*" Measurement : stores <
+
+' Organization manages WeatherStations
+Organization "1" --> "1..*" WeatherStation : manages >
+
+' WeatherStation contains Sensors (composition)
+WeatherStation "1" *-- "1..*" Sensor : contains
+
+' WeatherStation collects RawMeasurements from its sensors
+WeatherStation "1" --> "1..*" RawMeasurement : collects >
+
+' Sensor generates RawMeasurements
+Sensor "1" --> "1" RawMeasurement : generates >
+
+' DataNormalizer transforms RawMeasurement into Measurement
+RawMeasurement "1" --> "1" DataNormalizer : is input for >
+DataNormalizer "1" --> "1" Measurement : produces >
+
+' Notes for clarity
+note "Reporting interval can vary and change over time." as N1
+WeatherStation .. N1
+
+note "Proprietary formats require normalization." as N2
+Sensor .. N2
+RawMeasurement .. N2
+DataNormalizer .. N2
+
+@enduml

@@ -1,0 +1,77 @@
+@startuml
+' Naming convention: PascalCase for classes, camelCase for attributes/methods.
+
+' The central distributed platform for environmental monitoring
+class MonitoringSystem {
+    - id : String
+    - name : String
+    -- Operations --
+    + requestData(stationId : String) : void
+    + ingestRawData(rawData : String) : void
+    + normalizeData(rawData : String) : NormalizedData
+    + storeData(data : NormalizedData) : void
+}
+note left of MonitoringSystem : Central platform for data ingestion and processing.
+
+' Represents a physical weather station
+class WeatherStation {
+    - stationId : String
+    - location : String
+    - lastReportTimestamp : DateTime
+    - reportingIntervalHours : int ' e.g., 1 for hourly, can vary
+    -- Operations --
+    + getSensorReadings() : List<SensorReading>
+    + transmitData() : String ' Represents sending raw data
+}
+note left of WeatherStation : Initiates communication and requests data.
+
+' Represents the entities that manage/own weather stations
+class Organization {
+    - organizationId : String
+    - name : String
+    - type : String ' e.g., "Government", "Academic", "Infrastructure"
+    -- Operations --
+    + registerStation(station : WeatherStation) : void
+    + unregisterStation(station : WeatherStation) : void
+}
+
+' Represents a sensor within a weather station
+class Sensor {
+    - sensorId : String
+    - type : String ' e.g., "Temperature", "Humidity", "Pressure"
+    - model : String
+    - proprietaryFormatDetails : String ' Details on how to parse its raw output
+    -- Operations --
+    + readRawMeasurement() : String
+}
+note right of Sensor : Delivers measurements in proprietary formats.
+
+' Represents the manufacturer of sensors
+class Manufacturer {
+    - manufacturerId : String
+    - name : String
+    -- Operations --
+    + produceSensor(type : String, model : String) : Sensor
+}
+
+' Represents a single measurement reading from a sensor
+class SensorReading {
+    - readingId : String
+    - timestamp : DateTime
+    - rawValue : String
+    - normalizedValue : Double
+    - unit : String
+    -- Operations --
+    + getRawValue() : String
+    + getNormalizedValue() : Double
+}
+note right of SensorReading : Represents a single data point from a sensor.\nInitially stores raw, then normalized.
+
+' Relationships between classes
+MonitoringSystem "1" -- "*" WeatherStation : manages >
+Organization "1" -- "*" WeatherStation : owns >
+WeatherStation "1" -- "*" Sensor : contains >
+Sensor "1" -- "*" SensorReading : generates >
+Manufacturer "1" -- "*" Sensor : produces >
+
+@enduml

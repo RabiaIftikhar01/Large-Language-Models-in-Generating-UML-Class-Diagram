@@ -1,0 +1,136 @@
+@startuml
+' Set a consistent style for clarity and readability
+skinparam class {
+    BorderColor #A3B1C6
+    BackgroundColor #DAE8FC
+    ArrowColor #A3B1C6
+    AttributeFontColor #333333
+    MethodFontColor #333333
+    StereotypeFontColor #888888
+}
+skinparam arrow {
+    Thickness 2
+    Color #A3B1C6
+    FontColor #333333
+}
+
+' 1. MonitoringPlatform: The central system orchestrating environmental data collection and management.
+class MonitoringPlatform {
+    - platformId : String
+    - name : String
+    -- Operations --
+    + startMonitoring() : void
+    + stopMonitoring() : void
+    + getStationData(stationId: String, start: DateTime, end: DateTime) : List<NormalizedSensorReading>
+}
+
+' 2. WeatherStation: A physical station collecting environmental data.
+class WeatherStation {
+    - stationId : String
+    - location : String
+    - lastReportTime : DateTime
+    - reportingIntervalHours : int ' e.g., 1 for hourly, can vary
+    -- Operations --
+    + sendRawReadings() : List<RawSensorReading>
+    + configureReportingInterval(interval: int) : void
+}
+
+' 3. Organization: A body (government, academic, infrastructure) that manages weather stations.
+class Organization {
+    - organizationId : String
+    - name : String
+    - type : String ' e.g., "Government", "Academic", "Infrastructure Operator"
+    -- Operations --
+    + registerStation(station: WeatherStation) : void
+    + deregisterStation(stationId: String) : void
+}
+
+' 4. Sensor: A device within a weather station that captures specific environmental measurements.
+class Sensor {
+    - sensorId : String
+    - type : String ' e.g., "Temperature", "Humidity", "WindSpeed"
+    - unit : String ' e.g., "Celsius", "g/m^3", "m/s"
+    -- Operations --
+    + captureRawMeasurement() : RawSensorReading
+}
+
+' 5. Manufacturer: The entity that produces sensors.
+class Manufacturer {
+    - manufacturerId : String
+    - name : String
+}
+
+' 6. RawSensorReading: The unprocessed data received directly from a sensor in its proprietary format.
+class RawSensorReading {
+    - readingId : String
+    - timestamp : DateTime
+    - rawValue : String ' String representation of the proprietary data
+    - formatType : String ' e.g., "JSON", "XML", "ProprietaryBinary"
+}
+
+' 7. NormalizedSensorReading: The processed and standardized sensor data, ready for analysis and storage.
+class NormalizedSensorReading {
+    - readingId : String
+    - timestamp : DateTime
+    - normalizedValue : Double
+    - unit : String
+}
+
+' 8. DataIngestionService: Responsible for receiving high-volume raw data and normalizing it.
+class DataIngestionService {
+    - serviceId : String
+    -- Operations --
+    + ingestRawReading(rawReading: RawSensorReading) : NormalizedSensorReading
+    + normalizeData(rawReading: RawSensorReading) : NormalizedSensorReading
+}
+
+' 9. StationCommunicator: Manages communication with weather stations, initiating data requests.
+class StationCommunicator {
+    - communicatorId : String
+    -- Operations --
+    + requestDataTransmission(stationId: String) : void
+    + scheduleDataRequests() : void ' Based on station reporting intervals
+}
+
+' 10. WeatherInformationSystem (WIS): An external system that consumes data from the monitoring platform.
+class WeatherInformationSystem {
+    - systemId : String
+    - name : String
+    -- Operations --
+    + queryStationData(stationId: String, start: DateTime, end: DateTime) : void
+}
+
+' Relationships
+
+' MonitoringPlatform orchestrates and manages core components
+MonitoringPlatform "1" *-- "0..*" WeatherStation : manages
+MonitoringPlatform "1" o-- "1" DataIngestionService : uses
+MonitoringPlatform "1" o-- "1" StationCommunicator : uses
+MonitoringPlatform "1" o-- "0..*" NormalizedSensorReading : stores
+
+' WeatherStation composition and management
+WeatherStation "1" *-- "1..*" Sensor : contains
+Organization "1" -- "0..*" WeatherStation : manages >
+
+' Sensor and its origin/output
+Sensor "1" -- "1" Manufacturer : produced by >
+Sensor "1" --> "0..*" RawSensorReading : generates >
+
+' Data flow and processing
+DataIngestionService "1" <-- "1..*" RawSensorReading : processes
+DataIngestionService "1" --> "1" NormalizedSensorReading : produces >
+
+' Communication with stations
+StationCommunicator "1" --> "1..*" WeatherStation : communicates with >
+
+' External system interaction
+WeatherInformationSystem "1" --> "1" MonitoringPlatform : queries >
+
+' Notes for additional clarity
+note right of MonitoringPlatform : Central hub for environmental data, ensuring dependable operation.
+note right of DataIngestionService : Handles high-volume data ingestion and converts proprietary formats to a standard.
+note right of StationCommunicator : Initiates communication with stations and requests data transmission based on intervals.
+note "Raw data from sensors\nrequires normalization\ndue to proprietary formats." as NORM_PROCESS_NOTE
+RawSensorReading .. NORM_PROCESS_NOTE
+NORM_PROCESS_NOTE .. NormalizedSensorReading
+@enduml

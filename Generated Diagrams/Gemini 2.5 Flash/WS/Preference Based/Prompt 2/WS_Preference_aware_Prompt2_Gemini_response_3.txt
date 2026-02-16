@@ -1,0 +1,90 @@
+@startuml
+' Classes representing the core entities of the environmental monitoring platform
+
+class Platform {
+    - platformId : String
+    - name : String
+    -- Operations --
+    + requestData(stationId : String) : void
+    + ingestRawData(stationId : String, rawData : RawSensorData) : void
+    + processMeasurement(measurement : Measurement) : void
+    + monitorSystemHealth() : void
+}
+
+class Station {
+    - stationId : String
+    - location : String
+    - reportingIntervalHours : int
+    - lastReportTimestamp : DateTime
+    -- Operations --
+    + collectSensorReadings() : List<RawSensorData>
+    + transmitData() : List<RawSensorData>
+}
+
+class Sensor {
+    - sensorId : String
+    - manufacturer : String
+    - model : String
+    - dataType : String ' e.g., "Temperature", "Humidity"
+    - proprietaryFormatType : String ' e.g., "JSON_V1", "XML_TYPE_B"
+    -- Operations --
+    + readRawData() : RawSensorData
+}
+
+class RawSensorData {
+    - dataId : String
+    - timestamp : DateTime
+    - rawPayload : String
+    - sensorId : String
+    - formatType : String
+    -- Operations --
+    + getFormatType() : String
+}
+
+class Measurement {
+    - measurementId : String
+    - timestamp : DateTime
+    - value : double
+    - unit : String ' e.g., "Celsius", "%"
+    - dataType : String ' e.g., "Temperature"
+    - sensorId : String
+}
+
+class Organization {
+    - organizationId : String
+    - name : String
+    - type : String ' e.g., "Government", "Academic", "Infrastructure"
+    -- Operations --
+    + addStation(station : Station) : void
+    + removeStation(stationId : String) : void
+}
+
+class DataNormalizer {
+    -- Operations --
+    + normalize(rawData : RawSensorData) : Measurement
+}
+
+' Relationships
+
+Platform "1" -- "0..*" Station : manages >
+' A Platform manages multiple Stations
+
+Station "1" *-- "1..*" Sensor : has >
+' A Station is composed of one or more Sensors
+
+Organization "1" -- "0..*" Station : manages >
+' An Organization manages multiple Stations
+
+Platform ..> DataNormalizer : uses >
+' Platform depends on DataNormalizer to convert raw data to normalized measurements
+
+Sensor ..> RawSensorData : creates >
+' A Sensor creates RawSensorData when it reads a value
+
+RawSensorData "1" --> "1" Sensor : from >
+' A RawSensorData record originates from exactly one Sensor
+
+Measurement "1" --> "1" Sensor : from >
+' A Measurement record (normalized data) originates from exactly one Sensor
+
+@enduml

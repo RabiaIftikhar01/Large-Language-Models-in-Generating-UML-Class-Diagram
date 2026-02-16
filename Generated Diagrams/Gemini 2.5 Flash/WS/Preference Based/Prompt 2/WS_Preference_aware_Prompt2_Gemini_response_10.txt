@@ -1,0 +1,137 @@
+@startuml
+' Set a consistent naming convention and style
+hide circle
+skinparam classAttributeIconSize 0
+
+' Classes are named as singular nouns and relatively short
+' Consistent casing (PascalCase for classes, camelCase for attributes/operations)
+
+' Core Platform and Management
+class Platform {
+    - id : String
+    - name : String
+    + startMonitoring()
+    + requestStationData(stationId : String)
+    + ingestData(rawMeasurements : List<RawMeasurement>)
+}
+
+class Organization {
+    - id : String
+    - name : String
+    - type : OrganizationType
+    + addStation(station : WeatherStation)
+    + removeStation(station : WeatherStation)
+}
+
+enum OrganizationType {
+    GOVERNMENT
+    ACADEMIC
+    INFRASTRUCTURE
+}
+
+' Weather Station and its components
+class WeatherStation {
+    - id : String
+    - lastReportTime : DateTime
+    + collectSensorData() : List<RawMeasurement>
+}
+
+class Location {
+    - latitude : Double
+    - longitude : Double
+    - region : String
+}
+
+abstract class Sensor {
+    - id : String
+    - type : String
+    - reportingInterval : Duration
+    ' Operation to get raw data from the sensor
+    + getRawMeasurement() : RawMeasurement
+}
+
+class Manufacturer {
+    - id : String
+    - name : String
+}
+
+' Data Representation
+class RawMeasurement {
+    - id : String
+    - sensorId : String
+    - timestamp : DateTime
+    - rawData : String ' Proprietary format data
+    - formatIdentifier : String ' e.g., "AcmeV1", "BetaSensorJSON"
+}
+
+class NormalizedMeasurement {
+    - id : String
+    - sensorId : String
+    - timestamp : DateTime
+    - value : Double
+    - unit : String
+    - measurementType : String ' e.g., "Temperature", "Humidity"
+}
+
+' Data Ingestion and Normalization
+class IngestionService {
+    + processRawData(rawMeasurement : RawMeasurement) : NormalizedMeasurement
+}
+
+interface SensorAdapter {
+    ' Converts proprietary raw data to a normalized format
+    + normalize(rawMeasurement : RawMeasurement) : NormalizedMeasurement
+    ' Checks if this adapter supports a given format
+    + supports(formatIdentifier : String) : Boolean
+}
+
+class SpecificSensorAdapter {
+    - supportedFormat : String
+    + normalize(rawMeasurement : RawMeasurement) : NormalizedMeasurement
+    + supports(formatIdentifier : String) : Boolean
+}
+
+' Relationships
+' Platform manages WeatherStations (0..* because a platform can exist without stations, or have many)
+Platform "1" -- "0..*" WeatherStation : manages >
+
+' Organization manages WeatherStations (0..* because an organization might not manage any yet, or many)
+Organization "1" -- "0..*" WeatherStation : manages >
+
+' WeatherStation has a Location (mandatory, 1 to 1)
+WeatherStation "1" -- "1" Location : locatedAt >
+
+' WeatherStation contains Sensors (mandatory, 1 to many)
+WeatherStation "1" *-- "1..*" Sensor : contains >
+
+' Sensor is produced by Manufacturer (0..* sensors can be produced by 1 manufacturer)
+Sensor "0..*" -- "1" Manufacturer : producedBy >
+
+' Sensor generates RawMeasurements (1 sensor generates 0 or more raw measurements over time)
+Sensor "1" -- "0..*" RawMeasurement : generates >
+
+' IngestionService processes RawMeasurements (1 service processes 0 or more raw measurements)
+IngestionService "1" -- "0..*" RawMeasurement : processes >
+
+' IngestionService uses SensorAdapters (1 service uses 0 or more adapters)
+IngestionService "1" -- "0..*" SensorAdapter : uses >
+
+' SensorAdapter converts RawMeasurement to NormalizedMeasurement (1 adapter converts 1 raw to 1 normalized)
+SensorAdapter "1" -- "1" NormalizedMeasurement : convertsTo >
+
+' SpecificSensorAdapter implements SensorAdapter (inheritance)
+SensorAdapter <|.. SpecificSensorAdapter
+
+' Platform uses IngestionService (composition, 1 platform has 1 ingestion service)
+Platform "1" *-- "1" IngestionService : uses >
+
+
+' Explanatory notes to clarify complex sections or provide additional information
+note right of Platform : Orchestrates data collection, manages stations,\nand initiates data ingestion.
+note right of IngestionService : Handles high-volume data ingestion,\nselects appropriate adapter, and delegates normalization.
+note right of SensorAdapter : Defines the contract for converting\nproprietary sensor data formats to a standard format.
+note left of RawMeasurement : Represents data directly from a sensor\nin its original, proprietary format.
+note right of NormalizedMeasurement : Represents sensor data in a standardized,\nplatform-wide usable format.
+note left of WeatherStation : Collects raw data from its embedded sensors\nupon request from the platform.
+
+@enduml

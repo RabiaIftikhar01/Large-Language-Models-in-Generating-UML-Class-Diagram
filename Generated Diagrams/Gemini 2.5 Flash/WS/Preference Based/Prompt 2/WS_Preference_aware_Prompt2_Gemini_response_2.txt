@@ -1,0 +1,108 @@
+@startuml
+' Set a consistent naming convention (e.g., PascalCase for classes)
+' and use descriptive names.
+
+' Notes for complex sections or additional information (Practice 25)
+note "The MonitoringPlatform orchestrates data collection, processing, and storage from various WeatherStations." as N1
+note "RawSensorData represents data in proprietary formats, requiring normalization before use." as N2
+note "Measurement is the standardized, normalized sensor data, ready for analysis or storage." as N3
+
+' Classes (Practices 2, 3, 4, 23)
+class MonitoringPlatform {
+    - id : string
+    + collectTelemetry()
+    + manageStation(stationId : string)
+    + storeMeasurement(measurement : Measurement)
+}
+
+class WeatherStation {
+    - id : string
+    - location : string
+    - reportingInterval : Duration
+    + requestRawData() : List<RawSensorData>
+    + getStationInfo() : string
+}
+
+class Sensor {
+    - id : string
+    - manufacturer : string
+    - type : string ' e.g., Temperature, Humidity, Pressure
+    - unit : string ' e.g., Celsius, %, hPa
+    - proprietaryFormatDetails : string ' Description of the sensor's raw data format
+    + getRawReading() : RawSensorData
+    + getSensorInfo() : string
+}
+
+class RawSensorData {
+    - sensorId : string
+    - timestamp : DateTime
+    - rawValue : string ' The raw, unnormalized data string or byte representation
+    + getSensorId() : string
+    + getTimestamp() : DateTime
+    + getRawValue() : string
+}
+
+class Measurement {
+    - id : string
+    - sensorId : string
+    - timestamp : DateTime
+    - value : double ' The normalized numerical value
+    - unit : string ' The standardized unit for the measurement
+    + getValue() : double
+    + getTimestamp() : DateTime
+}
+
+class Organization {
+    - id : string
+    - name : string
+    - type : string ' e.g., Government, Academic, Infrastructure Operator
+    + addManagedStation(station : WeatherStation)
+    + removeManagedStation(station : WeatherStation)
+}
+
+class IngestionService {
+    + ingest(rawData : RawSensorData) : Measurement
+}
+
+class DataNormalizer {
+    + normalize(rawData : RawSensorData, sensorType : string) : Measurement
+}
+
+' Relationships (Practices 11, 12, 15, 16, 17, 18, 19, 21, 27)
+
+' MonitoringPlatform manages WeatherStations
+' A platform manages zero or more stations. A station is managed by one platform.
+MonitoringPlatform "1" -- "0..*" WeatherStation : manages >
+
+' WeatherStation contains Sensors (Composition)
+' A station must have at least one sensor.
+WeatherStation "1" *-- "1..*" Sensor : contains >
+
+' Organization manages WeatherStations
+' An organization manages zero or more stations. A station is managed by one organization.
+Organization "1" -- "0..*" WeatherStation : manages >
+
+' Sensor produces RawSensorData over time
+' A sensor produces many raw data points. Each raw data point comes from one sensor.
+Sensor "1" -- "0..*" RawSensorData : produces >
+
+' IngestionService processes RawSensorData and uses DataNormalizer
+' IngestionService depends on RawSensorData and DataNormalizer, and creates Measurement.
+IngestionService ..> RawSensorData : processes
+IngestionService ..> DataNormalizer : uses
+IngestionService ..> Measurement : creates
+
+' MonitoringPlatform uses IngestionService to process incoming data
+MonitoringPlatform ..> IngestionService : uses >
+
+' DataNormalizer transforms RawSensorData into Measurement
+DataNormalizer ..> RawSensorData : transforms
+DataNormalizer ..> Measurement : produces
+
+' Implicit data flow:
+' 1. MonitoringPlatform initiates communication and requests data from WeatherStation.
+' 2. WeatherStation collects and returns a List of RawSensorData.
+' 3. MonitoringPlatform passes each RawSensorData to the IngestionService.
+' 4. IngestionService utilizes the DataNormalizer to transform RawSensorData into a standardized Measurement.
+' 5. MonitoringPlatform stores the resulting Measurement for further analysis or display.
+@enduml

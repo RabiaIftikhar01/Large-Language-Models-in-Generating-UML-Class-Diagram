@@ -1,0 +1,103 @@
+@startuml
+' Styling for better readability
+skinparam class {
+    BorderColor #4CAF50
+    BackgroundColor #E8F5E9
+    ArrowColor #4CAF50
+    ArrowFontColor #388E3C
+}
+skinparam stereotype {
+    FontColor #1B5E20
+    BackgroundColor #C8E6C9
+}
+skinparam note {
+    BackgroundColor #FFFDE7
+    BorderColor #FFC107
+}
+
+' Classes
+class Platform {
+    - ingestionEndpoint : string
+    + requestTelemetry(stationId : string)
+    + ingestRawData(rawData : string)
+    + processTelemetry(rawMeasurement : RawMeasurement) : NormalizedMeasurement
+    + storeTelemetry(normalizedMeasurement : NormalizedMeasurement)
+}
+
+class WeatherStation {
+    - id : string
+    - location : string
+    - reportingIntervalMinutes : int
+    + getStationId() : string
+    + getLocation() : string
+    + getTelemetry() : List<RawMeasurement>
+}
+
+class Sensor {
+    - id : string
+    - manufacturer : string
+    - type : string
+    - proprietaryFormatDetails : string
+    + readRawValue() : string
+    + getProprietaryFormatDetails() : string
+}
+
+class RawMeasurement {
+    - sensorId : string
+    - timestamp : DateTime
+    - rawValue : string
+    + getSensorId() : string
+    + getTimestamp() : DateTime
+    + getRawValue() : string
+}
+
+class NormalizedMeasurement {
+    - sensorId : string
+    - timestamp : DateTime
+    - value : float
+    - unit : string
+    + getSensorId() : string
+    + getTimestamp() : DateTime
+    + getValue() : float
+    + getUnit() : string
+}
+
+class DataNormalizer {
+    + normalize(rawMeasurement : RawMeasurement, formatDetails : string) : NormalizedMeasurement
+}
+
+abstract class Organization {
+    - id : string
+    - name : string
+    + getName() : string
+    + {abstract} getType() : string
+}
+
+class GovernmentBody extends Organization {
+    + getType() : string
+}
+
+class AcademicOrganization extends Organization {
+    + getType() : string
+}
+
+class InfrastructureOperator extends Organization {
+    + getType() : string
+}
+
+' Relationships
+Platform "1" -- "0..*" WeatherStation : requests data from >
+WeatherStation "1" o-- "1..*" Sensor : contains
+Sensor "1" --> "0..*" RawMeasurement : produces
+WeatherStation "0..*" -- "1" Organization : managed by
+Platform "1" --> "1" DataNormalizer : uses
+RawMeasurement "0..*" --> "1" DataNormalizer : processed by >
+DataNormalizer "1" --> "1" NormalizedMeasurement : transforms to >
+Platform "1" -- "0..*" NormalizedMeasurement : stores >
+
+' Notes for clarity
+note right of Platform : Orchestrates data collection,\ningestion, and storage.
+note right of DataNormalizer : Handles conversion from\nproprietary to standard formats.
+note left of Organization : Represents entities that\nmanage weather stations.
+
+@enduml

@@ -1,0 +1,104 @@
+@startuml
+' Naming convention: PascalCase for classes, camelCase for attributes/methods.
+' Access specifiers: '-' for private, '+' for public, '#' for protected.
+
+class Organization {
+    - id : String
+    - name : String
+    - type : String ' e.g., Government, Academic, Infrastructure Operator
+    -- Operations --
+    + addStation(station : WeatherStation) : void
+    + removeStation(station : WeatherStation) : void
+    + getStations() : List<WeatherStation>
+    + getName() : String
+}
+
+class WeatherStation {
+    - id : String
+    - location : String
+    - reportingIntervalHours : int
+    - lastReportTimestamp : DateTime
+    -- Operations --
+    + requestDataTransmission() : String ' Simulates requesting raw data payload
+    + receiveRawTelemetry(rawPayload : String) : void
+    + addSensor(sensor : Sensor) : void
+    + removeSensor(sensor : Sensor) : void
+    + getSensors() : List<Sensor>
+    + getId() : String
+    + getLocation() : String
+    + getReportingIntervalHours() : int
+}
+
+class Sensor {
+    - id : String
+    - manufacturer : String
+    - model : String
+    - dataType : String ' e.g., Temperature, Humidity, Pressure
+    - proprietaryFormat : boolean
+    -- Operations --
+    + getRawMeasurement() : String ' Simulates getting data in its proprietary format
+    + getId() : String
+    + getManufacturer() : String
+    + getModel() : String
+    + getDataType() : String
+    + isProprietaryFormat() : boolean
+}
+
+class Measurement {
+    - id : String
+    - timestamp : DateTime
+    - value : String ' Stores the normalized value, can be parsed to specific type
+    - unit : String
+    - sensorId : String
+    - stationId : String
+    -- Operations --
+    + getTimestamp() : DateTime
+    + getValue() : String
+    + getUnit() : String
+    + getSensorId() : String
+    + getStationId() : String
+}
+
+class DataIngestionService {
+    -- Operations --
+    + ingestRawTelemetry(stationId : String, sensorId : String, rawPayload : String) : void
+    + normalizeData(sensor : Sensor, rawPayload : String) : Measurement
+    + storeMeasurement(measurement : Measurement) : void
+    + initiateDataCollection(station : WeatherStation) : void
+    + processStationData(stationId : String) : void
+}
+
+' Relationships
+
+' Organization manages WeatherStations
+Organization "1" -- "0..*" WeatherStation : manages >
+
+' WeatherStation contains Sensors
+WeatherStation "1" o-- "1..*" Sensor : contains >
+
+' Sensor produces Measurements
+Sensor "1" -- "0..*" Measurement : produces >
+
+' DataIngestionService interacts with WeatherStation to initiate data collection
+DataIngestionService .> WeatherStation : requests data from
+
+' DataIngestionService uses Sensor details for normalization
+DataIngestionService .> Sensor : uses for normalization
+
+' DataIngestionService creates and stores Measurement objects
+DataIngestionService .> Measurement : creates and stores
+
+' Notes for clarity
+note "The platform's core component responsible\nfor receiving, normalizing, and storing data.\nHandles high-volume ingestion and varied reporting intervals." as N1
+DataIngestionService .. N1
+
+note "Represents a single data point from a sensor.\n'value' is a string to accommodate diverse data types\nbefore specific parsing." as N2
+Measurement .. N2
+
+note "Each station can have a mix of sensors\nfrom various manufacturers." as N3
+WeatherStation .. N3
+
+note "Sensors deliver measurements in proprietary formats\nrequiring normalization during ingestion." as N4
+Sensor .. N4
+
+@enduml
