@@ -1,0 +1,117 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class Patient {
+  - patientId: String
+  - name: String
+  - admissionDate: Date
+  - dischargeDate: Date
+  + getPatientId(): String
+  + getName(): String
+  + getAdmissionDate(): Date
+  + getDischargeDate(): Date
+}
+
+class Bill {
+  - billId: String
+  - billDate: Date
+  - totalAmount: Decimal
+  - finalAmount: Decimal
+  + calculateTotal(): Decimal
+  + applyBillingPolicy(): void
+  + getBillId(): String
+  + getFinalAmount(): Decimal
+}
+
+interface BillingPolicy {
+  + calculateBillAmount(charges: List<Charge>): Decimal
+}
+
+class InsurancePolicy {
+  - coveragePercentage: Decimal
+  - reimbursementLimit: Decimal
+  - copayAmount: Decimal
+  + calculateBillAmount(charges: List<Charge>): Decimal
+  + getCoveragePercentage(): Decimal
+  + setCoveragePercentage(percentage: Decimal): void
+}
+
+class GovernmentSubsidyPolicy {
+  - subsidizedRate: Decimal
+  - eligibilityCriteria: String
+  + calculateBillAmount(charges: List<Charge>): Decimal
+  + getSubsidizedRate(): Decimal
+  + setSubsidizedRate(rate: Decimal): void
+}
+
+class SelfPayPolicy {
+  + calculateBillAmount(charges: List<Charge>): Decimal
+}
+
+abstract class Charge {
+  - chargeId: String
+  - description: String
+  - baseAmount: Decimal
+  - quantity: Integer
+  + calculateAmount(): Decimal
+  + getChargeId(): String
+  + getDescription(): String
+}
+
+class ProcedureCharge {
+  - procedureCode: String
+  - procedureName: String
+  + calculateAmount(): Decimal
+  + getProcedureCode(): String
+}
+
+class MedicationCharge {
+  - medicationName: String
+  - dosage: String
+  + calculateAmount(): Decimal
+  + getMedicationName(): String
+}
+
+class DiagnosticTestCharge {
+  - testName: String
+  - testType: String
+  + calculateAmount(): Decimal
+  + getTestName(): String
+}
+
+class RoomOccupancyCharge {
+  - roomType: String
+  - numberOfDays: Integer
+  - dailyRate: Decimal
+  + calculateAmount(): Decimal
+  + getRoomType(): String
+}
+
+class PricingRule {
+  - ruleId: String
+  - ruleName: String
+  - effectiveDate: Date
+  + applyRule(charge: Charge): Decimal
+  + getRuleId(): String
+}
+
+class BillingContext {
+  - policy: BillingPolicy
+  + setBillingPolicy(policy: BillingPolicy): void
+  + executeBilling(charges: List<Charge>): Decimal
+}
+
+Patient "1" -- "0..*" Bill : generates
+Bill "1" *-- "1..*" Charge : contains
+Bill "1" --> "1" BillingContext : uses
+BillingContext "1" --> "1" BillingPolicy : applies
+BillingPolicy <|.. InsurancePolicy
+BillingPolicy <|.. GovernmentSubsidyPolicy
+BillingPolicy <|.. SelfPayPolicy
+Charge <|-- ProcedureCharge
+Charge <|-- MedicationCharge
+Charge <|-- DiagnosticTestCharge
+Charge <|-- RoomOccupancyCharge
+Charge "1" --> "1" PricingRule : governedBy
+
+@enduml
