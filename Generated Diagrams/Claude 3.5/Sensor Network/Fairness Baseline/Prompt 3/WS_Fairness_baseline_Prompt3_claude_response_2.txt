@@ -1,0 +1,92 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class WeatherStation {
+  - stationId: String
+  - location: String
+  - operatingAgency: String
+  - dataTransmissionInterval: int
+  + getStationId(): String
+  + getLocation(): String
+  + getOperatingAgency(): String
+  + getDataTransmissionInterval(): int
+  + setDataTransmissionInterval(interval: int): void
+  + requestDataTransfer(): SensorData
+}
+
+class Sensor {
+  - sensorId: String
+  - vendorName: String
+  - sensorType: String
+  - nativeFormat: String
+  + getSensorId(): String
+  + getVendorName(): String
+  + getSensorType(): String
+  + getNativeFormat(): String
+  + collectData(): RawData
+}
+
+class RawData {
+  - dataId: String
+  - timestamp: DateTime
+  - value: String
+  - format: String
+  + getDataId(): String
+  + getTimestamp(): DateTime
+  + getValue(): String
+  + getFormat(): String
+}
+
+class DataIngestionService {
+  - serviceId: String
+  + initiateDataRequest(station: WeatherStation): void
+  + receiveData(data: RawData): void
+  + processData(data: RawData): StandardizedData
+}
+
+class DataNormalizer {
+  - normalizerId: String
+  + normalize(data: RawData): StandardizedData
+  + validateFormat(format: String): boolean
+}
+
+class StandardizedData {
+  - dataId: String
+  - timestamp: DateTime
+  - temperature: double
+  - humidity: double
+  - pressure: double
+  - windSpeed: double
+  + getDataId(): String
+  + getTimestamp(): DateTime
+  + getTemperature(): double
+  + getHumidity(): double
+  + getPressure(): double
+  + getWindSpeed(): double
+}
+
+class DataRepository {
+  - repositoryId: String
+  + store(data: StandardizedData): void
+  + retrieve(dataId: String): StandardizedData
+  + query(criteria: String): List<StandardizedData>
+}
+
+class MonitoringPlatform {
+  - platformId: String
+  - deploymentRegion: String
+  + manageStations(): void
+  + coordinateIngestion(): void
+  + ensureReliability(): void
+}
+
+WeatherStation "1" --> "*" Sensor : equipped with
+Sensor "1" --> "*" RawData : generates
+DataIngestionService "1" --> "*" WeatherStation : connects to
+DataIngestionService "1" --> "1" DataNormalizer : uses
+DataNormalizer "1" --> "*" StandardizedData : produces
+DataRepository "1" --> "*" StandardizedData : stores
+MonitoringPlatform "1" --> "*" DataIngestionService : manages
+MonitoringPlatform "1" --> "*" WeatherStation : coordinates
+
+@enduml
