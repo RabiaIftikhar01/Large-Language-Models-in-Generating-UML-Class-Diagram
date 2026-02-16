@@ -1,0 +1,100 @@
+@startuml
+' Global settings for consistency and readability
+hide empty members
+skinparam classAttributeIconSize 0
+skinparam classFontStyle Bold
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam noteBackgroundColor #ffffcc
+skinparam noteBorderColor #cccccc
+
+' Explanatory notes to improve understanding and ensure the model stands on its own
+note "The central platform component responsible for managing interactions with weather stations, ingesting raw data, normalizing it into a standardized format, and storing the processed measurements for further analysis." as N1
+note "Represents a physical weather station deployed in the environment. It hosts various sensors, collects data from them, and transmits it to the DataIngestionSystem at a specified frequency." as N2
+note "An individual sensor attached to a weather station. Each sensor is designed to read specific environmental parameters (e.g., temperature, humidity) and reports these measurements in its native, manufacturer-specific format." as N3
+note "Data reported directly by a sensor, captured in its original, heterogeneous, and potentially unstructured format. This is the raw input before any processing or standardization." as N4
+note "Sensor data after being processed and converted by the DataIngestionSystem into a standardized, consistent, and structured format. This normalized data is suitable for storage, analysis, and interoperability." as N5
+
+' Class Definitions
+class DataIngestionSystem {
+    - id : string
+    + ingestRawMeasurement(raw : RawMeasurement) : void
+    + normalizeMeasurement(raw : RawMeasurement) : NormalizedMeasurement
+    + storeMeasurement(normalized : NormalizedMeasurement) : void
+    + requestDataFromStation(station : WeatherStation) : void
+}
+N1 .. DataIngestionSystem
+
+class WeatherStation {
+    - id : string
+    - location : string
+    - operatorType : string ' e.g., Government, Research, Infrastructure
+    - reportingFrequencyHours : int
+    --
+    + establishConnection() : void
+    + collectSensorData() : List<RawMeasurement>
+    + transmitData(system : DataIngestionSystem) : void
+}
+N2 .. WeatherStation
+
+class Sensor {
+    - id : string
+    - type : string ' e.g., Temperature, Humidity, WindSpeed
+    - manufacturer : string
+    - nativeFormatDescription : string ' Describes the structure/encoding of the native data
+    --
+    + readRawMeasurement() : RawMeasurement
+}
+N3 .. Sensor
+
+class RawMeasurement {
+    - sensorId : string
+    - timestamp : DateTime
+    - value : string ' Native string representation (e.g., "25.3C", "78F", "1012hPa")
+    - nativeUnit : string
+    --
+    + getSensorId() : string
+    + getTimestamp() : DateTime
+    + getValue() : string
+    + getNativeUnit() : string
+}
+N4 .. RawMeasurement
+
+class NormalizedMeasurement {
+    - sensorId : string
+    - timestamp : DateTime
+    - value : double
+    - standardizedUnit : string ' e.g., "Celsius", "hPa", "m/s"
+    --
+    + getSensorId() : string
+    + getTimestamp() : DateTime
+    + getValue() : double
+    + getStandardizedUnit() : string
+}
+N5 .. NormalizedMeasurement
+
+' Relationships and Interactions
+' A WeatherStation hosts multiple Sensors
+WeatherStation "1" o-- "1..*" Sensor : hosts >
+
+' Interaction Flow:
+' 1. DataIngestionSystem requests data from a WeatherStation
+DataIngestionSystem .left.> WeatherStation : requests data >
+
+' 2. A Sensor produces RawMeasurements
+Sensor .down.> RawMeasurement : produces >
+
+' 3. WeatherStation transmits collected RawMeasurements to the DataIngestionSystem
+WeatherStation .right.> DataIngestionSystem : transmits data >
+
+' 4. DataIngestionSystem ingests the RawMeasurements
+DataIngestionSystem .down.> RawMeasurement : ingests >
+
+' 5. DataIngestionSystem transforms RawMeasurements into NormalizedMeasurements
+RawMeasurement <.. DataIngestionSystem : <<transformed by>>
+DataIngestionSystem .up.> NormalizedMeasurement : normalizes to >
+
+' 6. DataIngestionSystem stores the NormalizedMeasurements
+DataIngestionSystem .right.> NormalizedMeasurement : stores >
+
+@enduml

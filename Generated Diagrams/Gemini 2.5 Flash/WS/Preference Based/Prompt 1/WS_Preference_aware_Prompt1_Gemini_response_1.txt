@@ -1,0 +1,128 @@
+@startuml
+' Set a consistent style for readability
+skinparam classAttributeIconSize 0
+skinparam classFontStyle Bold
+skinparam defaultFontName "Arial"
+skinparam linetype ortho
+
+' Notes to explain the purpose of key components
+note "The central component of the platform responsible for establishing connections, requesting data, and managing the ingestion and processing of telemetry from weather stations." as N_WIS
+note "Represents a physical weather station deployed in the field, capable of hosting multiple sensors and transmitting data." as N_WS
+note "An individual sensing device within a weather station, reporting specific environmental measurements." as N_Sensor
+note "Encapsulates a single measurement reading from a sensor, storing both its original raw format and its standardized, normalized value." as N_SensorData
+note "A dedicated utility component responsible for transforming raw sensor data from various native formats into a consistent, platform-wide format." as N_Normalizer
+
+class WeatherInformationSystem {
+    - id: String
+    - name: String
+    --
+    + establishLink(stationId: String): void
+    + requestData(stationId: String): void
+    + ingestData(data: List<SensorData>): void
+    + processData(data: List<SensorData>): void
+    + getSystemId(): String
+    + getSystemName(): String
+}
+N_WIS .. WeatherInformationSystem
+
+class WeatherStation {
+    - id: String
+    - location: String
+    - operatorName: String
+    - transmissionFrequencyHours: int
+    --
+    + requestDataTransmission(): void
+    + sendData(data: List<SensorData>): void
+    + getStationId(): String
+    + getLocation(): String
+    + getOperatorName(): String
+    + getTransmissionFrequencyHours(): int
+}
+N_WS .. WeatherStation
+
+class Sensor {
+    - id: String
+    - type: String
+    - manufacturer: String
+    - nativeFormat: String
+    --
+    + readRawData(): String
+    + getSensorId(): String
+    + getType(): String
+    + getManufacturer(): String
+    + getNativeFormat(): String
+}
+N_Sensor .. Sensor
+
+class SensorData {
+    - id: String
+    - timestamp: DateTime
+    - rawValue: String
+    - normalizedValue: String
+    - unit: String
+    - isNormalized: boolean
+    --
+    + getRawValue(): String
+    + getNormalizedValue(): String
+    + getTimestamp(): DateTime
+    + setNormalizedValue(value: String): void
+    + markAsNormalized(): void
+    + getUnit(): String
+    + isDataNormalized(): boolean
+}
+N_SensorData .. SensorData
+
+class DataNormalizer {
+    --
+    + normalize(rawData: SensorData): SensorData
+}
+N_Normalizer .. DataNormalizer
+
+' Relationships between classes
+WeatherInformationSystem "1" -- "0..*" WeatherStation : manages >
+note on link
+  A WeatherInformationSystem manages
+  zero or more WeatherStations.
+end note
+
+WeatherStation "1" -- "1..*" Sensor : hosts >
+note on link
+  A WeatherStation hosts
+  one or more Sensors.
+end note
+
+Sensor "1" -- "0..*" SensorData : produces >
+note on link
+  A Sensor produces zero or more
+  SensorData measurements over time.
+end note
+
+WeatherInformationSystem ..> SensorData : <<receives>>
+note on link
+  The WeatherInformationSystem receives
+  SensorData for ingestion and processing.
+end note
+
+WeatherInformationSystem "1" o-- "1" DataNormalizer : uses >
+note on link
+  The WeatherInformationSystem utilizes
+  a DataNormalizer for data transformation.
+end note
+
+note on link WeatherStation::transmissionFrequencyHours
+  Defines how often (in hours) a station
+  is configured to send data. This can vary.
+end note
+
+note on link SensorData::rawValue
+  The measurement as received directly
+  from the sensor, in its original format.
+end note
+
+note on link SensorData::normalizedValue
+  The measurement after being converted
+  to a standard, consistent format
+  for platform-wide use.
+end note
+
+@enduml

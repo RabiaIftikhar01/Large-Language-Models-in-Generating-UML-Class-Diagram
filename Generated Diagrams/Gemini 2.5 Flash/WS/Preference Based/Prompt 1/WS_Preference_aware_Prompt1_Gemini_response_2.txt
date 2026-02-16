@@ -1,0 +1,104 @@
+@startuml
+' Global settings for better readability and consistency
+skinparam classAttributeFontColor #333333
+skinparam classAttributeFontName Helvetica
+skinparam classAttributeFontSize 12
+skinparam classMethodFontColor #333333
+skinparam classMethodFontName Helvetica
+skinparam classMethodFontSize 12
+skinparam classFontColor #000000
+skinparam classFontName Helvetica
+skinparam classFontSize 14
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam linetype ortho
+
+' Define classes with attributes and operations
+class Organization {
+    - organizationId : String
+    - name : String
+    - type : String ' e.g., Government, Research, Infrastructure
+}
+
+class WeatherStation {
+    - stationId : String
+    - location : String
+    - reportingFrequency : Duration ' e.g., PT1H for 1 hour, P1D for 1 day
+    + collectSensorData() : List<RawSensorData>
+    + transmitData(wis : WeatherInformationSystem, data : List<RawSensorData>)
+    - establishLink(wis : WeatherInformationSystem)
+}
+
+class Sensor {
+    - sensorId : String
+    - type : String ' e.g., Temperature, Humidity, Pressure
+    - manufacturer : String
+    - model : String
+    - unit : String ' e.g., Celsius, kPa, %
+    + readRawData() : RawSensorData
+}
+
+class RawSensorData {
+    - dataId : String
+    - timestamp : DateTime
+    - sensorId : String
+    - stationId : String
+    - nativeValue : String ' Represents heterogeneous native format (e.g., JSON string)
+    - nativeFormatDetails : String ' e.g., JSON schema version, specific XML tags
+}
+
+class NormalizedSensorData {
+    - dataId : String
+    - timestamp : DateTime
+    - sensorId : String
+    - stationId : String
+    - value : Double ' Standardized numeric value
+    - unit : String ' Standardized unit
+    - sensorType : String
+}
+
+class DataNormalizer {
+    + normalize(rawData : RawSensorData) : NormalizedSensorData
+}
+
+class WeatherInformationSystem {
+    - systemId : String
+    - name : String
+    + requestData(stationId : String)
+    + ingestRawData(rawData : RawSensorData)
+    + storeNormalizedData(data : NormalizedSensorData)
+}
+
+' Define relationships between classes
+
+' An Organization owns multiple WeatherStations
+Organization "1" -- "0..*" WeatherStation : owns >
+
+' A WeatherStation hosts one or more Sensors (Composition)
+WeatherStation "1" *-- "1..*" Sensor : hosts >
+
+' A WeatherStation transmits data to the WeatherInformationSystem (Unidirectional)
+WeatherStation "1" --> "1" WeatherInformationSystem : transmits data to >
+
+' The WeatherInformationSystem requests data from multiple WeatherStations (Unidirectional)
+WeatherInformationSystem "1" --> "0..*" WeatherStation : requests data from >
+
+' The WeatherInformationSystem uses a DataNormalizer (Composition)
+WeatherInformationSystem "1" *-- "1" DataNormalizer : uses >
+
+' The WeatherInformationSystem ingests multiple instances of RawSensorData (Unidirectional)
+WeatherInformationSystem "1" <-- "0..*" RawSensorData : ingests <
+
+' The WeatherInformationSystem stores multiple instances of NormalizedSensorData (Unidirectional)
+WeatherInformationSystem "1" --> "0..*" NormalizedSensorData : stores <
+
+' Notes for clarity and additional information
+note right of WeatherInformationSystem : The central platform component\nresponsible for data aggregation,\nnormalization, and storage.
+note left of WeatherStation : Collects raw data from its sensors\nand transmits it to the WIS.\nReporting frequency can vary.
+note bottom of RawSensorData : Represents sensor data in its\nnative, heterogeneous format\nbefore any processing.
+note bottom of NormalizedSensorData : Represents sensor data after\nstandardization and processing,\nready for storage and analysis.
+note top of DataNormalizer : Converts RawSensorData to\nNormalizedSensorData, handling\ndifferent native formats.
+note top of Sensor : Generates raw measurements.
+
+@enduml

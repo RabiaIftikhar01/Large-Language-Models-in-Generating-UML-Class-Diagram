@@ -1,0 +1,151 @@
+@startuml
+' Set a consistent style for better readability
+skinparam class {
+    AttributeFontColor #111
+    OperationFontColor #111
+    ArrowColor #333
+    BorderColor #333
+    BackgroundColor #EEE
+    StereotypeFontColor #555
+}
+skinparam enum {
+    AttributeFontColor #111
+    ArrowColor #333
+    BorderColor #333
+    BackgroundColor #EEE
+    StereotypeFontColor #555
+}
+
+' Enums for clarity and type safety
+enum OperatorType {
+    GOVERNMENT
+    RESEARCH_INSTITUTION
+    INFRASTRUCTURE_PROVIDER
+}
+
+enum SensorType {
+    TEMPERATURE
+    HUMIDITY
+    PRESSURE
+    WIND_SPEED
+    RAINFALL
+    ' ... other sensor types as needed
+}
+
+' Class: MonitoringPlatform - Aggregates telemetry, ingests data, and ensures reliability
+class MonitoringPlatform {
+    - id : string
+    - name : string
+    - deployedLocations : List<string>
+    -- Operations --
+    + MonitoringPlatform(id : string, name : string) ' Constructor
+    + ingestRawData(data : RawMeasurement) : void ' Implementor: Entry point for raw data
+    - normalizeData(rawData : RawMeasurement) : NormalizedMeasurement ' Helper: Transforms raw data
+    + storeTelemetry(telemetry : NormalizedMeasurement) : void ' Implementor: Stores processed data
+    + getPlatformId() : string ' Access
+    + getPlatformName() : string ' Access
+    + addDeploymentLocation(location : string) : void ' Implementor
+}
+
+' Class: WeatherStation - Hosts sensors and transmits collected data to the platform
+class WeatherStation {
+    - stationId : string
+    - location : string
+    - operatorType : OperatorType
+    - transmissionFrequencyHours : int
+    -- Operations --
+    + WeatherStation(id : string, location : string, operator : OperatorType, freq : int) ' Constructor
+    + addSensor(sensor : Sensor) : void ' Implementor
+    + collectSensorData() : List<RawMeasurement> ' Implementor: Gathers data from hosted sensors
+    + sendTelemetry(platform : MonitoringPlatform) : void ' Implementor: Transmits data to the platform
+    + getStationId() : string ' Access
+    + getLocation() : string ' Access
+    + getOperatorType() : OperatorType ' Access
+    + getTransmissionFrequency() : int ' Access
+    + setTransmissionFrequency(freq : int) : void ' Access: Allows modifying frequency
+}
+
+' Class: Sensor - Represents a physical sensor reporting measurements
+class Sensor {
+    - sensorId : string
+    - manufacturer : string
+    - sensorType : SensorType
+    - nativeUnit : string
+    -- Operations --
+    + Sensor(id : string, manuf : string, type : SensorType, unit : string) ' Constructor
+    + readMeasurement(stationId : string) : RawMeasurement ' Implementor: Produces a raw measurement
+    + getSensorId() : string ' Access
+    + getManufacturer() : string ' Access
+    + getSensorType() : SensorType ' Access
+    + getNativeUnit() : string ' Access
+}
+
+' Class: RawMeasurement - Encapsulates sensor data in its original, native format
+class RawMeasurement {
+    - timestamp : DateTime
+    - sensorId : string
+    - stationId : string
+    - value : string ' Value in native format (e.g., "25.5C", "1012hPa")
+    - unit : string ' Native unit (e.g., "C", "hPa")
+    -- Operations --
+    + RawMeasurement(ts : DateTime, sId : string, stId : string, val : string, u : string) ' Constructor
+    + getTimestamp() : DateTime ' Access
+    + getSensorId() : string ' Access
+    + getStationId() : string ' Access
+    + getValue() : string ' Access
+    + getUnit() : string ' Access
+}
+
+' Class: NormalizedMeasurement - Encapsulates sensor data after standardization
+class NormalizedMeasurement {
+    - timestamp : DateTime
+    - sensorId : string
+    - stationId : string
+    - value : double ' Standardized numeric value
+    - unit : string ' Standardized unit (e.g., "Celsius", "Pascal")
+    -- Operations --
+    + NormalizedMeasurement(ts : DateTime, sId : string, stId : string, val : double, u : string) ' Constructor
+    + getTimestamp() : DateTime ' Access
+    + getSensorId() : string ' Access
+    + getStationId() : string ' Access
+    + getValue() : double ' Access
+    + getUnit() : string ' Access
+}
+
+' Relationships
+
+' A MonitoringPlatform aggregates WeatherStations
+MonitoringPlatform "1" o-- "0..*" WeatherStation : aggregates >
+
+' A WeatherStation hosts multiple Sensors
+WeatherStation "1" *-- "1..*" Sensor : hosts >
+
+' WeatherStation sends telemetry data to MonitoringPlatform
+WeatherStation .right.> MonitoringPlatform : sends data to
+
+' Sensor creates RawMeasurement when reading data
+Sensor ..> RawMeasurement : creates
+
+' MonitoringPlatform ingests RawMeasurement
+MonitoringPlatform ..> RawMeasurement : ingests
+
+' MonitoringPlatform produces NormalizedMeasurement after processing
+MonitoringPlatform ..> NormalizedMeasurement : produces
+
+' WeatherStation uses OperatorType enum
+WeatherStation ..> OperatorType : uses
+
+' Sensor uses SensorType enum
+Sensor ..> SensorType : uses
+
+' Notes for additional context
+note "Ensures reliability in geographically\ndispersed deployments." as N1
+MonitoringPlatform .. N1
+
+note "Frequency of data transmission\nmay vary and be modified." as N2
+WeatherStation .. N2
+
+note "Measurements reported in native formats\nmust be normalized upon ingestion." as N3
+RawMeasurement .. N3
+MonitoringPlatform .. N3
+@enduml

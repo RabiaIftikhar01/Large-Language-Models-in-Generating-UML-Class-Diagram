@@ -1,0 +1,123 @@
+@startuml
+' Global settings for consistency and readability
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam classStereotypeFontSize 10
+skinparam defaultFontName "Arial"
+
+' Classes
+class MonitoringPlatform {
+    - ingestionService : IngestionService
+    -- Operations --
+    + <constructor> MonitoringPlatform(ingestionService : IngestionService)
+    + requestData(stationId : string) : void
+    + ingestRawTelemetry(rawTelemetry : RawTelemetry) : void
+    + processTelemetry(telemetry : Telemetry) : void
+}
+
+class WeatherStation {
+    - id : string
+    - location : string
+    - operatorType : string
+    - transmissionFrequencyHours : int
+    - sensors : List<Sensor>
+    -- Operations --
+    + <constructor> WeatherStation(id : string, location : string, operator : string, freq : int)
+    + addSensor(sensor : Sensor) : void
+    + collectSensorData() : List<RawTelemetry>
+    + sendTelemetry(platform : MonitoringPlatform) : void
+    + updateTransmissionFrequency(hours : int) : void
+    + getId() : string
+    + getLocation() : string
+}
+
+class Sensor {
+    - id : string
+    - manufacturer : string
+    - type : string
+    - nativeFormatDescription : string
+    -- Operations --
+    + <constructor> Sensor(id : string, manufacturer : string, type : string, format : string)
+    + readRawMeasurement() : string
+    + getId() : string
+    + getType() : string
+}
+
+class RawTelemetry {
+    - sensorId : string
+    - stationId : string
+    - timestamp : DateTime
+    - rawValue : string
+    -- Operations --
+    + <constructor> RawTelemetry(sensorId : string, stationId : string, timestamp : DateTime, rawValue : string)
+    + getSensorId() : string
+    + getStationId() : string
+    + getTimestamp() : DateTime
+    + getRawValue() : string
+}
+
+class Telemetry {
+    - sensorId : string
+    - stationId : string
+    - timestamp : DateTime
+    - normalizedValue : float
+    - unit : string
+    - dataType : string
+    -- Operations --
+    + <constructor> Telemetry(sensorId : string, stationId : string, timestamp : DateTime, value : float, unit : string, type : string)
+    + getNormalizedValue() : float
+    + getUnit() : string
+    + getDataType() : string
+}
+
+class IngestionService {
+    - dataNormalizer : DataNormalizer
+    -- Operations --
+    + <constructor> IngestionService(dataNormalizer : DataNormalizer)
+    + receiveAndProcess(rawTelemetry : RawTelemetry) : Telemetry
+    - ensureReliability(data : RawTelemetry) : void
+}
+
+class DataNormalizer {
+    - conversionRules : Map<string, string>
+    -- Operations --
+    + <constructor> DataNormalizer()
+    + normalize(rawTelemetry : RawTelemetry) : Telemetry
+    - applyRules(rawTelemetry : RawTelemetry) : Tuple<float, string, string>
+}
+
+' Relationships
+
+' MonitoringPlatform delegates data ingestion and processing to IngestionService
+MonitoringPlatform "1" *-- "1" IngestionService : delegates to
+
+' IngestionService uses DataNormalizer to perform data normalization
+IngestionService "1" *-- "1" DataNormalizer : uses for normalization
+
+' MonitoringPlatform requests data from multiple WeatherStations
+MonitoringPlatform "1" <.. "0..*" WeatherStation : requests data from
+
+' A WeatherStation sends its collected telemetry to the MonitoringPlatform
+WeatherStation "1" --> "1" MonitoringPlatform : sends telemetry to
+
+' A WeatherStation hosts one or more Sensors
+WeatherStation "1" *-- "1..*" Sensor : hosts
+
+' A Sensor produces RawTelemetry measurements
+Sensor "1" --> "1" RawTelemetry : produces
+
+' RawTelemetry is transformed into Telemetry after normalization
+RawTelemetry "1" --> "1" Telemetry : normalized to
+
+' IngestionService receives and processes RawTelemetry
+IngestionService "1" --> "1" RawTelemetry : receives
+
+' DataNormalizer creates Telemetry objects from RawTelemetry
+DataNormalizer "1" --> "1" Telemetry : creates
+
+' Notes for additional context and assumptions
+note "DateTime and Tuple are assumed standard types." as N1
+note "Operator types (Government Agency, Research Institution, etc.) are represented as a string attribute for simplicity in WeatherStation." as N2
+note "The platform ensures reliability and large-scale ingestion via the IngestionService component." as N3
+
+@enduml

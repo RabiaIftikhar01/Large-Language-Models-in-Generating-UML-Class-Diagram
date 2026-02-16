@@ -1,0 +1,114 @@
+@startuml
+' Global settings for clarity and consistency
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam shadowing false
+
+title Environmental Monitoring Platform Class Diagram
+
+' Notes for overall context
+note "The platform aggregates telemetry from thousands of weather stations.\nIt ensures reliability and normalizes heterogeneous sensor data." as N1
+
+' Main Platform Class - Orchestrates data ingestion, normalization, and storage
+class MonitoringPlatform {
+    - platformId : string
+    + MonitoringPlatform()
+    + ingestRawData(rawPayload : string) : void
+    + requestStationData(stationId : string) : void
+    # normalize(rawMeasurement : RawMeasurement) : Measurement
+    # store(measurement : Measurement) : void
+}
+note right of MonitoringPlatform : Orchestrates data ingestion,\nnormalization, and storage.
+
+' Weather Station Class - Represents a physical station
+class WeatherStation {
+    - stationId : string
+    - location : string
+    - operatorType : string ' e.g., "Government", "Research", "Infrastructure"
+    - transmissionFrequency : Duration ' e.g., "1 hour", "30 minutes"
+    + WeatherStation(id : string, loc : string)
+    + getStationId() : string
+    + getLocation() : string
+    + getOperatorType() : string
+    + getTransmissionFrequency() : Duration
+    + setTransmissionFrequency(freq : Duration) : void
+    + collectAndTransmitData(platform : MonitoringPlatform) : void
+    + addSensor(sensor : Sensor) : void
+    + removeSensor(sensorId : string) : void
+}
+note right of WeatherStation : Collects data from its sensors\nand transmits it to the platform.
+
+' Abstract Sensor Class - Base for different sensor types
+abstract class Sensor {
+    - sensorId : string
+    - manufacturer : string
+    - sensorType : string ' e.g., "Temperature", "Humidity", "Pressure"
+    + Sensor(id : string, type : string, manufacturer : string)
+    + getSensorId() : string
+    + getSensorType() : string
+    + getManufacturer() : string
+    + {abstract} readRawValue() : RawMeasurement
+}
+note bottom of Sensor : Abstract base for specific sensor types.\nEach concrete sensor type implements 'readRawValue()'\nto produce data in its native format.
+
+' Raw Measurement Class - Data exactly as received from a sensor before normalization
+class RawMeasurement {
+    - rawMeasurementId : string
+    - sensorId : string
+    - timestamp : DateTime
+    - nativeValue : string ' e.g., "25.3C", "{'temp':25.3, 'unit':'C'}"
+    - nativeFormatIdentifier : string ' e.g., "JSON_V1", "CSV_SENSOR_A"
+    + RawMeasurement(sensorId : string, ts : DateTime, value : string, format : string)
+    + getRawMeasurementId() : string
+    + getSensorId() : string
+    + getTimestamp() : DateTime
+    + getNativeValue() : string
+    + getNativeFormatIdentifier() : string
+}
+note "Raw data from sensors, in native format,\nbefore any processing or standardization." as N_RawMeasurement_Note
+RawMeasurement .. N_RawMeasurement_Note
+
+' Normalized Measurement Class - Standardized data ready for storage or analysis
+class Measurement {
+    - measurementId : string
+    - sensorId : string
+    - timestamp : DateTime
+    - value : double
+    - unit : string ' e.g., "Celsius", "hPa", "percent"
+    - type : string ' e.g., "Temperature", "Humidity", "Pressure"
+    + Measurement(sensorId : string, ts : DateTime, value : double, unit : string, type : string)
+    + getMeasurementId() : string
+    + getSensorId() : string
+    + getTimestamp() : DateTime
+    + getValue() : double
+    + getUnit() : string
+    + getType() : string
+}
+note "Standardized and normalized data,\nready for analysis and storage." as N_Measurement_Note
+Measurement .. N_Measurement_Note
+
+' Relationships
+
+' MonitoringPlatform manages WeatherStations (Aggregation)
+' The platform aggregates and oversees multiple stations.
+MonitoringPlatform "1" o-- "0..*" WeatherStation : manages >
+
+' WeatherStation hosts Sensors (Aggregation)
+' A station is composed of multiple sensors.
+WeatherStation "1" o-- "1..*" Sensor : hosts >
+
+' Sensor generates RawMeasurements (Dependency)
+' A Sensor's operation produces a RawMeasurement object.
+Sensor ..> RawMeasurement : generates >
+
+' WeatherStation transmits data to MonitoringPlatform (Dependency)
+' The WeatherStation's method takes the MonitoringPlatform as an argument for data transmission.
+WeatherStation ..> MonitoringPlatform : transmits to >
+
+' MonitoringPlatform processes RawMeasurements and stores Measurements (Dependencies)
+' The platform takes RawMeasurements as input for processing and produces/stores Measurements.
+MonitoringPlatform ..> RawMeasurement : processes <
+MonitoringPlatform ..> Measurement : stores <
+
+@enduml

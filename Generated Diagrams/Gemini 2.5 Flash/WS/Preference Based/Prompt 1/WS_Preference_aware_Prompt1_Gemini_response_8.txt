@@ -1,0 +1,142 @@
+@startuml
+' Global settings for consistency and readability
+skinparam classAttributeFontColor #000000
+skinparam classAttributeFontsize 12
+skinparam classAttributeFontName Arial
+skinparam classMethodFontColor #000000
+skinparam classMethodFontsize 12
+skinparam classMethodFontName Arial
+skinparam classFontColor #000000
+skinparam classFontsize 14
+skinparam classFontName Arial
+skinparam defaultFontName Arial
+skinparam defaultFontsize 12
+skinparam linetype ortho
+
+' Classes representing key entities and components
+class EnvironmentalMonitoringPlatform {
+    - platformId : String
+    - name : String
+    -- Operations --
+    + ingestRawData(rawData : RawMeasurement)
+    + storeNormalizedData(data : NormalizedMeasurement)
+    + monitorStations()
+}
+
+class WeatherInformationSystem {
+    - systemId : String
+    - name : String
+    -- Operations --
+    + establishLink(stationId : String)
+    + requestDataTransmission(station : WeatherStation)
+    + receiveRawData(rawData : RawMeasurement)
+}
+
+class WeatherStation {
+    - stationId : String
+    - location : String
+    - lastTransmissionTime : DateTime
+    - transmissionFrequencyHours : int
+    -- Operations --
+    + transmitData() : RawMeasurement
+    + updateTransmissionFrequency(hours : int)
+    + getStatus() : String
+}
+
+class Sensor {
+    - sensorId : String
+    - manufacturer : String
+    - model : String
+    - type : String ' e.g., Temperature, Humidity, Pressure
+    - nativeFormatDescription : String
+    -- Operations --
+    + readNativeData() : String
+    + calibrate()
+}
+
+class RawMeasurement {
+    - measurementId : String
+    - timestamp : DateTime
+    - sensorId : String
+    - nativeValue : String ' Raw string from sensor
+    - nativeUnit : String
+    -- Operations --
+    + getNativeData() : String
+}
+
+class NormalizedMeasurement {
+    - measurementId : String
+    - timestamp : DateTime
+    - sensorId : String
+    - value : double
+    - unit : String ' Standardized unit
+    -- Operations --
+    + getValue() : double
+    + getUnit() : String
+}
+
+class DataNormalizer {
+    -- Operations --
+    + normalize(raw : RawMeasurement) : NormalizedMeasurement
+}
+
+class Organization {
+    - organizationId : String
+    - name : String
+    - type : String ' e.g., Government Agency, Research Institution, Infrastructure Provider
+    -- Operations --
+    + registerStation(station : WeatherStation)
+}
+
+' Relationships between classes
+
+' The EnvironmentalMonitoringPlatform manages a WeatherInformationSystem component.
+EnvironmentalMonitoringPlatform "1" *-- "1" WeatherInformationSystem : manages >
+
+' The WeatherInformationSystem requests and receives data from multiple WeatherStations.
+WeatherInformationSystem "1" --> "1..*" WeatherStation : requests/receives data from >
+
+' A WeatherStation hosts multiple Sensor devices.
+WeatherStation "1" o-- "1..*" Sensor : hosts
+
+' A Sensor produces RawMeasurements.
+Sensor "1" --> "0..*" RawMeasurement : produces >
+
+' A RawMeasurement is processed by a DataNormalizer.
+RawMeasurement "1" --> "1" DataNormalizer : is processed by >
+
+' A DataNormalizer creates a NormalizedMeasurement from a RawMeasurement.
+DataNormalizer "1" --> "1" NormalizedMeasurement : creates >
+
+' The EnvironmentalMonitoringPlatform stores the NormalizedMeasurements.
+EnvironmentalMonitoringPlatform "1" <-- "0..*" NormalizedMeasurement : stores
+
+' An Organization operates multiple WeatherStations.
+Organization "1" -- "0..*" WeatherStation : operates >
+
+' Explanatory notes for clarity and additional context
+note "Aggregates telemetry, ensures reliability,\nand handles large-scale data ingestion." as N1
+EnvironmentalMonitoringPlatform .. N1
+
+note "Establishes links with stations,\nrequests data transmission, and receives raw data." as N2
+WeatherInformationSystem .. N2
+
+note "Collects data from sensors, transmits periodically,\nand allows modification of transmission frequency." as N3
+WeatherStation .. N3
+
+note "Heterogeneous, from different manufacturers,\nreporting measurements in native formats." as N4
+Sensor .. N4
+
+note "Represents data as received directly from sensors,\nin its original native format." as N5
+RawMeasurement .. N5
+
+note "Represents data after conversion to a standardized\nformat, ready for analysis and storage." as N6
+NormalizedMeasurement .. N6
+
+note "Responsible for converting native sensor data\ninto a standardized, normalized format." as N7
+DataNormalizer .. N7
+
+note "Includes Government Agencies, Research Institutions,\nand Infrastructure Providers." as N8
+Organization .. N8
+
+@enduml

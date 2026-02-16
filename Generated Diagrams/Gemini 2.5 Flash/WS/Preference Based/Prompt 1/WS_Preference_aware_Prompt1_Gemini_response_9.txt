@@ -1,0 +1,125 @@
+@startuml
+' Global settings for consistency and readability
+skinparam classAttributeIconSize 0
+skinparam classFontStyle Bold
+hide empty members
+
+' Define the core classes representing the system components
+
+' Represents an individual weather station in the field
+class WeatherStation {
+    - stationId : String
+    - location : String
+    - operatorType : String ' e.g., Government, Research, Infrastructure
+    - transmissionFrequency : Duration ' e.g., 1 hour, 30 minutes
+    -- Operations --
+    + getStationId() : String
+    + getLocation() : String
+    + getTransmissionFrequency() : Duration
+    + setTransmissionFrequency(frequency : Duration) : void
+    + collectSensorData() : List<RawMeasurement>
+    + transmitData(measurements : List<RawMeasurement>, wis : WeatherInformationSystem) : void
+}
+
+' Represents a sensor hosted by a weather station
+class Sensor {
+    - sensorId : String
+    - manufacturer : String
+    - sensorType : String ' e.g., Temperature, Humidity, WindSpeed
+    - nativeFormat : String ' Describes the raw data format (e.g., JSON, XML)
+    -- Operations --
+    + getSensorId() : String
+    + getSensorType() : String
+    + getManufacturer() : String
+    + getNativeFormat() : String
+    + readRawData() : RawMeasurement
+}
+
+' Represents the raw data reported by a sensor before normalization
+class RawMeasurement {
+    - measurementId : String
+    - sensorId : String
+    - timestamp : DateTime
+    - rawValue : String ' The actual raw data string/payload from the sensor
+    -- Operations --
+    + getMeasurementId() : String
+    + getSensorId() : String
+    + getTimestamp() : DateTime
+    + getRawValue() : String
+}
+
+' Represents the normalized and structured telemetry data
+class TelemetryData {
+    - dataId : String
+    - stationId : String
+    - sensorId : String
+    - timestamp : DateTime
+    - measurementType : String
+    - value : double
+    - unit : String
+    -- Operations --
+    + getDataId() : String
+    + getStationId() : String
+    + getSensorId() : String
+    + getTimestamp() : DateTime
+    + getMeasurementType() : String
+    + getValue() : double
+    + getUnit() : String
+}
+
+' The central system component responsible for data ingestion and processing
+class WeatherInformationSystem {
+    - systemId : String
+    -- Operations --
+    + receiveRawMeasurements(measurements : List<RawMeasurement>) : void
+    + requestStationData(stationId : String) : void
+    + addStation(station : WeatherStation) : void
+    + removeStation(stationId : String) : void
+    - processRawMeasurements(measurements : List<RawMeasurement>) : void
+}
+
+' Component responsible for converting raw sensor data to a standard format
+class DataNormalizer {
+    -- Operations --
+    + normalize(raw : RawMeasurement) : TelemetryData
+}
+
+' Component responsible for persisting the normalized telemetry data
+class DataStorage {
+    -- Operations --
+    + save(telemetry : TelemetryData) : void
+    + saveAll(telemetryList : List<TelemetryData>) : void
+}
+
+' Define relationships between classes
+
+' A WeatherStation hosts multiple Sensors
+WeatherStation "1" *-- "many" Sensor : hosts >
+
+' A Sensor produces RawMeasurements
+Sensor --> "1" RawMeasurement : produces >
+
+' WeatherInformationSystem manages multiple WeatherStations
+WeatherInformationSystem "1" *-- "many" WeatherStation : manages >
+
+' WeatherStation transmits raw data to the WeatherInformationSystem
+WeatherStation .right.> WeatherInformationSystem : transmits >
+
+' WeatherInformationSystem uses the DataNormalizer to process raw measurements
+WeatherInformationSystem --> DataNormalizer : uses >
+
+' DataNormalizer transforms a RawMeasurement into TelemetryData
+RawMeasurement .right.> TelemetryData : transforms into >
+DataNormalizer ..> TelemetryData : creates >
+
+' WeatherInformationSystem stores normalized TelemetryData via DataStorage
+WeatherInformationSystem --> DataStorage : stores via >
+DataStorage ..> TelemetryData : saves >
+
+' Notes for clarity and additional information
+note top of WeatherInformationSystem : Core component for large-scale data ingestion,\nprocessing, and coordination.
+note top of DataNormalizer : Ensures data consistency by converting\nheterogeneous sensor formats.
+note top of DataStorage : Provides reliable persistence for\nnormalized environmental data.
+note top of WeatherStation : Configurable for different transmission\nfrequencies and operators.
+
+@enduml

@@ -1,0 +1,99 @@
+@startuml
+' Global settings for better readability
+skinparam classAttributeFontColor #000000
+skinparam classAttributeFontColor #000000
+skinparam classAttributeFontName Arial
+skinparam classAttributeFontSize 12
+skinparam classMethodFontColor #000000
+skinparam classMethodFontName Arial
+skinparam classMethodFontSize 12
+skinparam classArrowColor #182848
+skinparam classArrowFontColor #182848
+skinparam classArrowFontName Arial
+skinparam classArrowFontSize 11
+skinparam classBackgroundColor #DDEEFF
+skinparam classBorderColor #182848
+skinparam classStereotypeFontColor #182848
+skinparam classStereotypeFontSize 10
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+' Title for the diagram
+title Environmental Monitoring Platform - Class Diagram
+
+' Classes
+class MonitoringPlatform {
+    - platformId : string
+    - name : string
+    --
+    + processAggregatedData()
+    + storeMeasurement(measurement : Measurement)
+}
+
+class WeatherInformationSystem {
+    - systemId : string
+    --
+    + establishLink(station : WeatherStation)
+    + requestTelemetry(station : WeatherStation)
+    + receiveAndNormalizeData(nativeData : string, sensor : Sensor) : Measurement
+}
+
+class WeatherStation {
+    - stationId : string
+    - location : string
+    - ownerType : string ' e.g., GovernmentAgency, ResearchInstitution, InfrastructureProvider
+    - transmissionIntervalHours : int
+    --
+    + collectNativeTelemetry() : Map<Sensor, string>
+    + sendTelemetry(data : Map<Sensor, string>, wis : WeatherInformationSystem)
+    - updateTransmissionInterval(newInterval : int)
+}
+
+class Sensor {
+    - sensorId : string
+    - manufacturer : string
+    - sensorType : string ' e.g., Temperature, Humidity, Pressure
+    - nativeFormatDescription : string ' e.g., JSON, XML, CSV
+    --
+    + readNativeValue() : string
+}
+
+class Measurement {
+    - measurementId : string
+    - timestamp : DateTime
+    - value : double ' Normalized value
+    - unit : string
+    - sensorId : string
+    - stationId : string
+    --
+    + isValid() : boolean
+}
+
+' Relationships
+
+' MonitoringPlatform manages WeatherInformationSystem (Composition)
+MonitoringPlatform "1" *-- "1" WeatherInformationSystem : manages >
+
+' WeatherInformationSystem requests data from WeatherStation (Unidirectional Association)
+WeatherInformationSystem "1" --> "0..*" WeatherStation : requestsDataFrom >
+
+' WeatherStation sends data to WeatherInformationSystem (Dependency)
+WeatherStation "1" ..> "1" WeatherInformationSystem : sendsDataTo >
+
+' WeatherStation hosts Sensors (Composition)
+WeatherStation "1" *-- "1..*" Sensor : hosts >
+
+' WeatherInformationSystem creates Measurement after normalization (Creation Dependency)
+WeatherInformationSystem ..> Measurement : creates >
+
+' MonitoringPlatform stores Measurements (Dependency)
+MonitoringPlatform "1" <.. "0..*" Measurement : stores >
+
+' Notes for clarity
+note top of MonitoringPlatform : Central platform for large-scale data aggregation, processing, and storage.
+note top of WeatherInformationSystem : Component responsible for establishing links, requesting telemetry, and normalizing sensor data.
+note top of WeatherStation : Represents a physical weather station, collecting data from its sensors and sending it to the WIS.
+note top of Sensor : A device within a weather station, reporting specific environmental measurements in a native format.
+note top of Measurement : A normalized data point, representing a single reading from a sensor at a specific time.
+
+@enduml
