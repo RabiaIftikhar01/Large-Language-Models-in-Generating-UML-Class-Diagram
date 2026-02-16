@@ -1,0 +1,153 @@
+@startuml
+!theme mars
+
+' Enums
+enum PatientCategory {
+    INSURED
+    GOVERNMENT_BENEFICIARY
+    SELF_FUNDED
+}
+
+' Patient Information (Strict Separation: Patient Data)
+class Patient {
+    - String patientId
+    - String name
+    - PatientCategory category
+    + getPatientCategory(): PatientCategory
+}
+
+' Treatments / Cost Sources (Heterogeneous Sources)
+' These represent the individual items that incur costs.
+abstract class Treatment {
+    - String treatmentId
+    - String description
+    - double calculatedBaseCost // Result after PricingService computes it
+    + getTreatmentId(): String
+    + getDescription(): String
+    + getCalculatedBaseCost(): double
+    + setCalculatedBaseCost(cost: double): void
+}
+
+class MedicalProcedure extends Treatment {
+    - String procedureCode
+    // ... specific procedure details
+}
+
+class PrescribedMedication extends Treatment {
+    - String medicationCode
+    - double dosage
+    // ... specific medication details
+}
+
+class DiagnosticService extends Treatment {
+    - String serviceCode
+    // ... specific diagnostic details
+}
+
+class AccommodationCharge extends Treatment {
+    - String roomType
+    - int numNights
+    // ... specific accommodation details
+}
+
+' Pricing Module (Strict Separation: Pricing Logic)
+' Encapsulates distinct pricing rules for different treatment types.
+class PricingService {
+    + calculateBaseCost(treatment: Treatment): double
+    - applyProcedurePricing(procedure: MedicalProcedure): double
+    - applyMedicationPricing(medication: PrescribedMedication): double
+    - applyDiagnosticPricing(diagnostic: DiagnosticService): double
+    - applyAccommodationPricing(accommodation: AccommodationCharge): double
+}
+note right of PricingService
+  Applies distinct pricing rules
+  for each type of treatment.
+  Ensures extensibility for new
+  pricing rules.
+end note
+
+' Billing Policies (Strategy Pattern for Dynamic Interchangeability & Extensibility)
+' Strict Separation: Billing Logic
+interface IBillingStrategy {
+    + calculateFinalAmount(invoice: Invoice, pricingService: PricingService): double
+}
+
+class InsuredBillingStrategy implements IBillingStrategy {
+    - Map<String, CoverageConstraint> coverageConstraints
+    - Map<String, Double> reimbursementThresholds
+    - Map<String, Double> coPayArrangements
+    + calculateFinalAmount(invoice: Invoice, pricingService: PricingService): double
+}
+note right of InsuredBillingStrategy
+  Configurable parameters for
+  insurer-defined rules.
+end note
+
+class GovernmentBillingStrategy implements IBillingStrategy {
+    - Map<String, Double> subsidizedAmounts
+    + calculateFinalAmount(invoice: Invoice, pricingService: PricingService): double
+}
+note right of GovernmentBillingStrategy
+  Configurable parameters for
+  fixed subsidized amounts.
+end note
+
+class SelfFundedBillingStrategy implements IBillingStrategy {
+    + calculateFinalAmount(invoice: Invoice, pricingService: PricingService): double
+}
+note right of SelfFundedBillingStrategy
+  Simply bills the entire cost.
+end note
+
+' Billing Policy Management (Runtime Configuration)
+class BillingPolicyManager {
+    - Map<PatientCategory, IBillingStrategy> strategies
+    + getBillingStrategy(category: PatientCategory): IBillingStrategy
+    + registerStrategy(category: PatientCategory, strategy: IBillingStrategy): void
+}
+note right of BillingPolicyManager
+  Manages and provides the correct
+  billing strategy at runtime,
+  allowing dynamic policy changes.
+end note
+
+' Invoice (Orchestrator)
+' Assembles the bill, delegating to pricing and billing policies.
+class Invoice {
+    - String invoiceId
+    - Patient patient
+    - List<Treatment> treatments
+    - double finalAmount // After billing strategy application
+    + addTreatment(treatment: Treatment): void
+    + removeTreatment(treatment: Treatment): void
+    + assembleAndCalculate(policyManager: BillingPolicyManager, pricingService: PricingService): double
+}
+note "Orchestrates the billing process:\n1. Gets base costs from PricingService.\n2. Applies billing policy from BillingPolicyManager." as InvoiceNote
+InvoiceNote .u. Invoice
+
+' Relationships
+
+Patient "1" -- "1" PatientCategory : has category
+
+Invoice "1" -- "1" Patient : for patient
+Invoice "1" -- "*" Treatment : includes
+
+Treatment <|-- MedicalProcedure
+Treatment <|-- PrescribedMedication
+Treatment <|-- DiagnosticService
+Treatment <|-- AccommodationCharge
+
+PricingService ..> Treatment : calculates base cost for (dependency)
+
+IBillingStrategy <|.. InsuredBillingStrategy
+IBillingStrategy <|.. GovernmentBillingStrategy
+IBillingStrategy <|.. SelfFundedBillingStrategy
+
+BillingPolicyManager "1" -- "*" IBillingStrategy : manages strategies
+
+Invoice ..> BillingPolicyManager : uses to get strategy (dependency)
+Invoice ..> PricingService : uses for base costs (dependency)
+
+IBillingStrategy ..> PricingService : relies on for base costs (dependency)
+
+@enduml

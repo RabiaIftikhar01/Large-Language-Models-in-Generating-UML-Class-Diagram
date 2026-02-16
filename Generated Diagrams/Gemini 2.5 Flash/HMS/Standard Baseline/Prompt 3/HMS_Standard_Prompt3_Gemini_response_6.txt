@@ -1,0 +1,246 @@
+@startuml
+' Styling for better readability
+skinparam class {
+    BackgroundColor White
+    BorderColor #2F4F4F
+    ArrowColor #2F4F4F
+    FontColor #2F4F4F
+}
+skinparam interface {
+    BackgroundColor LightYellow
+    BorderColor #DAA520
+    ArrowColor #DAA520
+    FontColor #DAA520
+}
+skinparam enum {
+    BackgroundColor LightCyan
+    BorderColor #4682B4
+    ArrowColor #4682B4
+    FontColor #4682B4
+}
+skinparam note {
+    BackgroundColor LightGray
+    BorderColor #696969
+    FontColor #696969
+}
+
+' Enums
+enum PatientCategory {
+    Insured
+    GovernmentBeneficiary
+    SelfFunded
+}
+
+' Patient Information (Strict Separation: Patient Data)
+class Patient {
+    - patientId: String
+    - name: String
+    - category: PatientCategory
+}
+
+' Hospital Stay
+class HospitalStay {
+    - stayId: String
+    - admissionDate: Date
+    - dischargeDate: Date
+    + getTreatments(): List<Treatment>
+}
+
+' Treatments/Services (Heterogeneous Sources)
+interface Treatment {
+    + getRawCost(): BigDecimal
+    + getType(): String ' e.g., "MedicalProcedure", "Medication"
+}
+
+class MedicalProcedure implements Treatment {
+    - procedureCode: String
+    - baseCost: BigDecimal
+    + getRawCost(): BigDecimal
+    + getType(): String
+}
+
+class Medication implements Treatment {
+    - medicationId: String
+    - unitCost: BigDecimal
+    - quantity: int
+    + getRawCost(): BigDecimal
+    + getType(): String
+}
+
+class DiagnosticService implements Treatment {
+    - serviceCode: String
+    - baseCost: BigDecimal
+    + getRawCost(): BigDecimal
+    + getType(): String
+}
+
+class AccommodationCharge implements Treatment {
+    - roomType: String
+    - dailyRate: BigDecimal
+    - numberOfDays: int
+    + getRawCost(): BigDecimal
+    + getType(): String
+}
+
+' Pricing Module (Strict Separation: Pricing Logic)
+interface PricingRule {
+    + calculateEffectivePrice(treatment: Treatment): BigDecimal
+}
+
+class ProcedurePricingRule implements PricingRule {
+    - priceList: Map<String, BigDecimal>
+    + calculateEffectivePrice(treatment: Treatment): BigDecimal
+}
+
+class MedicationPricingRule implements PricingRule {
+    - drugCatalog: Map<String, BigDecimal>
+    + calculateEffectivePrice(treatment: Treatment): BigDecimal
+}
+
+class DiagnosticPricingRule implements PricingRule {
+    - servicePriceList: Map<String, BigDecimal>
+    + calculateEffectivePrice(treatment: Treatment): BigDecimal
+}
+
+class AccommodationPricingRule implements PricingRule {
+    - roomRates: Map<String, BigDecimal>
+    + calculateEffectivePrice(treatment: Treatment): BigDecimal
+}
+
+class PricingModule {
+    - rules: Map<String, PricingRule> ' Maps treatment type to pricing rule
+    + registerPricingRule(type: String, rule: PricingRule)
+    + getEffectivePrice(treatment: Treatment): BigDecimal
+}
+
+' Billing Policies (Strict Separation: Billing Logic & Dynamic Configuration)
+interface BillingPolicy {
+    + calculateInvoiceDetails(stay: HospitalStay, pricingModule: PricingModule, parameters: BillingPolicyParameters): InvoiceDetails
+}
+
+class InsuredBillingPolicy implements BillingPolicy {
+    + calculateInvoiceDetails(stay: HospitalStay, pricingModule: PricingModule, parameters: BillingPolicyParameters): InvoiceDetails
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    + calculateInvoiceDetails(stay: HospitalStay, pricingModule: PricingModule, parameters: BillingPolicyParameters): InvoiceDetails
+}
+
+class SelfFundedBillingPolicy implements BillingPolicy {
+    + calculateInvoiceDetails(stay: HospitalStay, pricingModule: PricingModule, parameters: BillingPolicyParameters): InvoiceDetails
+}
+
+' Configurable Billing Policy Parameters (Dynamically Interchangeable)
+class BillingPolicyParameters {
+    - coverageConstraints: Map<String, Object> ' e.g., { "insurerA": { "maxCoverage": 5000 } }
+    - reimbursementThresholds: Map<String, BigDecimal>
+    - coPayArrangements: Map<String, BigDecimal>
+    - subsidyValues: Map<String, BigDecimal>
+    ' ... other dynamic parameters
+    + getParameter(key: String): Object
+    + setParameter(key: String, value: Object)
+}
+
+' Invoice and Invoice Details
+class DischargeInvoice {
+    - invoiceId: String
+    - totalAmount: BigDecimal
+    - patientResponsibility: BigDecimal
+    - insurerResponsibility: BigDecimal
+    - subsidyAmount: BigDecimal
+    - lineItems: List<InvoiceLineItem>
+    - generatedDate: Date
+}
+
+class InvoiceLineItem {
+    - description: String
+    - rawCost: BigDecimal
+    - effectivePrice: BigDecimal
+    - patientShare: BigDecimal
+    - thirdPartyShare: BigDecimal
+    - treatmentRef: Treatment ' Reference to the original treatment
+}
+
+class InvoiceDetails {
+    ' A DTO/Value Object returned by BillingPolicy
+    - totalAmount: BigDecimal
+    - patientResponsibility: BigDecimal
+    - insurerResponsibility: BigDecimal
+    - subsidyAmount: BigDecimal
+    - lineItems: List<InvoiceLineItem>
+}
+
+' Main Orchestrator / Platform
+class HospitalBillingPlatform {
+    - patientRepository: PatientRepository
+    - hospitalStayRepository: HospitalStayRepository
+    - pricingModule: PricingModule
+    - billingPolicyFactory: BillingPolicyFactory
+    - currentBillingPolicyParameters: BillingPolicyParameters
+
+    + generateDischargeInvoice(patientId: String, stayId: String): DischargeInvoice
+    + updateBillingPolicyParameters(newParameters: BillingPolicyParameters)
+}
+
+class BillingPolicyFactory {
+    + getPolicy(category: PatientCategory): BillingPolicy
+}
+
+' Repositories (for data access)
+interface PatientRepository {
+    + findPatientById(patientId: String): Patient
+}
+
+interface HospitalStayRepository {
+    + findHospitalStayById(stayId: String): HospitalStay
+}
+
+' Relationships
+
+Patient "1" -- "*" HospitalStay : has
+HospitalStay "1" -- "*" Treatment : includes
+
+Treatment <|.. MedicalProcedure
+Treatment <|.. Medication
+Treatment <|.. DiagnosticService
+Treatment <|.. AccommodationCharge
+
+PricingModule "1" -- "*" PricingRule : manages
+PricingRule <|.. ProcedurePricingRule
+PricingRule <|.. MedicationPricingRule
+PricingRule <|.. DiagnosticPricingRule
+PricingRule <|.. AccommodationPricingRule
+
+BillingPolicy <|.. InsuredBillingPolicy
+BillingPolicy <|.. GovernmentBillingPolicy
+BillingPolicy <|.. SelfFundedBillingPolicy
+
+HospitalBillingPlatform "1" --> "1" PatientRepository : uses
+HospitalBillingPlatform "1" --> "1" HospitalStayRepository : uses
+HospitalBillingPlatform "1" --> "1" PricingModule : uses
+HospitalBillingPlatform "1" --> "1" BillingPolicyFactory : uses
+HospitalBillingPlatform "1" --> "1" BillingPolicyParameters : configures
+
+BillingPolicyFactory "1" --> "1" PatientCategory : determines
+BillingPolicyFactory "1" --> "*" BillingPolicy : creates
+
+BillingPolicy "1" --> "1" BillingPolicyParameters : applies
+BillingPolicy "1" --> "1" PricingModule : queries
+
+DischargeInvoice "1" -- "*" InvoiceLineItem : contains
+HospitalStay "1" --> "1" DischargeInvoice : generates
+
+InvoiceDetails <.. BillingPolicy : returns
+InvoiceLineItem "1" --> "1" Treatment : refersTo
+
+' Notes for Architectural Principles
+note "Strict Separation of Concerns:\n- Patient Information (Patient, Repositories)\n- Pricing Logic (PricingRule, PricingModule)\n- Billing Policies (BillingPolicy, BillingPolicyParameters)" as SeparationNote
+SeparationNote .. Patient
+SeparationNote .. PricingModule
+SeparationNote .. BillingPolicy
+
+note "Dynamic Policy Interchangeability & Runtime Configuration:\n- BillingPolicy (Strategy Pattern)\n- BillingPolicyParameters (Externalized Configuration)" as DynamicConfigNote
+DynamicConfigNote .. BillingPolicy
+DynamicConfigNote .. BillingPolicyParameters
+
+@enduml

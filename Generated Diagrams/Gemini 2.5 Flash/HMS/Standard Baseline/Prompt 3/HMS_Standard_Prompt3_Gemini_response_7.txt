@@ -1,0 +1,191 @@
+@startuml
+!theme mars
+
+' Package for Patient Information
+package "Patient Information" {
+    enum PatientCategory {
+        Insured
+        GovernmentBeneficiary
+        SelfFunded
+    }
+
+    class Patient {
+        - patientId: String
+        - name: String
+        - category: PatientCategory
+        + getPatientCategory(): PatientCategory
+    }
+
+    class HospitalStay {
+        - stayId: String
+        - admissionDate: Date
+        - dischargeDate: Date
+        + addTreatment(treatment: Treatment)
+        + getTreatments(): List<Treatment>
+    }
+}
+
+' Package for Pricing Modules
+package "Pricing Modules" {
+    abstract class Treatment {
+        - treatmentId: String
+        - description: String
+        + {abstract} getBaseCost(): BigDecimal
+    }
+
+    class MedicalProcedure extends Treatment {
+        - procedureCode: String
+        + getBaseCost(): BigDecimal
+    }
+
+    class Medication extends Treatment {
+        - drugCode: String
+        + getBaseCost(): BigDecimal
+    }
+
+    class DiagnosticService extends Treatment {
+        - serviceCode: String
+        + getBaseCost(): BigDecimal
+    }
+
+    class AccommodationCharge extends Treatment {
+        - roomType: String
+        - dailyRate: BigDecimal
+        - numberOfDays: int
+        + getBaseCost(): BigDecimal
+    }
+
+    abstract class PricingRule {
+        + {abstract} calculatePrice(treatment: Treatment): BigDecimal
+    }
+
+    class ProcedurePricingRule extends PricingRule {
+        + calculatePrice(treatment: Treatment): BigDecimal
+    }
+
+    class MedicationPricingRule extends PricingRule {
+        + calculatePrice(treatment: Treatment): BigDecimal
+    }
+    
+    class DiagnosticPricingRule extends PricingRule {
+        + calculatePrice(treatment: Treatment): BigDecimal
+    }
+
+    class AccommodationPricingRule extends PricingRule {
+        + calculatePrice(treatment: Treatment): BigDecimal
+    }
+
+    class PricingService {
+        - pricingRules: Map<Class<? extends Treatment>, PricingRule>
+        + getPrice(treatment: Treatment): BigDecimal
+    }
+}
+
+' Package for Billing Policies
+package "Billing Policies" {
+    class BillingPolicyParameters {
+        - coverageConstraints: Map<String, BigDecimal>
+        - reimbursementThresholds: Map<String, BigDecimal>
+        - coPayArrangements: Map<String, BigDecimal>
+        - subsidyValues: Map<String, BigDecimal>
+        + getCoverageConstraint(key: String): BigDecimal
+        + getReimbursementThreshold(key: String): BigDecimal
+        + getCoPayArrangement(key: String): BigDecimal
+        + getSubsidyValue(key: String): BigDecimal
+    }
+
+    class BillingPolicyParametersRepository {
+        + getLatestParameters(): BillingPolicyParameters
+        + updateParameters(newParameters: BillingPolicyParameters)
+    }
+
+    abstract class BillingPolicy {
+        + {abstract} calculatePatientLiability(stay: HospitalStay, pricingService: PricingService, parameters: BillingPolicyParameters): BigDecimal
+        + {abstract} calculateInsurerContribution(stay: HospitalStay, pricingService: PricingService, parameters: BillingPolicyParameters): BigDecimal
+        + {abstract} calculateSubsidyAmount(stay: HospitalStay, pricingService: PricingService, parameters: BillingPolicyParameters): BigDecimal
+    }
+
+    class InsuredBillingPolicy extends BillingPolicy {
+        + calculatePatientLiability(stay: HospitalStay, pricingService: PricingService, parameters: BillingPolicyParameters): BigDecimal
+        + calculateInsurerContribution(stay: HospitalStay, pricingService: PricingService, parameters: BillingPolicyParameters): BigDecimal
+        + calculateSubsidyAmount(stay: HospitalStay, pricingService: PricingService, parameters: BillingPolicyParameters): BigDecimal
+    }
+
+    class GovernmentBillingPolicy extends BillingPolicy {
+        + calculatePatientLiability(stay: HospitalStay, pricingService: PricingService, parameters: BillingPolicyParameters): BigDecimal
+        + calculateInsurerContribution(stay: HospitalStay, pricingService: PricingService, parameters: BillingPolicyParameters): BigDecimal
+        + calculateSubsidyAmount(stay: HospitalStay, pricingService: PricingService, parameters: BillingPolicyParameters): BigDecimal
+    }
+
+    class SelfFundedBillingPolicy extends BillingPolicy {
+        + calculatePatientLiability(stay: HospitalStay, pricingService: PricingService, parameters: BillingPolicyParameters): BigDecimal
+        + calculateInsurerContribution(stay: HospitalStay, pricingService: PricingService, parameters: BillingPolicyParameters): BigDecimal
+        + calculateSubsidyAmount(stay: HospitalStay, pricingService: PricingService, parameters: BillingPolicyParameters): BigDecimal
+    }
+
+    class BillingPolicyManager {
+        - policyMap: Map<PatientCategory, BillingPolicy>
+        + getPolicyForPatient(patient: Patient): BillingPolicy
+    }
+}
+
+' Package for Invoice Generation and Orchestration
+package "Invoice Generation" {
+    class DischargeInvoice {
+        - invoiceId: String
+        - invoiceDate: Date
+        - totalBilledAmount: BigDecimal
+        - patientLiability: BigDecimal
+        - insurerContribution: BigDecimal
+        - subsidyAmount: BigDecimal
+        - auditTrail: List<String>
+        + addAuditEntry(entry: String)
+    }
+
+    class BillingEngine {
+        - billingPolicyManager: BillingPolicyManager
+        - pricingService: PricingService
+        - parametersRepository: BillingPolicyParametersRepository
+        + generateDischargeInvoice(stay: HospitalStay): DischargeInvoice
+    }
+}
+
+' Relationships
+
+' Patient Information Relationships
+Patient "1" -- "*" HospitalStay : has
+HospitalStay "1" -- "*" Treatment : includes
+
+' Pricing Modules Relationships
+Treatment <|-- MedicalProcedure
+Treatment <|-- Medication
+Treatment <|-- DiagnosticService
+Treatment <|-- AccommodationCharge
+
+PricingRule <|-- ProcedurePricingRule
+PricingRule <|-- MedicationPricingRule
+PricingRule <|-- DiagnosticPricingRule
+PricingRule <|-- AccommodationPricingRule
+
+PricingService "1" --> "*" PricingRule : aggregates/uses
+
+' Billing Policies Relationships
+BillingPolicy <|-- InsuredBillingPolicy
+BillingPolicy <|-- GovernmentBillingPolicy
+BillingPolicy <|-- SelfFundedBillingPolicy
+
+BillingPolicyManager "1" --> "*" BillingPolicy : manages/provides
+BillingPolicy "uses" --> PricingService
+BillingPolicy "uses" --> BillingPolicyParameters
+
+' Invoice Generation Relationships
+DischargeInvoice "1" -- "1" HospitalStay : generated for
+DischargeInvoice "1" -- "1" Patient : belongs to
+
+BillingEngine "1" --> "1" BillingPolicyManager : uses
+BillingEngine "1" --> "1" PricingService : uses
+BillingEngine "1" --> "1" BillingPolicyParametersRepository : uses
+
+' Dependencies across packages
+Patient ..> PatientCategory : has
+BillingPolicyManager ..> PatientCategory : maps to policy

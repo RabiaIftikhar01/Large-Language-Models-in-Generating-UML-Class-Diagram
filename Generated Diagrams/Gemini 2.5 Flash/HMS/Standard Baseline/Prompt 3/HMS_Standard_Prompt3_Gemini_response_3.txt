@@ -1,0 +1,205 @@
+@startuml
+' Styling options
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 12
+skinparam handwritten false
+skinparam class {
+    BorderColor #2F4F4F
+    BackgroundColor #F0F8FF
+    ArrowColor #2F4F4F
+    HeaderBackgroundColor #ADD8E6
+}
+skinparam interface {
+    BorderColor #2F4F4F
+    BackgroundColor #FFFACD
+    HeaderBackgroundColor #FFD700
+}
+skinparam enum {
+    BorderColor #2F4F4F
+    BackgroundColor #E0FFFF
+    HeaderBackgroundColor #B0E0E6
+}
+skinparam abstract {
+    BorderColor #2F4F4F
+    BackgroundColor #F8F8FF
+    HeaderBackgroundColor #DDA0DD
+}
+
+title Hospital Billing System - UML Class Diagram
+
+' Abstract classes and Interfaces
+abstract class BillableItem {
+    + itemId: String
+    + description: String
+    + baseCost: decimal
+    --
+    + getCalculatedCost(): decimal
+}
+
+interface PricingStrategy {
+    + calculatePrice(item: BillableItem): decimal
+}
+
+interface BillingPolicy {
+    + calculatePatientResponsibility(stay: HospitalStay): Invoice
+}
+
+' Concrete Billable Items
+class MedicalProcedure extends BillableItem {
+    + procedureCode: String
+}
+
+class Medication extends BillableItem {
+    + medicationCode: String
+    + quantity: int
+}
+
+class DiagnosticService extends BillableItem {
+    + serviceCode: String
+}
+
+class AccommodationCharge extends BillableItem {
+    + roomType: String
+    + days: int
+}
+
+' Concrete Pricing Strategies
+class FixedPriceStrategy implements PricingStrategy {
+    + fixedAmount: decimal
+}
+
+class UnitCostStrategy implements PricingStrategy {
+    + unitCost: decimal
+}
+
+class TieredPriceStrategy implements PricingStrategy {
+    + tiers: Map<decimal, decimal>
+}
+
+' Patient and Stay Information
+class Patient {
+    + patientId: String
+    + name: String
+    + dateOfBirth: Date
+    --
+    + patientCategory: PatientCategory
+}
+
+enum PatientCategory {
+    INSURED
+    GOVERNMENT_BENEFICIARY
+    SELF_FUNDED
+}
+
+class HospitalStay {
+    + stayId: String
+    + admissionDate: Date
+    + dischargeDate: Date
+}
+
+' Concrete Billing Policies (Strategy Implementations)
+class InsuredBillingPolicy implements BillingPolicy {
+    ' Uses InsurerCoverage and CoPayArrangement for calculations
+}
+
+class GovernmentBeneficiaryBillingPolicy implements BillingPolicy {
+    ' Uses GovernmentSubsidy for calculations
+}
+
+class SelfFundedBillingPolicy implements BillingPolicy {
+    ' Patient is responsible for the full cost
+}
+
+' Policy Configuration Data (frequently modified)
+class InsurerCoverage {
+    + policyNumber: String
+    + coverageDetails: String
+    + deductible: decimal
+    + outOfPocketMax: decimal
+}
+
+class CoPayArrangement {
+    + coPayAmount: decimal
+    + coPayPercentage: decimal
+}
+
+class GovernmentSubsidy {
+    + subsidyAmount: decimal
+    + eligibilityCriteria: String
+}
+
+' Invoice and Auditing
+class Invoice {
+    + invoiceId: String
+    + generationDate: Date
+    + totalOriginalCost: decimal
+    + totalPatientResponsibility: decimal
+    + totalInsurerResponsibility: decimal
+    + totalSubsidyApplied: decimal
+}
+
+class InvoiceLineItem {
+    + originalCost: decimal
+    + adjustedCost: decimal
+    + reasonForAdjustment: String
+}
+
+' Orchestration / Main Service
+class BillingService {
+    --
+    + generateInvoice(patient: Patient, stay: HospitalStay): Invoice
+    - getBillingPolicy(category: PatientCategory): BillingPolicy
+}
+
+' Relationships
+
+' Patient and Stay
+Patient "1" -- "1" PatientCategory : has
+Patient "1" -- "0..*" HospitalStay : admitted to
+
+HospitalStay "1" -- "0..*" BillableItem : includes
+
+' Pricing Module
+BillableItem "1" -- "1" PricingStrategy : uses >
+
+' Billing Policies (Strategy Pattern)
+BillingPolicy <|.. InsuredBillingPolicy
+BillingPolicy <|.. GovernmentBeneficiaryBillingPolicy
+BillingPolicy <|.. SelfFundedBillingPolicy
+
+InsuredBillingPolicy "1" -- "1" InsurerCoverage : configured by
+InsuredBillingPolicy "1" -- "1" CoPayArrangement : configured by
+
+GovernmentBeneficiaryBillingPolicy "1" -- "1" GovernmentSubsidy : configured by
+
+' Pricing Strategies
+PricingStrategy <|.. FixedPriceStrategy
+PricingStrategy <|.. UnitCostStrategy
+PricingStrategy <|.. TieredPriceStrategy
+
+' Billable Item Hierarchy
+BillableItem <|-- MedicalProcedure
+BillableItem <|-- Medication
+BillableItem <|-- DiagnosticService
+BillableItem <|-- AccommodationCharge
+
+' Invoice Structure
+Invoice "1" -- "1" Patient : for
+Invoice "1" -- "1" HospitalStay : covers
+Invoice "1" -- "0..*" InvoiceLineItem : consists of
+
+InvoiceLineItem "1" -- "1" BillableItem : references
+
+' Billing Service Orchestration (Dependency)
+BillingService ..> Patient : interacts with
+BillingService ..> HospitalStay : processes
+BillingService ..> BillingPolicy : uses >
+BillingService ..> Invoice : creates >
+
+' Notes for clarity
+note left of BillingPolicy : Strategy Pattern\nfor dynamic billing rules\n(runtime interchangeable)
+note left of PricingStrategy : Strategy Pattern\nfor dynamic pricing rules
+note right of BillingService : Orchestrates invoice generation\nselects policy based on PatientCategory\nEnsures separation of concerns
+
+@enduml

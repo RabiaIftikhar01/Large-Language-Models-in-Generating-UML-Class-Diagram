@@ -1,0 +1,223 @@
+@startuml
+!theme mars
+
+package "Hospital Administration Platform" {
+
+    package "Patient Management" {
+        class Patient {
+            - patientId: String
+            - name: String
+            - category: PatientCategory
+            --
+            + getCategory(): PatientCategory
+        }
+
+        enum PatientCategory {
+            INSURED
+            GOVERNMENT_BENEFICIARY
+            SELF_FUNDED
+        }
+    }
+
+    package "Treatment & Services" {
+        abstract class Treatment {
+            - treatmentId: String
+            - description: String
+            - datePerformed: Date
+            - quantity: int
+            --
+            + getType(): Class <<abstract>>
+        }
+
+        class MedicalProcedure extends Treatment {
+            - procedureCode: String
+            - duration: int
+            + getType(): Class
+        }
+
+        class Medication extends Treatment {
+            - drugName: String
+            - dosage: String
+            + getType(): Class
+        }
+
+        class DiagnosticService extends Treatment {
+            - serviceCode: String
+            - result: String
+            + getType(): Class
+        }
+
+        class AccommodationCharge extends Treatment {
+            - roomType: String
+            - dailyRate: Money
+            - numberOfDays: int
+            + getType(): Class
+        }
+    }
+
+    package "Pricing Modules" {
+        interface PricingModule {
+            + calculateCost(treatment: Treatment): Money
+        }
+
+        class ProcedurePricingModule implements PricingModule {
+            - procedureRates: Map<String, Money>
+            + calculateCost(treatment: Treatment): Money
+        }
+
+        class MedicationPricingModule implements PricingModule {
+            - drugPrices: Map<String, Money>
+            + calculateCost(treatment: Treatment): Money
+        }
+
+        class DiagnosticPricingModule implements PricingModule {
+            - serviceRates: Map<String, Money>
+            + calculateCost(treatment: Treatment): Money
+        }
+
+        class AccommodationPricingModule implements PricingModule {
+            - roomRates: Map<String, Money>
+            + calculateCost(treatment: Treatment): Money
+        }
+
+        class PricingModuleRegistry {
+            - modules: Map<Class, PricingModule>
+            --
+            + getPricingModule(treatmentType: Class): PricingModule
+            + registerModule(type: Class, module: PricingModule): void
+        }
+    }
+
+    package "Billing Policies" {
+        class PolicyParameters {
+            - parameters: Map<String, Object>
+            --
+            + getParameter(key: String): Object
+            + updateParameter(key: String, value: Object): void
+        }
+
+        interface BillingPolicy {
+            + applyPolicy(invoice: DischargeInvoice, patient: Patient, parameters: PolicyParameters): void
+        }
+
+        class InsuredBillingPolicy implements BillingPolicy {
+            + applyPolicy(invoice: DischargeInvoice, patient: Patient, parameters: PolicyParameters): void
+        }
+
+        class GovernmentBeneficiaryBillingPolicy implements BillingPolicy {
+            + applyPolicy(invoice: DischargeInvoice, patient: Patient, parameters: PolicyParameters): void
+        }
+
+        class SelfFundedBillingPolicy implements BillingPolicy {
+            + applyPolicy(invoice: DischargeInvoice, patient: Patient, parameters: PolicyParameters): void
+        }
+
+        class BillingPolicyFactory {
+            - policies: Map<PatientCategory, BillingPolicy>
+            --
+            + getPolicy(category: PatientCategory): BillingPolicy
+            + registerPolicy(category: PatientCategory, policy: BillingPolicy): void
+        }
+    }
+
+    package "Invoice Generation" {
+        class HospitalStay {
+            - stayId: String
+            - admissionDate: Date
+            - dischargeDate: Date
+        }
+
+        class DischargeInvoice {
+            - invoiceId: String
+            - issueDate: Date
+            - totalBaseCost: Money
+            - totalAdjustedCost: Money
+            - patientResponsibility: Money
+            - status: InvoiceStatus
+            --
+            + addInvoiceItem(item: InvoiceItem): void
+            + calculateTotals(): void
+        }
+
+        enum InvoiceStatus {
+            DRAFT
+            PENDING_APPROVAL
+            ISSUED
+            PAID
+            CANCELLED
+        }
+
+        class InvoiceItem {
+            - description: String
+            - quantity: int
+            - unitPrice: Money
+            - baseAmount: Money
+            - adjustedAmount: Money
+            - patientResponsibility: Money
+        }
+
+        class BillingService {
+            - policyFactory: BillingPolicyFactory
+            - pricingRegistry: PricingModuleRegistry
+            - policyParameters: PolicyParameters
+            --
+            + generateInvoice(stay: HospitalStay, patient: Patient): DischargeInvoice
+        }
+    }
+}
+
+' Value Object
+class Money <<value object>> {
+    - amount: BigDecimal
+    - currency: Currency
+}
+
+' Relationships
+
+' Patient Management
+Patient "1" -- "0..*" HospitalStay : "has"
+
+' Treatment & Services -> Pricing Modules (via Registry)
+Treatment <|-- MedicalProcedure
+Treatment <|-- Medication
+Treatment <|-- DiagnosticService
+Treatment <|-- AccommodationCharge
+
+PricingModule <|.. ProcedurePricingModule
+PricingModule <|.. MedicationPricingModule
+PricingModule <|.. DiagnosticPricingModule
+PricingModule <|.. AccommodationPricingModule
+
+PricingModuleRegistry "1" --> "0..*" PricingModule : "manages"
+
+' Hospital Stay -> Treatment
+HospitalStay "1" *-- "0..*" Treatment : "includes"
+
+' Invoice Generation
+HospitalStay "1" -- "1" DischargeInvoice : "generates"
+DischargeInvoice "1" *-- "1..*" InvoiceItem : "contains"
+InvoiceItem "1" -- "1" Treatment : "derived from"
+
+' Billing Policies
+BillingPolicy <|.. InsuredBillingPolicy
+BillingPolicy <|.. GovernmentBeneficiaryBillingPolicy
+BillingPolicy <|.. SelfFundedBillingPolicy
+
+PolicyParameters "1" -- "0..*" BillingPolicy : "configures"
+
+BillingPolicyFactory "1" --> "0..*" BillingPolicy : "creates"
+PatientCategory "1" --> "1" BillingPolicyFactory : "determines policy"
+
+' Billing Service orchestration
+BillingService "1" --> "1" BillingPolicyFactory : "uses"
+BillingService "1" --> "1" PricingModuleRegistry : "uses"
+BillingService "1" --> "1" PolicyParameters : "accesses"
+
+' General dependencies on Money
+Treatment ..> Money
+DischargeInvoice ..> Money
+InvoiceItem ..> Money
+PricingModule ..> Money
+PolicyParameters ..> Money
+
+@enduml

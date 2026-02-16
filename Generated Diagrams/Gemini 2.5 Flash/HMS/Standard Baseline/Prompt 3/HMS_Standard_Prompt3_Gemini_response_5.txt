@@ -1,0 +1,177 @@
+@startuml
+!theme mars
+
+title Hospital Discharge Invoice System
+
+' Enums
+enum PatientCategory {
+    Insured
+    GovernmentBeneficiary
+    SelfFunded
+}
+
+' Patient Information
+class Patient {
+    - patientId: String
+    - name: String
+    - category: PatientCategory
+    + getPatientCategory(): PatientCategory
+}
+
+' Hospital Services
+class HospitalStay {
+    - stayId: String
+    - admissionDate: Date
+    - dischargeDate: Date
+    + getTreatments(): List<Treatment>
+}
+
+abstract class Treatment {
+    - treatmentId: String
+    - description: String
+    - datePerformed: Date
+    - quantity: int
+    - pricingStrategy: IPricingStrategy ' Each treatment instance has its specific pricing strategy
+    + getBaseCost(): Money ' Delegates to this.pricingStrategy.calculatePrice(this)
+}
+
+class MedicalProcedure extends Treatment {
+    - procedureCode: String
+}
+
+class Medication extends Treatment {
+    - medicationName: String
+    - dosage: String
+}
+
+class DiagnosticService extends Treatment {
+    - serviceCode: String
+}
+
+class AccommodationCharge extends Treatment {
+    - roomType: String
+    - nights: int
+}
+
+' Pricing Module (Strategy Pattern)
+interface IPricingStrategy {
+    + calculatePrice(treatment: Treatment): Money
+}
+
+class ProcedurePricingStrategy implements IPricingStrategy {
+    + calculatePrice(treatment: Treatment): Money
+}
+
+class MedicationPricingStrategy implements IPricingStrategy {
+    + calculatePrice(treatment: Treatment): Money
+}
+
+class DiagnosticPricingStrategy implements IPricingStrategy {
+    + calculatePrice(treatment: Treatment): Money
+}
+
+class AccommodationPricingStrategy implements IPricingStrategy {
+    + calculatePrice(treatment: Treatment): Money
+}
+
+class PricingModule {
+    - strategyRegistry: Map<String, IPricingStrategy> ' Maps treatment type identifiers to strategies
+    + getPricingStrategy(treatmentTypeIdentifier: String): IPricingStrategy
+    + registerStrategy(treatmentTypeIdentifier: String, strategy: IPricingStrategy)
+}
+
+' Billing Policies (Strategy Pattern)
+interface IBillingPolicy {
+    + applyPolicy(invoice: DischargeInvoice, treatments: List<Treatment>, patient: Patient): void
+}
+
+class InsuredBillingPolicy implements IBillingPolicy {
+    - coverageParameters: Map<String, String>
+    - reimbursementThresholds: Map<String, Money>
+    - coPayArrangements: Map<String, Money>
+    + applyPolicy(invoice: DischargeInvoice, treatments: List<Treatment>, patient: Patient): void
+}
+
+class GovernmentBeneficiaryBillingPolicy implements IBillingPolicy {
+    - subsidizedAmounts: Map<String, Money>
+    + applyPolicy(invoice: DischargeInvoice, treatments: List<Treatment>, patient: Patient): void
+}
+
+class SelfFundedBillingPolicy implements IBillingPolicy {
+    + applyPolicy(invoice: DischargeInvoice, treatments: List<Treatment>, patient: Patient): void
+}
+
+class BillingPolicyManager {
+    - policies: Map<PatientCategory, IBillingPolicy>
+    + getPolicy(category: PatientCategory): IBillingPolicy
+    + registerPolicy(category: PatientCategory, policy: IBillingPolicy)
+}
+
+' Invoice Generation
+class DischargeInvoice {
+    - invoiceId: String
+    - issueDate: Date
+    - totalAmount: Money
+    - patientResponsibility: Money
+    - insurerResponsibility: Money
+    - subsidyAmount: Money
+    - appliedPolicy: IBillingPolicy ' For auditing purposes
+    + addLineItem(description: String, amount: Money)
+    + setTotalAmount(amount: Money)
+    + setPatientResponsibility(amount: Money)
+    + setInsurerResponsibility(amount: Money)
+    + setSubsidyAmount(amount: Money)
+    + setAppliedPolicy(policy: IBillingPolicy)
+}
+
+class InvoiceCalculator {
+    - pricingModule: PricingModule
+    - billingPolicyManager: BillingPolicyManager
+    + generateInvoice(patient: Patient, stay: HospitalStay): DischargeInvoice
+}
+
+' Relationships
+Patient "1" -- "0..*" HospitalStay : has
+HospitalStay "1" -- "1..*" Treatment : includes
+
+Treatment "1" *-- "1" IPricingStrategy : delegates pricing to > ' Composition: each Treatment has its specific pricing strategy
+
+PricingModule "1" -- "0..*" IPricingStrategy : manages/provides
+
+DischargeInvoice "1" -- "1" HospitalStay : generated for
+DischargeInvoice "1" -- "1" Patient : for
+DischargeInvoice "1" -- "1" IBillingPolicy : applied policy <
+
+IBillingPolicy "1" .> DischargeInvoice : modifies
+
+BillingPolicyManager "1" -- "0..*" IBillingPolicy : manages/provides
+
+InvoiceCalculator "1" -- "1" PricingModule : uses
+InvoiceCalculator "1" -- "1" BillingPolicyManager : uses
+InvoiceCalculator ..> DischargeInvoice : creates
+
+' Notes for clarity
+note right of Treatment::getBaseCost
+  Delegates to the 'pricingStrategy' attribute
+  (an instance of IPricingStrategy)
+  to calculate the specific cost for this treatment.
+end note
+
+note right of IBillingPolicy::applyPolicy
+  Modifies the DischargeInvoice object
+  based on the aggregated treatments and patient category,
+  applying coverage, subsidies, or full cost.
+end note
+
+note "Configurable billing policies\ndynamically interchangeable\nat runtime" as N1
+note right of BillingPolicyManager : N1
+
+note "Distinct pricing rules for\nheterogeneous sources (procedures, meds, etc.)" as N2
+note right of PricingModule : N2
+
+note "Strict separation between:\n- Patient Information\n- Pricing Modules\n- Billing Policies" as N3
+N3 -[hidden]-> Patient
+N3 -[hidden]-> PricingModule
+N3 -[hidden]-> BillingPolicyManager
+
+@enduml

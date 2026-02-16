@@ -1,0 +1,161 @@
+@startuml
+!theme mars
+
+' Define Money as a conceptual value type for attributes
+skinparam classAttributeIconSize 0
+hide circle
+
+title Hospital Billing System - UML Class Diagram
+
+package "Patient Information" {
+    class Patient {
+        - patientId: String
+        - name: String
+        - category: PatientCategory
+        --
+        + getCategory(): PatientCategory
+        + getInsurancePolicy(): InsurancePolicy  // Returns policy if category is INSURED
+        + getGovernmentProgram(): GovernmentProgram // Returns program if category is GOV_BENEFICIARY
+    }
+
+    enum PatientCategory {
+        INSURED
+        GOVERNMENT_BENEFICIARY
+        SELF_FUNDED
+    }
+
+    class MedicalRecord {
+        - recordId: String
+        - history: String
+    }
+
+    class HospitalStay {
+        - admissionDate: Date
+        - dischargeDate: Date
+    }
+
+    Patient "1" -- "1" MedicalRecord : has
+    Patient "1" -- "*" HospitalStay : admits
+    Patient ..> PatientCategory : categorizes
+}
+
+package "Healthcare Services & Costs" {
+    class TreatmentEvent {
+        - eventId: String
+        - date: Date
+        - quantity: int
+        --
+        + getChargeableItem(): ChargeableItem
+        + getQuantity(): int
+    }
+
+    abstract class ChargeableItem {
+        - itemId: String
+        - name: String
+        - baseCost: Money
+        --
+        + getBaseCost(): Money
+        + getPricingRule(): PricingRule
+    }
+
+    class MedicalProcedure extends ChargeableItem
+    class Medication extends ChargeableItem
+    class DiagnosticService extends ChargeableItem
+    class AccommodationCharge extends ChargeableItem
+
+    abstract class PricingRule {
+        + calculatePrice(baseCost: Money, quantity: int): Money
+    }
+
+    HospitalStay "1" -- "*" TreatmentEvent : includes
+    TreatmentEvent "1" -- "1" ChargeableItem : refersTo
+    ChargeableItem "1" -- "1" PricingRule : uses
+}
+
+package "Billing Policies & Regulations" {
+    interface BillingPolicy {
+        + applyPolicy(lineItem: InvoiceLineItem, patient: Patient): void
+    }
+
+    class InsuredPatientBillingPolicy implements BillingPolicy {
+        - coverageConstraints: String  // Configurable parameters
+        - reimbursementThresholds: Money
+        - coPayArrangements: Money
+    }
+
+    class GovernmentBeneficiaryBillingPolicy implements BillingPolicy {
+        - subsidizedAmount: Money // Fixed subsidized amounts
+    }
+
+    class SelfFundedBillingPolicy implements BillingPolicy
+
+    class Insurer {
+        - insurerId: String
+        - name: String
+    }
+
+    class InsurancePolicy {
+        - policyNumber: String
+        - coverageDetails: String // Detailed coverage parameters
+    }
+
+    class GovernmentProgram {
+        - programId: String
+        - name: String
+        - subsidyValues: Map<String, Money> // Map of item types to subsidy amounts
+    }
+
+    ' Billing policies use these entities to define their logic
+    InsuredPatientBillingPolicy ..> Insurer : defines logic with
+    InsuredPatientBillingPolicy ..> InsurancePolicy : defines logic with
+    GovernmentBeneficiaryBillingPolicy ..> GovernmentProgram : defines logic with
+}
+
+package "Invoice Generation & Output" {
+    class Invoice {
+        - invoiceId: String
+        - issueDate: Date
+        - totalAmount: Money
+        --
+        + addLineItem(item: InvoiceLineItem): void
+        + calculateTotal(): void
+    }
+
+    class InvoiceLineItem {
+        - description: String
+        - originalCost: Money
+        - billedAmount: Money
+        - quantity: int
+        --
+        + setBilledAmount(amount: Money): void
+        + getOriginalCost(): Money
+    }
+
+    class InvoiceGenerator {
+        + generateInvoice(patient: Patient, hospitalStay: HospitalStay): Invoice
+        --
+        - getBillingPolicyForPatient(patient: Patient): BillingPolicy
+    }
+
+    Invoice "1" -- "*" InvoiceLineItem : contains
+    Invoice "1" -- "1" Patient : for
+
+    InvoiceLineItem "1" -- "1" TreatmentEvent : derivedFrom
+
+    InvoiceGenerator ..> BillingPolicy : uses <<strategy>>
+    InvoiceGenerator ..> PricingRule : uses
+    InvoiceGenerator ..> ChargeableItem : accesses
+    InvoiceGenerator ..> Patient : accesses
+    InvoiceGenerator ..> HospitalStay : accesses
+}
+
+' Cross-package relationships
+Patient "1" o-- "0..1" InsurancePolicy : has (if INSURED)
+Patient "1" o-- "0..1" GovernmentProgram : has (if GOV_BENEFICIARY)
+Insurer "1" -- "*" InsurancePolicy : offers
+
+' Note on dynamic policy selection
+note "InvoiceGenerator selects the appropriate BillingPolicy implementation at runtime based on Patient.category and uses associated policy/program details from the Patient object." as PolicySelectionNote
+InvoiceGenerator .. PolicySelectionNote
+
+@enduml

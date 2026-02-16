@@ -1,0 +1,208 @@
+@startuml
+!theme mars
+
+title Hospital Billing System Class Diagram
+
+' Interfaces and Abstract Classes for Strategy Pattern '
+
+interface BillingPolicy {
+    + calculateInvoiceAmount(stay: HospitalStay): DischargeInvoice
+}
+
+abstract class PricingRule {
+    + calculateBaseCost(treatment: Treatment): Double
+}
+
+' Concrete Implementations of Billing Policies '
+
+class InsuredBillingPolicy implements BillingPolicy {
+    - coverageConstraints: Map<String, Double>
+    - reimbursementThresholds: Map<String, Double>
+    - coPayArrangements: Map<String, Double>
+    + calculateInvoiceAmount(stay: HospitalStay): DischargeInvoice
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - subsidizedAmounts: Map<String, Double>
+    + calculateInvoiceAmount(stay: HospitalStay): DischargeInvoice
+}
+
+class SelfFundedBillingPolicy implements BillingPolicy {
+    + calculateInvoiceAmount(stay: HospitalStay): DischargeInvoice
+}
+
+' Concrete Implementations of Pricing Rules '
+
+class ProcedurePricingRule extends PricingRule {
+    - baseRate: Double
+    - modifierFactors: Map<String, Double>
+    + calculateBaseCost(treatment: Treatment): Double
+}
+
+class MedicationPricingRule extends PricingRule {
+    - unitCost: Double
+    - dosageFactor: Double
+    + calculateBaseCost(treatment: Treatment): Double
+}
+
+class DiagnosticPricingRule extends PricingRule {
+    - serviceFee: Double
+    - equipmentUsageFee: Double
+    + calculateBaseCost(treatment: Treatment): Double
+}
+
+class AccommodationPricingRule extends PricingRule {
+    - dailyRate: Double
+    - roomTypeModifiers: Map<String, Double>
+    + calculateBaseCost(treatment: Treatment): Double
+}
+
+' Core Entities '
+
+class Patient {
+    - patientId: String
+    - name: String
+    - patientCategory: PatientCategory
+    ' Other patient demographics '
+}
+
+enum PatientCategory {
+    INSURED
+    GOVERNMENT_BENEFICIARY
+    SELF_FUNDED
+}
+
+class HospitalStay {
+    - stayId: String
+    - admissionDate: Date
+    - dischargeDate: Date
+    + getPatient(): Patient
+    + addTreatment(treatment: Treatment)
+    + getTreatments(): List<Treatment>
+}
+
+abstract class Treatment {
+    - treatmentId: String
+    - description: String
+    - datePerformed: Date
+    - pricingRule: PricingRule
+    + getBaseCost(): Double
+    + setPricingRule(rule: PricingRule)
+    + getTreatmentDetails(): Map<String, String> ' For pricing rule context '
+}
+
+class MedicalProcedure extends Treatment {
+    - procedureCode: String
+    - complexityLevel: int
+}
+
+class Medication extends Treatment {
+    - medicationName: String
+    - dosage: String
+    - quantity: int
+}
+
+class DiagnosticService extends Treatment {
+    - serviceCode: String
+    - testType: String
+    - equipmentUsed: String
+}
+
+class AccommodationCharge extends Treatment {
+    - roomNumber: String
+    - days: int
+    - roomType: String
+}
+
+class DischargeInvoice {
+    - invoiceId: String
+    - issueDate: Date
+    - totalAmountDue: Double
+    - patientId: String
+    - stayId: String
+    + addLineItem(item: InvoiceLineItem)
+    + getLineItems(): List<InvoiceLineItem>
+}
+
+class InvoiceLineItem {
+    - description: String
+    - baseCost: Double
+    - adjustedCost: Double
+    - policyAdjustments: String ' e.g., "50% covered by insurer, $10 co-pay" '
+}
+
+' Services and Platform '
+
+class BillingService {
+    + generateDischargeInvoice(stay: HospitalStay): DischargeInvoice
+    - selectBillingPolicy(patientCategory: PatientCategory): BillingPolicy
+    - calculateTreatmentBaseCost(treatment: Treatment): Double
+}
+
+class HospitalAdministrationPlatform {
+    + processDischarge(stayId: String): DischargeInvoice
+    + configureBillingPolicy(category: PatientCategory, policy: BillingPolicy)
+    + configurePricingRule(treatmentType: Class, rule: PricingRule)
+}
+
+' Relationships '
+
+HospitalAdministrationPlatform --> BillingService : uses
+HospitalAdministrationPlatform ..> BillingPolicy : configures
+HospitalAdministrationPlatform ..> PricingRule : configures
+
+BillingService ..> DischargeInvoice : creates
+BillingService ..> HospitalStay : processes
+BillingService ..> Patient : accesses
+BillingService ..> BillingPolicy : <<uses strategy>>
+BillingService ..> PricingRule : <<uses strategy>>
+
+HospitalStay "1" -- "1" Patient : for >
+HospitalStay "1" -- "0..*" Treatment : includes >
+
+Treatment "1" -- "1" PricingRule : uses >
+
+Patient "1" -- "1" PatientCategory : has >
+
+DischargeInvoice "1" -- "0..*" InvoiceLineItem : contains >
+
+' Notes for clarity and compliance '
+note left of BillingPolicy
+  Strategy Pattern:
+  Dynamically interchangeable
+  at runtime to adapt to
+  regulatory/contract changes.
+end note
+
+note left of PricingRule
+  Strategy Pattern:
+  Distinct rules for
+  heterogeneous cost sources.
+  Ensures strict separation.
+end note
+
+note right of BillingService
+  Orchestrates the billing process,
+  selecting appropriate policies and
+  pricing rules based on patient
+  and treatment context.
+  Guarantees strict separation
+  between patient info, pricing,
+  and billing policies.
+end note
+
+note right of HospitalAdministrationPlatform
+  High-level entry point.
+  Manages configuration of
+  billing policies and pricing rules
+  without structural redesign.
+end note
+
+note bottom of DischargeInvoice
+  Designed for auditing standards:
+  includes detailed line items
+  with base and adjusted costs,
+  and policy adjustments.
+end note
+
+@enduml

@@ -1,0 +1,151 @@
+@startuml
+!pragma layout smetana
+
+title Hospital Administration Platform - Billing System
+
+package "Patient Management" {
+    enum PatientCategory {
+        INSURED
+        GOVERNMENT_BENEFICIARY
+        SELF_FUNDED
+    }
+
+    class Patient {
+        - patientId: String
+        - name: String
+        - category: PatientCategory
+        + getCategory(): PatientCategory
+    }
+
+    class HospitalStay {
+        - stayId: String
+        - admissionDate: Date
+        - dischargeDate: Date
+        + getTreatments(): List<Treatment>
+        + getPatient(): Patient
+    }
+
+    Patient "1" -- "0..*" HospitalStay : has
+}
+
+package "Service & Pricing" {
+    abstract class Treatment {
+        - treatmentId: String
+        - description: String
+        // Concrete subclasses hold specific data for pricing
+    }
+
+    class MedicalProcedure extends Treatment {
+        - procedureCode: String
+        - units: int
+        - modifier: String
+    }
+
+    class PrescribedMedication extends Treatment {
+        - medicationCode: String
+        - dosage: String
+        - quantity: int
+    }
+
+    class DiagnosticService extends Treatment {
+        - testCode: String
+        - result: String
+    }
+
+    class AccommodationCharge extends Treatment {
+        - roomType: String
+        - nights: int
+    }
+
+    class PricingService {
+        + calculateRawCost(treatment: Treatment): BigDecimal
+    }
+
+    HospitalStay "1" -- "0..*" Treatment : includes >
+    PricingService ..> Treatment : uses (to get data for pricing)
+}
+
+package "Billing & Policy" {
+    interface BillingPolicy {
+        + calculateBilledAmount(stay: HospitalStay, pricingService: PricingService): DischargeInvoice
+    }
+
+    class PolicyConfiguration {
+        // Represents external configuration data for policies
+        // e.g., coverage limits, co-pays, subsidy values, reimbursement thresholds
+        + getCoverageLimit(policyType: String, item: String): BigDecimal
+        + getCoPay(policyType: String, item: String): BigDecimal
+        + getSubsidy(policyType: String, item: String): BigDecimal
+        // ... other configurable parameters
+    }
+
+    class InsuredBillingPolicy implements BillingPolicy {
+        - policyConfig: PolicyConfiguration
+        + setConfiguration(config: PolicyConfiguration)
+        + calculateBilledAmount(stay: HospitalStay, pricingService: PricingService): DischargeInvoice
+    }
+
+    class GovernmentBeneficiaryBillingPolicy implements BillingPolicy {
+        - policyConfig: PolicyConfiguration
+        + setConfiguration(config: PolicyConfiguration)
+        + calculateBilledAmount(stay: HospitalStay, pricingService: PricingService): DischargeInvoice
+    }
+
+    class SelfFundedBillingPolicy implements BillingPolicy {
+        + calculateBilledAmount(stay: HospitalStay, pricingService: PricingService): DischargeInvoice
+    }
+
+    class BillingPolicyManager {
+        - policies: Map<PatientCategory, BillingPolicy>
+        - currentPolicyConfiguration: PolicyConfiguration
+        + registerPolicy(category: PatientCategory, policy: BillingPolicy)
+        + updatePolicyConfiguration(config: PolicyConfiguration)
+        + getPolicy(category: PatientCategory): BillingPolicy
+        + generateInvoice(stay: HospitalStay, pricingService: PricingService): DischargeInvoice
+    }
+
+    class DischargeInvoice {
+        - invoiceId: String
+        - issueDate: Date
+        - totalAmount: BigDecimal
+        - patientId: String
+        - stayId: String
+        - lineItems: List<InvoiceLineItem>
+    }
+
+    class InvoiceLineItem {
+        - description: String
+        - rawCost: BigDecimal
+        - billedAmount: BigDecimal
+        - adjustments: String // e.g., "Insurer discount", "Government subsidy"
+        - referenceTreatmentId: String // For auditing and traceability
+    }
+
+    HospitalStay "1" -- "1" DischargeInvoice : generates >
+    DischargeInvoice "1" -- "0..*" InvoiceLineItem : contains >
+
+    BillingPolicyManager ..> BillingPolicy : manages
+    BillingPolicyManager ..> PricingService : uses
+    BillingPolicyManager ..> HospitalStay : uses
+    BillingPolicyManager ..> DischargeInvoice : creates
+    BillingPolicyManager ..> PatientCategory : uses
+    BillingPolicyManager "1" -- "1" PolicyConfiguration : uses
+
+    BillingPolicy ..> HospitalStay : accesses
+    BillingPolicy ..> PricingService : accesses
+    BillingPolicy "1" -- "1" PolicyConfiguration : uses
+    InvoiceLineItem ..> Treatment : references (by ID)
+}
+
+package "Platform Core" {
+    class HospitalAdministrationPlatform {
+        - billingPolicyManager: BillingPolicyManager
+        - pricingService: PricingService
+        + processDischarge(stay: HospitalStay): DischargeInvoice
+        + updateBillingConfiguration(config: PolicyConfiguration)
+    }
+
+    HospitalAdministrationPlatform -- BillingPolicyManager
+    HospitalAdministrationPlatform -- PricingService
+}
+@enduml

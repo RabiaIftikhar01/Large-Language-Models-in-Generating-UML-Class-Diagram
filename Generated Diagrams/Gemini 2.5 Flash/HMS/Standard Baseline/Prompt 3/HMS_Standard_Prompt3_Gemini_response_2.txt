@@ -1,0 +1,168 @@
+@startuml
+!pragma layout smetana
+
+' Define colors for better visual separation of domains
+skinparam package {
+  BorderColor #5D8AA8
+  FontColor #5D8AA8
+}
+skinparam class {
+  BorderColor #4A6B8A
+  BackgroundColor #F0F8FF
+}
+skinparam interface {
+  BorderColor #4A6B8A
+  BackgroundColor #E0FFFF
+}
+skinparam enum {
+  BorderColor #4A6B8A
+  BackgroundColor #F5FFFA
+}
+
+package "Patient Information Domain" {
+    enum PatientCategory {
+        Insured
+        GovernmentBeneficiary
+        SelfFunded
+    }
+
+    class Patient {
+        - patientId: String
+        - name: String
+        - category: PatientCategory
+    }
+
+    class HospitalStay {
+        - stayId: String
+        - admissionDate: Date
+        - dischargeDate: Date
+    }
+
+    Patient "1" -- "*" HospitalStay : has
+    Patient ..> PatientCategory : uses
+}
+
+package "Treatment & Pricing Domain" {
+    abstract class Treatment {
+        - treatmentId: String
+        - description: String
+        - datePerformed: Date
+        + getType(): String  ' e.g., "MedicalProcedure", "Medication"
+    }
+
+    class MedicalProcedure extends Treatment
+    class Medication extends Treatment
+    class DiagnosticService extends Treatment
+    class AccommodationCharge extends Treatment
+
+    interface PricingStrategy {
+        + calculateCost(treatment: Treatment): BigDecimal
+    }
+
+    class ProcedurePricingStrategy implements PricingStrategy
+    class MedicationPricingStrategy implements PricingStrategy
+    class DiagnosticPricingStrategy implements PricingStrategy
+    class AccommodationPricingStrategy implements PricingStrategy
+
+    class PricingService {
+        - strategies: Map<String, PricingStrategy> ' Key is Treatment.getType()
+        + getCost(treatment: Treatment): BigDecimal
+        + registerStrategy(type: String, strategy: PricingStrategy)
+    }
+
+    HospitalStay "1" *-- "*" Treatment : includes
+    PricingService "1" o-- "*" PricingStrategy : manages
+    PricingService ..> Treatment : uses (parameter)
+}
+
+package "Billing Policy Domain" {
+    interface BillingPolicy {
+        + calculateInvoiceTotal(stay: HospitalStay, pricingService: PricingService): BigDecimal
+    }
+
+    class InsuredBillingPolicy implements BillingPolicy {
+        - coverageParameters: Map<String, Object> ' e.g., co-pay, deductibles, coverage limits
+        + updateParameters(newParams: Map<String, Object>)
+    }
+
+    class GovernmentBillingPolicy implements BillingPolicy {
+        - subsidyAmounts: Map<String, BigDecimal> ' e.g., fixed amounts per treatment type
+        + updateSubsidies(newSubsidies: Map<String, BigDecimal>)
+    }
+
+    class SelfFundedBillingPolicy implements BillingPolicy
+
+    class BillingPolicyFactory {
+        - policies: Map<PatientCategory, BillingPolicy>
+        + getPolicy(category: PatientCategory): BillingPolicy
+        + registerPolicy(category: PatientCategory, policy: BillingPolicy)
+    }
+
+    BillingPolicyFactory "1" o-- "*" BillingPolicy : creates/manages
+    BillingPolicy ..> HospitalStay : uses
+    BillingPolicy ..> PricingService : uses
+    BillingPolicyFactory ..> PatientCategory : uses
+}
+
+package "Invoice Generation Domain" {
+    class DischargeInvoice {
+        - invoiceId: String
+        - totalAmount: BigDecimal
+        - issueDate: Date
+        - lineItems: List<InvoiceLineItem>
+    }
+
+    class InvoiceLineItem {
+        - description: String
+        - originalCost: BigDecimal
+        - appliedDiscount: BigDecimal
+        - finalCost: BigDecimal
+        - quantity: int
+    }
+
+    class InvoiceCalculator {
+        + generateInvoice(patient: Patient, stay: HospitalStay): DischargeInvoice
+    }
+
+    HospitalStay "1" -- "1" DischargeInvoice : generates
+    DischargeInvoice "1" *-- "*" InvoiceLineItem : contains
+    InvoiceCalculator ..> Patient : uses
+    InvoiceCalculator ..> HospitalStay : uses
+    InvoiceCalculator ..> BillingPolicyFactory : uses
+    InvoiceCalculator ..> PricingService : uses
+    InvoiceCalculator ..> DischargeInvoice : creates
+}
+
+' Cross-domain dependencies
+InvoiceCalculator ..> PatientCategory : determines policy based on patient category
+
+' Notes for clarification and requirements
+note right of BillingPolicyFactory
+  Allows dynamic interchangeability
+  of billing rules at runtime.
+end note
+
+note right of PricingService
+  Centralizes pricing logic
+  and allows dynamic updates
+  to pricing strategies.
+end note
+
+note "Configurable parameters (e.g., coverage, co-pay, subsidies) stored in maps for dynamic updates without structural changes." as N1
+N1 .. InsuredBillingPolicy
+N1 .. GovernmentBillingPolicy
+
+note "Strict separation between Patient Information, Pricing, and Billing Policy modules." as N2
+N2 .. Patient
+N2 .. PricingService
+N2 .. BillingPolicyFactory
+
+note "Extensible to address shifting regulatory conditions by adding new strategies or policies." as N3
+N3 .. PricingStrategy
+N3 .. BillingPolicy
+
+note "Compliance and Auditing: InvoiceLineItem stores original and final costs for transparency." as N4
+N4 .. InvoiceLineItem
+end note
+
+@enduml
