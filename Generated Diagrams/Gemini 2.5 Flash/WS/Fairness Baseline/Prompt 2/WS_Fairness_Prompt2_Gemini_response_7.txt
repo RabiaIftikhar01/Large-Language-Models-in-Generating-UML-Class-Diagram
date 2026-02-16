@@ -1,0 +1,75 @@
+@startuml
+!pragma layout smetana
+
+' Define classes
+class Platform {
+    - platformId: String
+    - name: String
+    --
+    + ingestRawData(rawData: String): void
+    + normalizeData(rawData: String, sensorId: String): Measurement
+    + requestDataTransmission(stationId: String): void
+}
+
+class WeatherStation {
+    - stationId: String
+    - location: String
+    - reportingInterval: Duration
+    --
+    + transmitData(): List<String>
+}
+
+class Sensor {
+    - sensorId: String
+    - manufacturer: String
+    - model: String
+    - dataFormat: String
+    --
+    + collectReading(): String
+}
+
+class Measurement {
+    - measurementId: String
+    - timestamp: DateTime
+    - rawValue: String
+    - normalizedValue: Double
+    - unit: String
+    - sensorId: String
+    --
+    + getRawValue(): String
+    + getNormalizedValue(): Double
+    + getSensorId(): String
+}
+
+class Organization {
+    - organizationId: String
+    - name: String
+    - type: String
+    --
+    + getOrganizationType(): String
+}
+
+' Define relationships with multiplicity and role/relationship names
+Platform "1" -- "*" WeatherStation : manages >
+note on link : Platform initiates communication\nand requests data.
+
+WeatherStation "1" *-- "*" Sensor : contains
+note on link : Sensors are integral parts of a station.
+
+Sensor "1" -- "*" Measurement : produces >
+note on link : A sensor generates multiple readings over time.\nMeasurement stores the originating sensor's ID.
+
+Organization "1" -- "*" WeatherStation : manages
+
+' Add explanatory notes for clarity
+note right of Platform : Orchestrates data collection,\ningestion, and normalization.\nHandles high-volume data.
+
+note right of WeatherStation : Represents a physical station.\nResponsible for transmitting raw data\nfrom its contained sensors.
+
+note right of Sensor : Represents a specific sensor from a manufacturer.\nDelivers data in a proprietary format.
+
+note right of Measurement : Stores a single sensor reading,\nincluding its raw and normalized values,\nand a reference to the originating sensor.
+
+note right of Organization : Represents a government body,\nacademic organization, or infrastructure operator\nthat manages weather stations.
+
+@enduml

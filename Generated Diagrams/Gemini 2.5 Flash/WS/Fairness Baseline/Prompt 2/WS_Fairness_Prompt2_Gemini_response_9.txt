@@ -1,0 +1,104 @@
+@startuml
+!pragma layout smetana
+
+hide circle
+skinparam classAttributeIconSize 0
+
+' Enums
+enum OrganizationType {
+    GOVERNMENT
+    ACADEMIC
+    INFRASTRUCTURE
+}
+
+' Classes
+class Organization {
+    - organizationId: String
+    - name: String
+    - type: OrganizationType
+    --
+    + getOrganizationId(): String
+    + getName(): String
+    + getType(): OrganizationType
+}
+
+class WeatherStation {
+    - stationId: String
+    - location: String
+    - reportingInterval: Duration
+    - lastCommunicationTime: DateTime
+    --
+    + getStationId(): String
+    + getLocation(): String
+    + getReportingInterval(): Duration
+    + setReportingInterval(interval: Duration)
+    + transmitSensorData(): Map<String, String>
+}
+
+class Sensor {
+    - sensorId: String
+    - type: String
+    - model: String
+    - measurementUnit: String
+    - proprietaryFormatDetails: String
+    --
+    + getSensorId(): String
+    + getType(): String
+    + getModel(): String
+    + getMeasurementUnit(): String
+    + getProprietaryFormatDetails(): String
+    + generateRawReading(): String
+}
+
+class Measurement {
+    - measurementId: String
+    - timestamp: DateTime
+    - value: Double
+    - unit: String
+    --
+    + getMeasurementId(): String
+    + getTimestamp(): DateTime
+    + getValue(): Double
+    + getUnit(): String
+}
+
+class Manufacturer {
+    - manufacturerId: String
+    - name: String
+    - contactInfo: String
+    --
+    + getManufacturerId(): String
+    + getName(): String
+}
+
+class DataIngestionService {
+    --
+    + requestDataFromStation(stationId: String)
+    + ingestAndProcess(stationId: String, sensorId: String, rawData: String)
+    - normalize(sensor: Sensor, rawData: String): Double
+    + storeMeasurement(measurement: Measurement)
+}
+
+' Relationships
+Organization "1" -- "*" WeatherStation : manages
+WeatherStation "1" -- "*" Sensor : contains
+Sensor "1" -- "0..*" Measurement : produces >
+Sensor "1" -- "*" Manufacturer : manufactured by >
+
+' Dependencies for DataIngestionService
+DataIngestionService .> WeatherStation : requests data from
+DataIngestionService .> Sensor : uses for normalization
+DataIngestionService .> Measurement : creates and stores
+
+' Notes for additional clarity
+note top of DataIngestionService
+  Handles high-volume data ingestion
+  and normalization of proprietary formats.
+end note
+
+note top of WeatherStation
+  Reporting intervals can vary
+  and change over time.
+end note
+
+@enduml

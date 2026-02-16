@@ -1,0 +1,90 @@
+@startuml
+' Set a consistent naming convention and style
+hide circle
+skinparam class {
+  AttributeFontColor #333333
+  AttributeFontStrikeoutColor #FF0000
+  AttributeFontUnderlineColor #0000FF
+  AttributeFontItalicColor #999999
+  AttributeFontBoldColor #000000
+  AttributeFontSize 12
+  AttributeFontStyle Plain
+
+  MethodFontColor #333333
+  MethodFontStrikeoutColor #FF0000
+  MethodFontUnderlineColor #0000FF
+  MethodFontItalicColor #999999
+  MethodFontBoldColor #000000
+  MethodFontSize 12
+  MethodFontStyle Plain
+
+  ArrowColor #333333
+  BorderColor #333333
+  BackgroundColor #FEFEFE
+  FontColor #333333
+  FontSize 14
+  FontStyle Bold
+}
+
+' Class definitions
+class WeatherStation {
+  - stationId: String
+  - location: String
+  - reportingInterval: Duration
+  + requestDataTransmission(): void
+  + transmitRawSensorData(rawSensorData: Map<String, String>): void
+}
+
+class Sensor {
+  - sensorId: String
+  - manufacturer: String
+  - model: String
+  - type: String
+  + collectRawMeasurement(): String
+}
+
+class Measurement {
+  - measurementId: String
+  - sensorId: String
+  - stationId: String
+  - timestamp: DateTime
+  - value: double
+  - unit: String
+  - type: String
+}
+
+class PlatformCommunicator {
+  + initiateDataRequest(stationId: String): void
+}
+
+class DataIngestionService {
+  + ingestRawData(stationId: String, rawSensorData: Map<String, String>): void
+}
+
+class DataNormalizer {
+  + normalize(rawData: String, manufacturer: String, sensorType: String): Map<String, String>
+}
+
+' Relationships
+WeatherStation "1" *-- "1..*" Sensor : has >
+note on link: A WeatherStation is composed of one or more Sensors.
+
+PlatformCommunicator --> "0..*" WeatherStation : requests data from >
+note on link: The platform initiates data requests to multiple stations.
+
+WeatherStation --> DataIngestionService : sends raw data to >
+note on link: WeatherStations transmit their collected raw sensor data to the ingestion service.
+
+DataIngestionService --> DataNormalizer : uses >
+note on link: The ingestion service utilizes the normalizer to process proprietary data.
+
+DataIngestionService --> "0..*" Measurement : creates and stores >
+note on link: After normalization, the ingestion service creates and persists Measurement objects.
+
+' Explanatory notes
+note right of PlatformCommunicator : Manages and initiates communication with registered weather stations.
+note right of DataIngestionService : Responsible for receiving raw data, coordinating normalization,\n and creating final, normalized Measurement records.
+note right of DataNormalizer : Converts proprietary sensor data formats into a standardized structure.
+note right of Measurement : Represents a single, normalized sensor reading from a specific sensor at a given time.
+
+@enduml

@@ -1,0 +1,145 @@
+@startuml
+!pragma layout smetana
+
+' Enums for classification
+enum OrganizationType {
+  Government
+  Academic
+  Infrastructure
+}
+
+enum MeasurementType {
+  Temperature
+  Humidity
+  Pressure
+  WindSpeed
+  // Add other relevant measurement types as needed
+}
+
+' Core Classes
+class MonitoringPlatform {
+  - platformId: String
+  --
+  + initiateCommunication(stationId: String): void
+  + requestData(stationId: String): RawMeasurement[]
+  + ingestData(rawData: RawMeasurement): void
+  + normalizeData(rawData: RawMeasurement): NormalizedMeasurement
+  + storeData(normalizedData: NormalizedMeasurement): void
+}
+
+class WeatherStation {
+  - stationId: String
+  - location: String
+  - reportingInterval: Duration
+  --
+  + getStationId(): String
+  + getLocation(): String
+  + getReportingInterval(): Duration
+  + transmitData(): RawMeasurement[]
+  + updateReportingInterval(newInterval: Duration): void
+}
+
+class Organization {
+  - organizationId: String
+  - name: String
+  - type: OrganizationType
+  --
+  + getOrganizationId(): String
+  + getName(): String
+  + getType(): OrganizationType
+}
+
+class Sensor {
+  - sensorId: String
+  - model: String
+  - measurementType: MeasurementType
+  - proprietaryFormatSpec: String ' e.g., JSON schema, delimiter info
+  --
+  + getSensorId(): String
+  + getModel(): String
+  + getMeasurementType(): MeasurementType
+  + getProprietaryFormatSpec(): String
+  + captureReading(): RawMeasurement
+}
+
+class Manufacturer {
+  - manufacturerId: String
+  - name: String
+  --
+  + getManufacturerId(): String
+  + getName(): String
+}
+
+class RawMeasurement {
+  - rawData: String ' The proprietary data string/byte array
+  - timestamp: DateTime
+  - sensorId: String
+  - stationId: String
+  --
+  + getRawData(): String
+  + getTimestamp(): DateTime
+  + getSensorId(): String
+  + getStationId(): String
+}
+
+class NormalizedMeasurement {
+  - measurementId: String
+  - timestamp: DateTime
+  - value: Double
+  - unit: String
+  - measurementType: MeasurementType
+  - sensorId: String
+  - stationId: String
+  --
+  + getMeasurementId(): String
+  + getTimestamp(): DateTime
+  + getValue(): Double
+  + getUnit(): String
+  + getMeasurementType(): MeasurementType
+  + getSensorId(): String
+  + getStationId(): String
+}
+
+' Relationships
+
+' MonitoringPlatform interacts with WeatherStations
+MonitoringPlatform "1" --> "*" WeatherStation : initiates communication / requests data >
+
+' Organizations manage WeatherStations
+Organization "1" --> "0..*" WeatherStation : manages >
+
+' WeatherStations contain Sensors (composition, as sensors are integral parts of a station)
+WeatherStation "1" *-- "1..*" Sensor : contains
+
+' Sensors are produced by Manufacturers
+Manufacturer "1" <-- "1..*" Sensor : produces
+
+' Sensors generate RawMeasurements
+Sensor "1" --> "0..*" RawMeasurement : generates >
+
+' RawMeasurements are processed and transformed into NormalizedMeasurements
+RawMeasurement "1" --> "1" NormalizedMeasurement : transforms to >
+
+' MonitoringPlatform processes RawMeasurements and stores NormalizedMeasurements
+MonitoringPlatform ..> RawMeasurement : <<processes>>
+MonitoringPlatform ..> NormalizedMeasurement : <<stores>>
+
+' Type relationships
+Organization --> OrganizationType
+Sensor --> MeasurementType
+NormalizedMeasurement --> MeasurementType
+
+' Explanatory Notes
+note "The central system responsible for data collection, ingestion, and normalization across all stations." as PlatformNote
+MonitoringPlatform .. PlatformNote
+
+note "A physical unit located in a geographic region, equipped with various sensors and managed by an organization." as StationNote
+WeatherStation .. StationNote
+
+note "Raw, proprietary-formatted data received directly from a sensor before processing." as RawMeasurementNote
+RawMeasurement .. RawMeasurementNote
+
+note "Standardized and usable data after proprietary format normalization." as NormalizedMeasurementNote
+NormalizedMeasurement .. NormalizedMeasurementNote
+
+@enduml

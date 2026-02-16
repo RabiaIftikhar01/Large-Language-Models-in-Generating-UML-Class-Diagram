@@ -1,0 +1,107 @@
+@startuml
+!theme plain
+
+' Classes
+class Organization {
+  - organizationId: String
+  - name: String
+  - type: String
+  --
+  + getOrganizationId(): String
+  + getName(): String
+  + getType(): String
+}
+
+class WeatherStation {
+  - stationId: String
+  - name: String
+  - location: String
+  - reportingInterval: Duration
+  --
+  + getStationId(): String
+  + getName(): String
+  + getLocation(): String
+  + getReportingInterval(): Duration
+  + transmitRawData(): RawMeasurement[]
+}
+
+class Sensor {
+  - sensorId: String
+  - name: String
+  - type: String
+  - model: String
+  - dataFormat: String
+  --
+  + getSensorId(): String
+  + getName(): String
+  + getType(): String
+  + getModel(): String
+  + getDataFormat(): String
+  + readRawMeasurement(): RawMeasurement
+}
+
+class Manufacturer {
+  - manufacturerId: String
+  - name: String
+  --
+  + getManufacturerId(): String
+  + getName(): String
+}
+
+class RawMeasurement {
+  - measurementId: String
+  - rawValue: String
+  - rawUnit: String
+  - timestamp: DateTime
+  - sensorId: String
+  --
+  + getMeasurementId(): String
+  + getRawValue(): String
+  + getRawUnit(): String
+  + getTimestamp(): DateTime
+  + getSensorId(): String
+}
+
+class NormalizedMeasurement {
+  - measurementId: String
+  - value: Double
+  - unit: String
+  - timestamp: DateTime
+  - sensorId: String
+  --
+  + getMeasurementId(): String
+  + getValue(): Double
+  + getUnit(): String
+  + getTimestamp(): DateTime
+  + getSensorId(): String
+}
+
+class DataNormalizer {
+  --
+  + normalize(raw: RawMeasurement): NormalizedMeasurement
+}
+
+class DataCollector {
+  --
+  + requestData(station: WeatherStation): RawMeasurement[]
+  + ingestAndNormalize(rawData: RawMeasurement[]): NormalizedMeasurement[]
+}
+
+' Relationships
+Organization "1" -- "1..*" WeatherStation : manages >
+WeatherStation "1" o-- "1..*" Sensor : contains
+Sensor "1" -- "1" Manufacturer : producedBy >
+
+RawMeasurement "0..*" -- "1" Sensor : measuredBy >
+NormalizedMeasurement "0..*" -- "1" Sensor : derivedFrom >
+
+DataCollector ..> WeatherStation : requests data from
+DataCollector ..> DataNormalizer : delegates normalization to
+
+DataNormalizer ..> RawMeasurement : transforms
+DataNormalizer ..> NormalizedMeasurement : produces
+
+note "The DataCollector initiates communication with WeatherStations,\nreceives RawMeasurements, and orchestrates their normalization\ninto NormalizedMeasurements using the DataNormalizer." as N1
+DataCollector .. N1
+
+@enduml

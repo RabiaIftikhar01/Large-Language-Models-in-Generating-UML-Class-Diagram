@@ -1,0 +1,115 @@
+@startuml
+' Global settings for consistency and readability
+skinparam classAttributeIconSize 0
+skinparam classFontSize 14
+skinparam classStereotypeFontSize 12
+skinparam arrowFontSize 12
+skinparam defaultFontName "Arial"
+skinparam linetype ortho
+
+' Define the main classes of the system
+class EnvironmentalMonitoringSystem {
+  - systemId: string
+  -- Operations --
+  + EnvironmentalMonitoringSystem()
+  + initiateDataCollection(): void
+  + ingestRawData(rawData: string): void
+  - normalizeRawData(rawData: string): Measurement
+  + storeMeasurement(measurement: Measurement): void
+}
+
+class WeatherStation {
+  - stationId: string
+  - name: string
+  - location: string
+  - latitude: double
+  - longitude: double
+  - reportingIntervalHours: int
+  - lastReportTime: DateTime
+  -- Operations --
+  + WeatherStation(id: string, name: string, loc: string, lat: double, lon: double, interval: int)
+  + getStationId(): string
+  + getName(): string
+  + getLocation(): string
+  + getReportingInterval(): int
+  + transmitData(): string ' Represents raw sensor data bundle in proprietary format
+  + addSensor(sensor: Sensor): void
+}
+
+class Sensor {
+  - sensorId: string
+  - model: string
+  - serialNumber: string
+  - dataType: string ' e.g., "Temperature", "Humidity", "Pressure"
+  - unit: string ' e.g., "Celsius", "%", "hPa"
+  - proprietaryFormatDetails: string ' Description of the sensor's unique data format
+  -- Operations --
+  + Sensor(id: string, model: string, serial: string, type: string, unit: string, format: string)
+  + getSensorId(): string
+  + getModel(): string
+  + getDataType(): string
+  + getUnit(): string
+  + getProprietaryFormatDetails(): string
+  + collectRawReading(): string ' Returns data in its proprietary format
+}
+
+class Measurement {
+  - measurementId: string
+  - timestamp: DateTime
+  - value: double ' Normalized numerical value
+  - unit: string
+  - dataType: string
+  - sensorId: string ' Foreign key to the Sensor that generated it
+  - stationId: string ' Foreign key to the WeatherStation it came from
+  -- Operations --
+  + Measurement(id: string, ts: DateTime, val: double, unit: string, type: string, sensorId: string, stationId: string)
+  + getMeasurementId(): string
+  + getTimestamp(): DateTime
+  + getValue(): double
+  + getUnit(): string
+  + getDataType(): string
+}
+
+class Manufacturer {
+  - manufacturerId: string
+  - name: string
+  -- Operations --
+  + Manufacturer(id: string, name: string)
+  + getName(): string
+}
+
+class Organization {
+  - organizationId: string
+  - name: string
+  - type: string ' e.g., "Government", "Academic", "Infrastructure Operator"
+  -- Operations --
+  + Organization(id: string, name: string, type: string)
+  + getName(): string
+  + getType(): string
+}
+
+' Define relationships between classes
+
+' The EnvironmentalMonitoringSystem monitors multiple WeatherStations.
+EnvironmentalMonitoringSystem "1" --> "0..*" WeatherStation : monitors
+
+' A WeatherStation contains one or more Sensors. This is a composition relationship
+' as sensors are integral parts of a station.
+WeatherStation "1" *-- "1..*" Sensor : contains
+
+' A Sensor is produced by exactly one Manufacturer. A Manufacturer can produce many Sensors.
+Manufacturer "1" <-- "0..*" Sensor : produces
+
+' A WeatherStation is managed by exactly one Organization. An Organization can manage many WeatherStations.
+Organization "1" <-- "0..*" WeatherStation : manages
+
+' A Sensor generates multiple Measurements over time.
+Sensor "1" --> "0..*" Measurement : generates
+
+' Add explanatory notes for complex sections or additional information
+note top of EnvironmentalMonitoringSystem : Coordinates data collection, normalization, and storage from all stations.
+note top of Measurement : Stores normalized sensor readings, making them ready for analysis.
+note right of Sensor : Responsible for providing raw data in its unique proprietary format.
+note right of WeatherStation : Responsible for collecting data from its sensors and transmitting it.
+
+@enduml

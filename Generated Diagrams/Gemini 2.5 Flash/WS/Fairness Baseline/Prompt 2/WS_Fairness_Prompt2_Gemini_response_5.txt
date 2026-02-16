@@ -1,0 +1,118 @@
+@startuml
+' Global settings for consistency and readability
+skinparam classAttributeIconSize 0
+skinparam classFontStyle Bold
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 14
+skinparam shadowing false ' Reduce visual clutter for simplicity
+
+' Title for the diagram
+title Environmental Monitoring Platform - Class Diagram
+
+' Notes for overall understanding
+note "This diagram models the core entities and interactions\nfor a distributed environmental monitoring platform." as N_PlatformOverview
+note right of N_PlatformOverview : Key aspects include high-volume data ingestion,\nmanagement of diverse sensors and stations,\nproprietary data formats, and data normalization.
+
+' Classes
+class Organization {
+  - id: String
+  - name: String
+  - type: String ' e.g., Government, Academic, Infrastructure
+  --
+  + Organization(id: String, name: String, type: String)
+  + getName(): String
+  + getType(): String
+}
+
+class Station {
+  - id: String
+  - location: String
+  - reportingIntervalHours: int
+  --
+  + Station(id: String, location: String, interval: int)
+  + getLocation(): String
+  + getReportingInterval(): int
+  + setReportingInterval(interval: int)
+  + requestSensorData(): List<Measurement>
+}
+
+class Sensor {
+  - id: String
+  - model: String
+  - measurementType: String ' e.g., Temperature, Humidity, Pressure
+  - proprietaryFormat: String ' Details/schema for parsing raw data
+  --
+  + Sensor(id: String, model: String, type: String, format: String)
+  + getMeasurementType(): String
+  + getProprietaryFormat(): String
+  + readRawData(): String
+}
+
+class Manufacturer {
+  - id: String
+  - name: String
+  --
+  + Manufacturer(id: String, name: String)
+  + getName(): String
+}
+
+class Measurement {
+  - id: String
+  - timestamp: DateTime
+  - rawValue: String
+  - normalizedValue: Double
+  - unit: String
+  --
+  + Measurement(id: String, timestamp: DateTime, rawValue: String, unit: String)
+  + getRawValue(): String
+  + getNormalizedValue(): Double
+  + setNormalizedValue(value: Double)
+}
+
+class DataCollector {
+  --
+  + requestDataFromStation(station: Station): List<Measurement>
+  + ingestData(measurements: List<Measurement>)
+}
+
+class DataNormalizer {
+  --
+  + normalize(measurement: Measurement, proprietaryFormat: String): Measurement
+}
+
+' Relationships
+
+' Organization manages Stations
+' Station knows its managing Organization (unidirectional for reduced coupling)
+Station "1" --> "1" Organization : managed by
+
+' Station contains Sensors (Aggregation)
+' A Station aggregates multiple Sensors. Station needs to know its sensors to request data.
+Station "1" o-- "1..*" Sensor : contains
+
+' Sensor is produced by a Manufacturer
+' A Sensor knows its Manufacturer.
+Sensor "1" --> "1" Manufacturer : produced by
+
+' Measurement is recorded by a Sensor
+' A Measurement knows which Sensor recorded it.
+Measurement "0..*" --> "1" Sensor : recorded by
+
+' DataCollector interacts with other components via dependencies
+' DataCollector requests data from Stations.
+DataCollector .> Station : requests data from
+' DataCollector ingests the collected Measurements.
+DataCollector .> Measurement : ingests
+' DataCollector utilizes DataNormalizer for data processing.
+DataCollector .> DataNormalizer : uses
+
+' DataNormalizer performs normalization on Measurements.
+DataNormalizer .> Measurement : normalizes
+
+' Explanatory notes for specific elements
+note left of Station : Reporting intervals can vary\nbetween stations and change over time.
+note right of Sensor : Each sensor delivers measurements\nin proprietary formats requiring normalization.
+note left of DataCollector : Initiates communication with stations\nand handles the initial data ingestion pipeline.
+note right of DataNormalizer : Responsible for converting proprietary\nraw data into a standardized, normalized format.
+
+@enduml

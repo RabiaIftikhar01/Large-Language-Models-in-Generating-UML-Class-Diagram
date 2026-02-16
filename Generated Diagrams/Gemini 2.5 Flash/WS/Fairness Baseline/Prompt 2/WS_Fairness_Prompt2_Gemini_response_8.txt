@@ -1,0 +1,102 @@
+@startuml
+!pragma layout smetana
+
+' Global styling for readability and consistency
+skinparam classAttributeIconSize 0
+skinparam classFontStyle Bold
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam ArrowColor #4285F4
+skinparam ClassBorderColor #4285F4
+skinparam ClassBackgroundColor #E8F0FE
+skinparam NoteBackgroundColor #FFF2CC
+skinparam NoteBorderColor #F7931E
+
+' Define classes
+class Organization {
+  - id: String
+  - name: String
+  - type: String  // e.g., "Government", "Academic", "Infrastructure"
+  --
+  + Organization(id: String, name: String, type: String)
+  + getName(): String
+  + getType(): String
+}
+
+class WeatherStation {
+  - id: String
+  - location: String  // e.g., "Lat: 34.05, Lon: -118.25"
+  - reportingIntervalHours: Integer
+  --
+  + WeatherStation(id: String, location: String, interval: Integer, manager: Organization)
+  + addSensor(sensor: Sensor): void
+  + collectRawMeasurements(): List<Measurement>
+  + getReportingInterval(): Integer
+}
+
+class Sensor {
+  - id: String
+  - type: String  // e.g., "Temperature", "Humidity", "Pressure"
+  - model: String
+  - serialNumber: String
+  --
+  + Sensor(id: String, type: String, model: String, serialNumber: String, manufacturer: Manufacturer)
+  + readRawMeasurement(): String  // Returns data in proprietary format
+  + getType(): String
+}
+
+class Manufacturer {
+  - id: String
+  - name: String
+  --
+  + Manufacturer(id: String, name: String)
+  + getName(): String
+}
+
+class Measurement {
+  - id: String
+  - timestamp: DateTime
+  - rawValue: String  // Data in proprietary format
+  - normalizedValue: Double
+  - unit: String
+  --
+  + Measurement(id: String, timestamp: DateTime, rawValue: String, unit: String, sensor: Sensor)
+  + setNormalizedValue(value: Double): void
+  + getTimestamp(): DateTime
+  + getNormalizedValue(): Double
+  + getRawValue(): String
+  + getUnit(): String
+}
+
+class DataIngestionService {
+  + DataIngestionService()
+  + processStationData(station: WeatherStation): List<Measurement>
+  - normalize(proprietaryFormatData: String): Double
+}
+
+' Define relationships
+
+' Organization manages WeatherStation
+Organization "1" -- "0..*" WeatherStation : manages >
+
+' WeatherStation contains Sensors (Composition)
+WeatherStation "1" *-- "1..*" Sensor : contains >
+
+' Sensor is produced by Manufacturer
+Manufacturer "1" -- "0..*" Sensor : produces >
+
+' Sensor produces Measurements
+Sensor "1" -- "0..*" Measurement : produces >
+
+' DataIngestionService processes Measurements (updates/transforms them)
+DataIngestionService ..> Measurement : processes >
+
+' DataIngestionService interacts with WeatherStation to get data
+DataIngestionService ..> WeatherStation : collects data from >
+
+' Notes for clarity
+note top of DataIngestionService : Orchestrates data collection from stations,\ningestion, and proprietary format normalization.
+
+note right of Measurement : Stores raw and normalized sensor readings,\nlinking them to their originating sensor.
+
+@enduml
