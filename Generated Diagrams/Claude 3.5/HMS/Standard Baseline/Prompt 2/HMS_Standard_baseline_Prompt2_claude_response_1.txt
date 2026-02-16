@@ -1,0 +1,133 @@
+
+```plantuml
+@startuml
+skinparam classAttributeIconSize 0
+
+' Core Patient and Billing Context
+class Patient {
+  - patientId: String
+  - name: String
+  - patientType: PatientType
+  - admissionDate: Date
+  - dischargeDate: Date
+}
+
+enum PatientType {
+  INSURANCE
+  GOVERNMENT_SPONSORED
+  SELF_PAYING
+}
+
+class Invoice {
+  - invoiceId: String
+  - patient: Patient
+  - invoiceDate: Date
+  - totalAmount: Decimal
+  - billingEntries: List<BillingEntry>
+  + generateInvoice(): void
+  + calculateTotal(): Decimal
+}
+
+class BillingEntry {
+  - entryId: String
+  - description: String
+  - baseAmount: Decimal
+  - quantity: Integer
+  - billedAmount: Decimal
+  - serviceType: ServiceType
+}
+
+enum ServiceType {
+  CLINICAL_PROCEDURE
+  PHARMACEUTICAL
+  LABORATORY_DIAGNOSTIC
+  ROOM_UTILIZATION
+}
+
+' Strategy Pattern for Billing Policies
+interface BillingStrategy {
+  + calculateBilledAmount(entry: BillingEntry, patient: Patient): Decimal
+  + applyPolicy(invoice: Invoice): void
+}
+
+class InsuranceBillingStrategy {
+  - coveragePolicies: List<CoveragePolicy>
+  - reimbursementCeiling: Decimal
+  - coPaymentModel: CoPaymentModel
+  + calculateBilledAmount(entry: BillingEntry, patient: Patient): Decimal
+  + applyPolicy(invoice: Invoice): void
+  + setCoveragePolicies(policies: List<CoveragePolicy>): void
+}
+
+class GovernmentBillingStrategy {
+  - subsidySchedule: SubsidySchedule
+  - predeterminedPricing: PricingTable
+  + calculateBilledAmount(entry: BillingEntry, patient: Patient): Decimal
+  + applyPolicy(invoice: Invoice): void
+  + updateSubsidySchedule(schedule: SubsidySchedule): void
+}
+
+class SelfPayBillingStrategy {
+  - fullPricingTable: PricingTable
+  + calculateBilledAmount(entry: BillingEntry, patient: Patient): Decimal
+  + applyPolicy(invoice: Invoice): void
+}
+
+' Policy Configuration Components
+class CoveragePolicy {
+  - policyId: String
+  - insurerName: String
+  - serviceType: ServiceType
+  - coveragePercentage: Decimal
+  - exclusions: List<String>
+  + isServiceCovered(serviceType: ServiceType): boolean
+}
+
+class CoPaymentModel {
+  - modelId: String
+  - patientResponsibilityPercentage: Decimal
+  - flatFeeAmount: Decimal
+  + calculateCoPayment(amount: Decimal): Decimal
+}
+
+class SubsidySchedule {
+  - scheduleId: String
+  - effectiveDate: Date
+  - subsidyRates: Map<ServiceType, Decimal>
+  + getSubsidyRate(serviceType: ServiceType): Decimal
+}
+
+class PricingTable {
+  - tableId: String
+  - effectiveDate: Date
+  - prices: Map<ServiceType, Decimal>
+  + getPrice(serviceType: ServiceType): Decimal
+  + updatePrice(serviceType: ServiceType, price: Decimal): void
+}
+
+' Billing Engine
+class BillingEngine {
+  - billingStrategy: BillingStrategy
+  + setBillingStrategy(strategy: BillingStrategy): void
+  + processInvoice(invoice: Invoice, patient: Patient): void
+  + applyBillingPolicy(invoice: Invoice): void
+}
+
+' Service Domain Components
+abstract class ServiceProvider {
+  # serviceId: String
+  # serviceName: String
+  # serviceType: ServiceType
+  + createBillingEntry(): BillingEntry
+}
+
+class ClinicalProcedureService {
+  - procedureCode: String
+  - procedureName: String
+  + createBillingEntry(): BillingEntry
+}
+
+class PharmaceuticalService {
+  - medicationName: String
+  - dosage: String
+  + createB
