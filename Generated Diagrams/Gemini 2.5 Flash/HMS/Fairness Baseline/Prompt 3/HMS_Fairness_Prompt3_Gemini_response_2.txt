@@ -1,0 +1,178 @@
+@startuml
+!pragma layout smetana
+
+title Hospital Administration Platform - Discharge Invoice Calculation
+
+' --- Interfaces / Abstract Classes for Strategy Pattern ---
+interface IBillingPolicy {
+    + calculateFinalAmount(invoice: DischargeInvoice): decimal
+}
+note right of IBillingPolicy : Strategy Pattern for flexible billing logic.\nDynamically interchangeable at runtime.
+
+interface IPricingPolicy {
+    + determineUnitPrice(item: ServiceItem, quantity: int): decimal
+}
+note right of IPricingPolicy : Strategy Pattern for distinct pricing rules\nfor different service types.
+
+abstract class ServiceItem {
+    # serviceId: string
+    # name: string
+    # baseCost: decimal
+    + getServiceId(): string
+    + getName(): string
+    + getBaseCost(): decimal
+}
+note left of ServiceItem : Base class for all billable items\n(procedures, medications, etc.).
+
+' --- Core Entities ---
+class Patient {
+    + patientId: string
+    + name: string
+    + dateOfBirth: Date
+    + patientCategory: PatientCategory <<enum>>
+    + getPatientCategory(): PatientCategory
+}
+note left of Patient : Encapsulates patient information\nand category for billing.
+
+class DischargeInvoice {
+    + invoiceId: string
+    + issueDate: Date
+    + totalAmount: decimal
+    - lineItems: List<InvoiceLineItem>
+    + addLineItem(item: InvoiceLineItem): void
+    + getLineItems(): List<InvoiceLineItem>
+    + calculateSubtotal(): decimal
+}
+note top of DischargeInvoice : Represents the final bill for a patient's stay.\nTotal amount is computed by BillingEngine.
+
+class InvoiceLineItem {
+    + lineNumber: int
+    + quantity: int
+    + unitPrice: decimal
+    + lineTotal: decimal
+    + calculateLineTotal(): decimal
+}
+note top of InvoiceLineItem : Details for a single service or item on an invoice.
+
+' --- Concrete Billing Policy Implementations ---
+class InsuredBillingPolicy {
+    + calculateFinalAmount(invoice: DischargeInvoice): decimal
+}
+
+class GovernmentBillingPolicy {
+    + calculateFinalAmount(invoice: DischargeInvoice): decimal
+}
+
+class SelfFundedBillingPolicy {
+    + calculateFinalAmount(invoice: DischargeInvoice): decimal
+}
+
+' --- Billing Policy Configuration Data (Frequently Modified) ---
+class CoverageParameter {
+    + parameterName: string
+    + value: decimal
+}
+note right of CoverageParameter : Configurable for InsuredBillingPolicy.
+
+class ReimbursementThreshold {
+    + thresholdName: string
+    + amount: decimal
+}
+note right of ReimbursementThreshold : Configurable for InsuredBillingPolicy.
+
+class CoPayArrangement {
+    + arrangementName: string
+    + percentage: decimal
+    + fixedAmount: decimal
+}
+note right of CoPayArrangement : Configurable for InsuredBillingPolicy.
+
+class SubsidyValue {
+    + subsidyName: string
+    + amount: decimal
+}
+note right of SubsidyValue : Configurable for GovernmentBillingPolicy.
+
+' --- Concrete Service Item Types ---
+class MedicalProcedure {
+}
+
+class Medication {
+}
+
+class DiagnosticService {
+}
+
+class AccommodationCharge {
+}
+
+' --- Concrete Pricing Policy Implementations ---
+class StandardPricingPolicy {
+    + determineUnitPrice(item: ServiceItem, quantity: int): decimal
+}
+' Add other pricing policies if specific rules like volume discounts are needed
+' class VolumeDiscountPricingPolicy {
+'     + determineUnitPrice(item: ServiceItem, quantity: int): decimal
+' }
+
+' --- Orchestration / Billing Engine ---
+class BillingEngine {
+    + generateInvoice(patient: Patient, servicesWithQuantities: Map<ServiceItem, int>): DischargeInvoice
+    - selectBillingPolicy(category: PatientCategory): IBillingPolicy
+    - getPricingPolicy(serviceItem: ServiceItem): IPricingPolicy
+}
+note top of BillingEngine : Orchestrates the invoice generation process,\nselecting and applying appropriate policies.
+
+' --- Enums ---
+enum PatientCategory {
+    INSURED
+    GOVERNMENT_BENEFICIARY
+    SELF_FUNDED
+}
+note left of PatientCategory : Categorizes patients to apply specific billing rules.
+
+' --- Relationships ---
+
+' Patient and Invoice: A patient can have multiple discharge invoices over time.
+Patient "1" -- "0..*" DischargeInvoice : generates
+
+' Invoice and Line Items: An invoice is composed of one or more line items.
+DischargeInvoice "1" *-- "1..*" InvoiceLineItem : contains
+
+' Line Item and Service Item: Each line item references a specific service that was provided.
+InvoiceLineItem "1" -- "1" ServiceItem : references
+
+' Service Item and Pricing Policy: Each service item uses a specific pricing rule.
+ServiceItem "1" -- "1" IPricingPolicy : uses
+
+' Billing Policy Implementations: Concrete policies realize the IBillingPolicy interface.
+IBillingPolicy <|.. InsuredBillingPolicy
+IBillingPolicy <|.. GovernmentBillingPolicy
+IBillingPolicy <|.. SelfFundedBillingPolicy
+
+' Service Item Specializations: Concrete service types inherit from ServiceItem.
+ServiceItem <|-- MedicalProcedure
+ServiceItem <|-- Medication
+ServiceItem <|-- DiagnosticService
+ServiceItem <|-- AccommodationCharge
+
+' Pricing Policy Implementations: Concrete pricing policies realize the IPricingPolicy interface.
+IPricingPolicy <|.. StandardPricingPolicy
+' IPricingPolicy <|.. VolumeDiscountPricingPolicy
+
+' Billing Policy Configuration: Specific billing policies use various configuration parameters.
+InsuredBillingPolicy "1" -- "0..*" CoverageParameter : uses
+InsuredBillingPolicy "1" -- "0..*" ReimbursementThreshold : uses
+InsuredBillingPolicy "1" -- "0..*" CoPayArrangement : uses
+GovernmentBillingPolicy "1" -- "0..*" SubsidyValue : uses
+
+' Billing Engine Orchestration: The engine depends on various components to perform its task.
+BillingEngine ..> Patient : generatesFor
+BillingEngine ..> ServiceItem : processes
+BillingEngine ..> IBillingPolicy : selectsAndApplies
+BillingEngine ..> IPricingPolicy : uses
+BillingEngine ..> DischargeInvoice : creates
+BillingEngine ..> InvoiceLineItem : creates
+BillingEngine ..> PatientCategory : uses
+
+@enduml

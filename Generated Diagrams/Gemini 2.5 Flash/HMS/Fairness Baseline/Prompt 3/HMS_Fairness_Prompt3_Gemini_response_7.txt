@@ -1,0 +1,162 @@
+@startuml
+!pragma layout smetana
+
+' Title for the diagram
+title Hospital Administration Platform - Discharge Invoice System
+
+' Package for Patient Information
+package "Patient Information" {
+    class Patient {
+        - patientId: String
+        - name: String
+        - dateOfBirth: Date
+        - patientCategory: PatientCategoryType
+        --
+        + getPatientInfo(): String
+        + addHospitalStay(stay: HospitalStay): void
+    }
+
+    enum PatientCategoryType {
+        INSURED
+        GOVERNMENT
+        SELF_FUNDED
+    }
+
+    class HospitalStay {
+        - stayId: String
+        - admissionDate: Date
+        - dischargeDate: Date
+        --
+        + getStayDurationInDays(): int
+        + addTreatment(treatment: Treatment): void
+        + getTreatments(): List<Treatment>
+    }
+}
+
+' Package for Pricing Modules
+package "Pricing Modules" {
+    abstract class CostItem {
+        - itemId: String
+        - description: String
+        - baseUnitPrice: BigDecimal
+        --
+        + calculateCost(quantity: int): BigDecimal
+    }
+
+    class MedicalProcedure extends CostItem {
+        - procedureCode: String
+        --
+        + calculateCost(quantity: int): BigDecimal
+    }
+
+    class Medication extends CostItem {
+        - dosage: String
+        - strength: String
+        --
+        + calculateCost(quantity: int): BigDecimal
+    }
+
+    class DiagnosticService extends CostItem {
+        - serviceCode: String
+        - modality: String
+        --
+        + calculateCost(quantity: int): BigDecimal
+    }
+
+    class AccommodationCharge extends CostItem {
+        - roomType: String
+        - dailyRate: BigDecimal
+        --
+        + calculateCost(days: int): BigDecimal
+    }
+
+    class Treatment {
+        - treatmentId: String
+        - datePerformed: Date
+        - quantity: int
+        - costItem: CostItem
+        --
+        + getTreatmentCost(): BigDecimal
+    }
+}
+
+' Package for Billing Policies and Invoice Generation
+package "Billing & Policies" {
+    interface BillingPolicy {
+        + calculateInvoiceAmount(invoice: DischargeInvoice): BigDecimal
+    }
+
+    class InsuredBillingPolicy implements BillingPolicy {
+        - insurer: Insurer
+        - coverageParameters: Map<String, BigDecimal>
+        - reimbursementThresholds: Map<String, BigDecimal>
+        - coPayArrangements: Map<String, BigDecimal>
+        --
+        + calculateInvoiceAmount(invoice: DischargeInvoice): BigDecimal
+    }
+
+    class GovernmentBillingPolicy implements BillingPolicy {
+        - subsidizedAmounts: Map<String, BigDecimal>
+        --
+        + calculateInvoiceAmount(invoice: DischargeInvoice): BigDecimal
+    }
+
+    class SelfFundedBillingPolicy implements BillingPolicy {
+        --
+        + calculateInvoiceAmount(invoice: DischargeInvoice): BigDecimal
+    }
+
+    class Insurer {
+        - insurerId: String
+        - name: String
+        - contactInfo: String
+        --
+        + getCoverageDetails(): Map<String, Object>
+    }
+
+    class DischargeInvoice {
+        - invoiceId: String
+        - invoiceDate: Date
+        - totalAmount: BigDecimal
+        - status: String ' e.g., PENDING, BILLED, PAID
+        - billingPolicy: BillingPolicy
+        - hospitalStay: HospitalStay
+        --
+        + generateInvoice(): void
+        + calculateFinalAmount(): void
+        + getInvoiceDetails(): String
+    }
+}
+
+' Relationships
+Patient "1" -- "0..*" HospitalStay : has
+Patient "1" --> "1" PatientCategoryType : isOfCategory
+
+HospitalStay "1" -- "0..*" Treatment : includes
+Treatment "0..*" --> "1" CostItem : references
+
+HospitalStay "1" -- "1" DischargeInvoice : generates
+
+DischargeInvoice "1" --> "1" BillingPolicy : uses >
+InsuredBillingPolicy "0..*" --> "1" Insurer : covers
+
+' Notes for clarity and design principles
+note "Strategy Pattern for\ninterchangeable billing logic\nat runtime." as BillingStrategyNote
+BillingPolicy .. BillingStrategyNote
+
+note "Abstract base class for all\nbillable items, ensuring distinct\npricing rules." as CostItemNote
+CostItem .. CostItemNote
+
+note "Strict separation of concerns:\n- Patient Info (Patient, HospitalStay)\n- Pricing (CostItem hierarchy, Treatment)\n- Billing Logic (BillingPolicy hierarchy, Insurer, DischargeInvoice)" as SeparationNote
+Patient .. SeparationNote
+HospitalStay .. SeparationNote
+CostItem .. SeparationNote
+Treatment .. SeparationNote
+DischargeInvoice .. SeparationNote
+BillingPolicy .. SeparationNote
+Insurer .. SeparationNote
+
+note "Attributes like coverage parameters,\nreimbursement thresholds, etc.,\nare configurable within policy classes\nto avoid structural redesign." as ConfigNote
+InsuredBillingPolicy .. ConfigNote
+
+@enduml

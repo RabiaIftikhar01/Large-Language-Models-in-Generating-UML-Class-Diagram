@@ -1,0 +1,217 @@
+@startuml
+' Styling for clarity and readability
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam class {
+  BorderColor #5E81AC
+  BackgroundColor #ECEFF4
+  ArrowColor #88C0D0
+  HeaderBackgroundColor #88C0D0
+  FontColor #2E3440
+}
+skinparam interface {
+  BorderColor #B48EAD
+  BackgroundColor #ECEFF4
+  ArrowColor #B48EAD
+  HeaderBackgroundColor #B48EAD
+  FontColor #2E3440
+}
+skinparam abstract {
+  BorderColor #D08770
+  BackgroundColor #ECEFF4
+  ArrowColor #D08770
+  HeaderBackgroundColor #D08770
+  FontColor #2E3440
+}
+skinparam enum {
+  BorderColor #A3BE8C
+  BackgroundColor #ECEFF4
+  ArrowColor #A3BE8C
+  HeaderBackgroundColor #A3BE8C
+  FontColor #2E3440
+}
+
+' Note on overall system architecture and design principles
+note "This model emphasizes strict separation of concerns:\n- Patient Information\n- Cost Aggregation & Pricing\n- Billing Policies\n\nIt leverages the Strategy Pattern for dynamic interchangeability\nof billing and pricing rules, ensuring extensibility and maintainability." as N_Architecture
+
+' Package for Patient Information
+package "Patient Information" {
+    class Patient {
+        - patientId: String
+        - name: String
+        - dateOfBirth: Date
+        - admissionDate: Date
+        - dischargeDate: Date
+        - patientCategory: PatientCategory
+        --
+        + getPatientId(): String
+        + getName(): String
+        + getPatientCategory(): PatientCategory
+    }
+
+    enum PatientCategory {
+        INSURED
+        GOVERNMENT_BENEFICIARY
+        SELF_FUNDED
+    }
+    Patient "1" --> "1" PatientCategory : has
+}
+
+' Package for Cost Aggregation and Pricing Logic
+package "Cost Aggregation & Pricing" {
+    class Treatment {
+        - treatmentId: String
+        - description: String
+        - datePerformed: Date
+        --
+        + getTreatmentId(): String
+        + getDescription(): String
+        + getDatePerformed(): Date
+        + addCostItem(item: CostItem): void
+        + getCostItems(): List<CostItem>
+    }
+
+    abstract class CostItem {
+        - itemId: String
+        - description: String
+        - quantity: int
+        - baseUnitPrice: BigDecimal
+        # pricingRule: PricingRule  ' Specific rule for this type of cost item
+        --
+        + getItemId(): String
+        + getDescription(): String
+        + getQuantity(): int
+        + getBaseUnitPrice(): BigDecimal
+        + calculateBaseCost(): BigDecimal
+    }
+
+    class MedicalProcedure extends CostItem {
+        + calculateBaseCost(): BigDecimal
+    }
+
+    class Medication extends CostItem {
+        + calculateBaseCost(): BigDecimal
+    }
+
+    class DiagnosticService extends CostItem {
+        + calculateBaseCost(): BigDecimal
+    }
+
+    class AccommodationCharge extends CostItem {
+        - numberOfNights: int
+        --
+        + getNumberOfNights(): int
+        + calculateBaseCost(): BigDecimal
+    }
+
+    interface PricingRule {
+        + apply(costItem: CostItem): BigDecimal
+    }
+
+    class ProcedurePricingRule implements PricingRule {
+        + apply(costItem: CostItem): BigDecimal
+    }
+
+    class MedicationPricingRule implements PricingRule {
+        + apply(costItem: CostItem): BigDecimal
+    }
+
+    class DiagnosticPricingRule implements PricingRule {
+        + apply(costItem: CostItem): BigDecimal
+    }
+
+    class AccommodationPricingRule implements PricingRule {
+        + apply(costItem: CostItem): BigDecimal
+    }
+
+    Treatment "1" o-- "1..*" CostItem : includes
+    CostItem "1" *-- "1" PricingRule : uses
+    MedicalProcedure "1" --> "1" ProcedurePricingRule : <<binds to>>
+    Medication "1" --> "1" MedicationPricingRule : <<binds to>>
+    DiagnosticService "1" --> "1" DiagnosticPricingRule : <<binds to>>
+    AccommodationCharge "1" --> "1" AccommodationPricingRule : <<binds to>>
+
+    note "Each CostItem type is configured with a specific PricingRule\nfor its base cost calculation, enabling distinct pricing logic." as N_PricingRule
+    CostItem . N_PricingRule
+}
+
+' Package for Billing Policies (Strategy Pattern implementation)
+package "Billing Policies" {
+    interface BillingPolicy {
+        + calculateBilledAmount(patient: Patient, costItem: CostItem, baseCost: BigDecimal): BigDecimal
+        + getAdjustmentAmount(patient: Patient, costItem: CostItem, baseCost: BigDecimal, billedAmount: BigDecimal): BigDecimal
+    }
+
+    class InsuredPatientBillingPolicy implements BillingPolicy {
+        - coverageThreshold: BigDecimal
+        - coPayPercentage: BigDecimal
+        - reimbursementThreshold: BigDecimal
+        --
+        + calculateBilledAmount(patient: Patient, costItem: CostItem, baseCost: BigDecimal): BigDecimal
+        + getAdjustmentAmount(patient: Patient, costItem: CostItem, baseCost: BigDecimal, billedAmount: BigDecimal): BigDecimal
+    }
+
+    class GovernmentBeneficiaryBillingPolicy implements BillingPolicy {
+        - subsidizedAmount: BigDecimal
+        --
+        + calculateBilledAmount(patient: Patient, costItem: CostItem, baseCost: BigDecimal): BigDecimal
+        + getAdjustmentAmount(patient: Patient, costItem: CostItem, baseCost: BigDecimal, billedAmount: BigDecimal): BigDecimal
+    }
+
+    class SelfFundedPatientBillingPolicy implements BillingPolicy {
+        + calculateBilledAmount(patient: Patient, costItem: CostItem, baseCost: BigDecimal): BigDecimal
+        + getAdjustmentAmount(patient: Patient, costItem: CostItem, baseCost: BigDecimal, billedAmount: BigDecimal): BigDecimal
+    }
+
+    note "Billing policies are dynamically interchangeable at runtime\nbased on patient category and regulatory directives (Strategy Pattern)." as N_BillingPolicy
+    BillingPolicy . N_BillingPolicy
+}
+
+' Package for Invoice Generation and Reporting
+package "Invoice Generation" {
+    class DischargeInvoice {
+        - invoiceId: String
+        - invoiceDate: Date
+        - totalAmount: BigDecimal
+        --
+        + DischargeInvoice(patient: Patient, policy: BillingPolicy)
+        + addInvoiceLineItem(item: InvoiceLineItem): void
+        + getInvoiceId(): String
+        + getInvoiceDate(): Date
+        + getTotalAmount(): BigDecimal
+        + generateInvoice(treatments: List<Treatment>): void
+    }
+
+    class InvoiceLineItem {
+        - description: String
+        - quantity: int
+        - unitPrice: BigDecimal ' Price after base pricing rule
+        - billedAmount: BigDecimal ' Price after billing policy
+        - adjustmentAmount: BigDecimal ' Difference due to policy
+        - originalCostItem: CostItem
+        --
+        + InvoiceLineItem(costItem: CostItem, unitPrice: BigDecimal, billedAmount: BigDecimal, adjustmentAmount: BigDecimal)
+        + getDescription(): String
+        + getBilledAmount(): BigDecimal
+    }
+
+    DischargeInvoice "1" *-- "1..*" InvoiceLineItem : contains
+    InvoiceLineItem "1" --> "1" CostItem : <<derived from>>
+    DischargeInvoice "1" --> "1" Patient : for
+    DischargeInvoice "1" --> "1" BillingPolicy : applies
+}
+
+' Orchestration Layer (conceptual, for context)
+class HospitalBillingSystem {
+    + createDischargeInvoice(patient: Patient, treatments: List<Treatment>): DischargeInvoice
+    + selectBillingPolicy(patientCategory: PatientCategory): BillingPolicy
+}
+
+HospitalBillingSystem ..> DischargeInvoice : creates
+HospitalBillingSystem ..> Patient : accesses
+HospitalBillingSystem ..> Treatment : accesses
+HospitalBillingSystem ..> BillingPolicy : selects
+HospitalBillingSystem ..> PatientCategory : uses for policy selection
+
+@enduml

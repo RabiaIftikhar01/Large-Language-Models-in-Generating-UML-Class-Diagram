@@ -1,0 +1,232 @@
+@startuml
+' Global settings for consistency and readability
+skinparam classAttributeIconSize 0
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam class {
+    BorderColor #A80036
+    BackgroundColor #FEFECE
+    ArrowColor #A80036
+    FontColor #A80036
+}
+skinparam interface {
+    BorderColor #4078C0
+    BackgroundColor #ADD1B2
+    ArrowColor #4078C0
+    FontColor #4078C0
+}
+skinparam abstract {
+    BorderColor #A80036
+    BackgroundColor #FEFECE
+    ArrowColor #A80036
+    FontColor #A80036
+}
+skinparam enum {
+    BorderColor #A80036
+    BackgroundColor #FEFECE
+    ArrowColor #A80036
+    FontColor #A80036
+}
+
+' Package for Patient Information
+package "Patient Information" {
+    class Patient {
+        - patientId: String
+        - name: String
+        - dateOfBirth: Date
+        - patientCategory: PatientCategory
+        --
+        + getPatientInfo(): Map<String, String>
+    }
+
+    enum PatientCategory {
+        INSURED
+        GOVERNMENT_BENEFICIARY
+        SELF_FUNDED
+    }
+
+    Patient "1" -- "1" PatientCategory : has
+}
+
+' Package for Healthcare Services and Treatments
+package "Healthcare Services" {
+    class HospitalStay {
+        - stayId: String
+        - admissionDate: Date
+        - dischargeDate: Date
+        --
+        + addTreatment(treatment: Treatment): void
+        + getTreatments(): List<Treatment>
+    }
+
+    abstract class Treatment {
+        - treatmentId: String
+        - description: String
+        - datePerformed: Date
+        - baseCost: BigDecimal
+        --
+        + getBaseCost(): BigDecimal
+    }
+
+    class MedicalProcedure extends Treatment {
+        - procedureCode: String
+    }
+
+    class Medication extends Treatment {
+        - drugName: String
+        - dosage: String
+        - quantity: int
+    }
+
+    class DiagnosticService extends Treatment {
+        - serviceCode: String
+        - result: String
+    }
+
+    class AccommodationCharge extends Treatment {
+        - roomNumber: String
+        - dailyRate: BigDecimal
+        - numberOfDays: int
+    }
+
+    HospitalStay "1" *-- "1..*" Treatment : includes
+}
+
+' Package for Pricing Logic
+package "Pricing Module" {
+    interface PricingRule {
+        + apply(baseCost: BigDecimal, quantity: int): BigDecimal
+    }
+
+    class ProcedurePricingRule implements PricingRule {
+        - unitPrice: BigDecimal
+        - taxRate: BigDecimal
+        --
+        + apply(baseCost: BigDecimal, quantity: int): BigDecimal
+    }
+
+    class MedicationPricingRule implements PricingRule {
+        - markupPercentage: BigDecimal
+        - discountThreshold: int
+        --
+        + apply(baseCost: BigDecimal, quantity: int): BigDecimal
+    }
+
+    class DiagnosticPricingRule implements PricingRule {
+        - flatFee: BigDecimal
+        - complexityFactor: BigDecimal
+        --
+        + apply(baseCost: BigDecimal, quantity: int): BigDecimal
+    }
+
+    class AccommodationPricingRule implements PricingRule {
+        - seasonalAdjustment: BigDecimal
+        --
+        + apply(baseCost: BigDecimal, quantity: int): BigDecimal
+    }
+
+    class PricingService {
+        - pricingRules: Map<String, PricingRule>
+        --
+        + getPricingRule(treatmentType: String): PricingRule
+    }
+
+    PricingService "1" --> "1..*" PricingRule : manages
+}
+
+' Package for Billing Policies (Strategy Pattern)
+package "Billing Policies" {
+    interface BillingPolicy {
+        + applyPolicy(invoice: Invoice): void
+    }
+
+    class InsuredBillingPolicy implements BillingPolicy {
+        - coverageParameters: Map<String, BigDecimal>
+        - reimbursementThresholds: Map<String, BigDecimal>
+        - coPayArrangements: Map<String, BigDecimal>
+        --
+        + applyPolicy(invoice: Invoice): void
+    }
+
+    class GovernmentBeneficiaryBillingPolicy implements BillingPolicy {
+        - subsidyValues: Map<String, BigDecimal>
+        --
+        + applyPolicy(invoice: Invoice): void
+    }
+
+    class SelfFundedBillingPolicy implements BillingPolicy {
+        - administrativeFeeRate: BigDecimal
+        --
+        + applyPolicy(invoice: Invoice): void
+    }
+
+    class BillingPolicyFactory {
+        - policies: Map<PatientCategory, BillingPolicy>
+        --
+        + getPolicy(patientCategory: PatientCategory): BillingPolicy
+    }
+
+    BillingPolicyFactory "1" --> "1..*" BillingPolicy : creates
+    BillingPolicyFactory "1" --> "1" PatientCategory : uses
+}
+
+' Package for Invoice Generation and Orchestration
+package "Invoice Generation" {
+    class Invoice {
+        - invoiceId: String
+        - issueDate: Date
+        - totalAmount: BigDecimal
+        - patient: Patient
+        - hospitalStay: HospitalStay
+        - billedItems: List<BilledItem>
+        --
+        + addBilledItem(item: BilledItem): void
+        + calculateTotal(): void
+        + getBilledItems(): List<BilledItem>
+    }
+
+    class BilledItem {
+        - billedItemId: String
+        - description: String
+        - originalCost: BigDecimal
+        - adjustedCost: BigDecimal
+        - treatmentRef: Treatment
+        --
+        + setAdjustedCost(cost: BigDecimal): void
+        + getFinalCost(): BigDecimal
+    }
+
+    class DischargeInvoiceGenerator {
+        - pricingService: PricingService
+        - billingPolicyFactory: BillingPolicyFactory
+        --
+        + generateInvoice(patient: Patient, stay: HospitalStay): Invoice
+        - selectBillingPolicy(patientCategory: PatientCategory): BillingPolicy
+    }
+
+    Invoice "1" *-- "1..*" BilledItem : contains
+    BilledItem "0..*" --> "1" Treatment : references
+
+    Invoice "1" -- "1" Patient : for
+    Invoice "1" -- "1" HospitalStay : covers
+
+    DischargeInvoiceGenerator "1" --> "1" PricingService : uses
+    DischargeInvoiceGenerator "1" --> "1" BillingPolicyFactory : uses
+    DischargeInvoiceGenerator "1" --> "1" BillingPolicy : applies
+    DischargeInvoiceGenerator "1" --> "1" Invoice : generates
+    DischargeInvoiceGenerator "1" --> "1" Patient : processes
+    DischargeInvoiceGenerator "1" --> "1" HospitalStay : processes
+}
+
+' Notes for clarity and design principles
+note "Strict separation of concerns:\n- Patient Information\n- Pricing Logic\n- Billing Policies" as N1
+note "Strategy Pattern for dynamic billing policies" as N2
+note "Factory/Registry for dynamic policy/rule retrieval" as N3
+note "BilledItem acts as an association class\nto store specific cost details for an invoice" as N4
+
+DischargeInvoiceGenerator .. N1
+BillingPolicy .. N2
+BillingPolicyFactory .. N3
+BilledItem .. N4
+
+@enduml

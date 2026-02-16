@@ -1,0 +1,354 @@
+@startuml
+!pragma layout smetana
+
+' Hide default class circles and set attribute icon size for cleaner look
+hide circle
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam class {
+  BorderColor #23374D
+  BackgroundColor #F8F8F8
+  ArrowColor #23374D
+  HeaderBackgroundColor #DDEEFF
+}
+skinparam interface {
+  BorderColor #23374D
+  BackgroundColor #F8F8F8
+  HeaderBackgroundColor #E0F2F7
+}
+skinparam abstract {
+  BorderColor #23374D
+  BackgroundColor #F8F8F8
+  HeaderBackgroundColor #FFF2CC
+}
+skinparam enum {
+  BorderColor #23374D
+  BackgroundColor #F8F8F8
+  HeaderBackgroundColor #F0F8FF
+}
+skinparam package {
+  BorderColor #23374D
+  BackgroundColor #E6EEF3
+  FontColor #23374D
+}
+
+' Value Object for Money
+class Money << (V, #ADD1B2) ValueObject >> {
+  - amount: BigDecimal
+  - currency: String
+  --
+  + getAmount(): BigDecimal
+  + getCurrency(): String
+}
+
+' Enum for Invoice Status
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  ISSUED
+  PAID
+  CANCELLED
+}
+
+package "Patient Management" {
+  class Patient {
+    - patientId: String
+    - name: String
+    - dateOfBirth: Date
+    --
+    + getPatientId(): String
+    + getName(): String
+    + getDateOfBirth(): Date
+  }
+
+  interface PatientCategory {
+    + getCategoryName(): String
+  }
+
+  class InsuredPatient {
+    - insurerName: String
+    - policyNumber: String
+    --
+    + getInsurerName(): String
+    + getPolicyNumber(): String
+    + getCategoryName(): String
+  }
+
+  class GovernmentBeneficiary {
+    - programName: String
+    - beneficiaryId: String
+    --
+    + getProgramName(): String
+    + getBeneficiaryId(): String
+    + getCategoryName(): String
+  }
+
+  class SelfFundedPatient {
+    --
+    + getCategoryName(): String
+  }
+
+  class PatientStay {
+    - stayId: String
+    - admissionDate: Date
+    - dischargeDate: Date
+    --
+    + getStayId(): String
+    + getAdmissionDate(): Date
+    + getDischargeDate(): Date
+  }
+
+  Patient "1" -- "1" PatientCategory : isCategorizedAs >
+  Patient "1" -- "0..*" PatientStay : has >
+
+  PatientCategory <|.. InsuredPatient
+  PatientCategory <|.. GovernmentBeneficiary
+  PatientCategory <|.. SelfFundedPatient
+}
+
+package "Treatment Management" {
+  abstract class Treatment {
+    - treatmentId: String
+    - description: String
+    - datePerformed: Date
+    - quantity: int
+    --
+    + getTreatmentId(): String
+    + getDescription(): String
+    + getDatePerformed(): Date
+    + getQuantity(): int
+    + calculateBaseCost(): Money <<abstract>>
+  }
+
+  class MedicalProcedure {
+    - procedureCode: String
+    --
+    + getProcedureCode(): String
+    + calculateBaseCost(): Money
+  }
+
+  class Medication {
+    - medicationName: String
+    - dosage: String
+    --
+    + getMedicationName(): String
+    + getDosage(): String
+    + calculateBaseCost(): Money
+  }
+
+  class DiagnosticService {
+    - serviceCode: String
+    --
+    + getServiceCode(): String
+    + calculateBaseCost(): Money
+  }
+
+  class AccommodationCharge {
+    - roomType: String
+    - dailyRate: Money
+    - numberOfDays: int
+    --
+    + getRoomType(): String
+    + getDailyRate(): Money
+    + getNumberOfDays(): int
+    + calculateBaseCost(): Money
+  }
+
+  Treatment <|-- MedicalProcedure
+  Treatment <|-- Medication
+  Treatment <|-- DiagnosticService
+  Treatment <|-- AccommodationCharge
+
+  PatientStay "1" -- "1..*" Treatment : includes >
+}
+
+package "Pricing Module" {
+  interface PricingRule {
+    + applyPricing(treatment: Treatment): Money
+  }
+
+  class ProcedurePricingRule {
+    - baseRate: Money
+    --
+    + applyPricing(treatment: Treatment): Money
+  }
+
+  class MedicationPricingRule {
+    - unitCost: Money
+    --
+    + applyPricing(treatment: Treatment): Money
+  }
+
+  class DiagnosticPricingRule {
+    - flatFee: Money
+    --
+    + applyPricing(treatment: Treatment): Money
+  }
+
+  class AccommodationPricingRule {
+    - perDayRate: Money
+    --
+    + applyPricing(treatment: Treatment): Money
+  }
+
+  class PricingService {
+    - pricingRules: Map<String, PricingRule>
+    --
+    + PricingService()
+    + getPricingRule(treatmentType: String): PricingRule
+    + calculateTreatmentCost(treatment: Treatment): Money
+  }
+
+  PricingRule <|.. ProcedurePricingRule
+  PricingRule <|.. MedicationPricingRule
+  PricingRule <|.. DiagnosticPricingRule
+  PricingRule <|.. AccommodationPricingRule
+
+  PricingService "1" -- "0..*" PricingRule : manages >
+  note top of PricingRule : Strategy interface for distinct\npricing rules for treatment types.
+}
+
+package "Billing Policy Module" {
+  interface BillingPolicy {
+    + applyPolicy(invoice: Invoice, patient: Patient, treatments: List<Treatment>, pricingService: PricingService): void
+  }
+
+  class InsurerBillingPolicy {
+    - coverageParameters: List<CoverageParameter>
+    - reimbursementThresholds: List<ReimbursementThreshold>
+    - coPayArrangements: List<CoPayArrangement>
+    --
+    + applyPolicy(invoice: Invoice, patient: Patient, treatments: List<Treatment>, pricingService: PricingService): void
+  }
+
+  class GovernmentBillingPolicy {
+    - subsidyValues: List<SubsidyValue>
+    --
+    + applyPolicy(invoice: Invoice, patient: Patient, treatments: List<Treatment>, pricingService: PricingService): void
+  }
+
+  class SelfFundedBillingPolicy {
+    --
+    + applyPolicy(invoice: Invoice, patient: Patient, treatments: List<Treatment>, pricingService: PricingService): void
+  }
+
+  class CoverageParameter {
+    - parameterId: String
+    - description: String
+    - value: String
+    --
+    + getParameterId(): String
+    + getDescription(): String
+    + getValue(): String
+  }
+
+  class ReimbursementThreshold {
+    - thresholdId: String
+    - minAmount: Money
+    - maxAmount: Money
+    --
+    + getThresholdId(): String
+    + getMinAmount(): Money
+    + getMaxAmount(): Money
+  }
+
+  class CoPayArrangement {
+    - coPayId: String
+    - percentage: double
+    - fixedAmount: Money
+    --
+    + getCoPayId(): String
+    + getPercentage(): double
+    + getFixedAmount(): Money
+  }
+
+  class SubsidyValue {
+    - subsidyId: String
+    - amount: Money
+    - condition: String
+    --
+    + getSubsidyId(): String
+    + getAmount(): Money
+    + getCondition(): String
+  }
+
+  BillingPolicy <|.. InsurerBillingPolicy
+  BillingPolicy <|.. GovernmentBillingPolicy
+  BillingPolicy <|.. SelfFundedBillingPolicy
+
+  InsurerBillingPolicy "1" -- "0..*" CoverageParameter : configuresWith >
+  InsurerBillingPolicy "1" -- "0..*" ReimbursementThreshold : configuresWith >
+  InsurerBillingPolicy "1" -- "0..*" CoPayArrangement : configuresWith >
+  GovernmentBillingPolicy "1" -- "0..*" SubsidyValue : configuresWith >
+
+  note top of BillingPolicy : Strategy interface for different\nbilling logic based on patient category,\ndynamically interchangeable at runtime.
+  note top of CoverageParameter : Configurable data for InsurerBillingPolicy,\nallowing dynamic updates without structural redesign.
+  note top of SubsidyValue : Configurable data for GovernmentBillingPolicy,\nallowing dynamic updates without structural redesign.
+}
+
+package "Invoice Generation" {
+  class Invoice {
+    - invoiceId: String
+    - invoiceDate: Date
+    - totalAmount: Money
+    - status: InvoiceStatus
+    --
+    + getInvoiceId(): String
+    + getInvoiceDate(): Date
+    + getTotalAmount(): Money
+    + getStatus(): InvoiceStatus
+    + addInvoiceItem(item: InvoiceItem): void
+    + calculateTotal(): void
+  }
+
+  class InvoiceItem {
+    - itemId: String
+    - description: String
+    - quantity: int
+    - unitPrice: Money
+    - billedAmount: Money
+    - originalTreatmentId: String
+    --
+    + getItemId(): String
+    + getDescription(): String
+    + getQuantity(): int
+    + getUnitPrice(): Money
+    + getBilledAmount(): Money
+    + getOriginalTreatmentId(): String
+  }
+
+  class InvoiceCalculator {
+    - currentBillingPolicy: BillingPolicy
+    - pricingService: PricingService
+    --
+    + InvoiceCalculator(policy: BillingPolicy, service: PricingService)
+    + generateInvoice(patient: Patient, stay: PatientStay, treatments: List<Treatment>): Invoice
+    + setBillingPolicy(policy: BillingPolicy): void
+  }
+
+  Invoice "1" -- "1..*" InvoiceItem : contains >
+  InvoiceItem "1" -- "1" Treatment : references >
+  ' InvoiceItem references Treatment by ID to maintain loose coupling and snapshot nature.
+
+  InvoiceCalculator "1" -- "1" BillingPolicy : uses >
+  InvoiceCalculator "1" -- "1" PricingService : uses >
+
+  Patient "1" -- "0..*" Invoice : receives >
+  InvoiceStatus .. Invoice
+  note top of InvoiceCalculator : Orchestrates invoice generation\nby applying pricing and billing policies.
+}
+
+' Connections to Money Value Object
+Money .. Invoice
+Money .. InvoiceItem
+Money .. AccommodationCharge
+Money .. ProcedurePricingRule
+Money .. MedicationPricingRule
+Money .. DiagnosticPricingRule
+Money .. AccommodationPricingRule
+Money .. ReimbursementThreshold
+Money .. CoPayArrangement
+Money .. SubsidyValue
+
+@enduml

@@ -1,0 +1,235 @@
+@startuml
+!pragma layout smetana
+
+' Value Object for handling currency amounts consistently
+class Money << (V,yellow) ValueObject >> {
+    - amount: BigDecimal
+    - currency: Currency
+    + Money(amount: BigDecimal, currency: Currency)
+    + add(other: Money): Money
+    + subtract(other: Money): Money
+    + multiply(factor: BigDecimal): Money
+    + isGreaterThan(other: Money): boolean
+    + isLessThan(other: Money): boolean
+    + equals(other: Object): boolean
+    + hashCode(): int
+    + toString(): String
+}
+
+' Interface for defining billing policy contracts (Strategy Pattern)
+interface BillingPolicy << (I,orchid) >> {
+    + applyPolicy(invoice: Invoice, patientCategory: PatientCategory): void
+}
+
+' Concrete billing policy for insured patients
+class InsurerBillingPolicy implements BillingPolicy {
+    - coverageParameters: String
+    - reimbursementThresholds: String
+    - coPayArrangement: String
+    + applyPolicy(invoice: Invoice, patientCategory: PatientCategory): void
+}
+
+' Concrete billing policy for government beneficiaries
+class GovernmentBillingPolicy implements BillingPolicy {
+    - subsidizedAmounts: String
+    - programRules: String
+    + applyPolicy(invoice: Invoice, patientCategory: PatientCategory): void
+}
+
+' Concrete billing policy for self-funded patients
+class SelfFundedBillingPolicy implements BillingPolicy {
+    + applyPolicy(invoice: Invoice, patientCategory: PatientCategory): void
+}
+
+' Abstract base class for different patient categories
+abstract class PatientCategory {
+    - categoryName: String
+    + getCategoryName(): String
+    + getBillingPolicy(): BillingPolicy << abstract >>
+}
+
+' Concrete patient category for insured patients
+class InsuredPatientCategory extends PatientCategory {
+    - insurerName: String
+    - policyNumber: String
+    + getBillingPolicy(): BillingPolicy
+}
+
+' Concrete patient category for government beneficiaries
+class GovernmentBeneficiaryPatientCategory extends PatientCategory {
+    - programName: String
+    - beneficiaryId: String
+    + getBillingPolicy(): BillingPolicy
+}
+
+' Concrete patient category for self-funded patients
+class SelfFundedPatientCategory extends PatientCategory {
+    + getBillingPolicy(): BillingPolicy
+}
+
+' Represents a patient in the hospital system
+class Patient {
+    - patientId: String
+    - name: String
+    - dateOfBirth: Date
+    - admissionDate: Date
+    - dischargeDate: Date
+    - patientCategory: PatientCategory
+    + Patient(id: String, name: String, dob: Date, category: PatientCategory)
+    + getPatientId(): String
+    + getName(): String
+    + getPatientCategory(): PatientCategory
+    + getAdmissionDate(): Date
+    + getDischargeDate(): Date
+}
+
+' Interface for defining pricing strategy contracts (Strategy Pattern)
+interface PricingStrategy << (I,orchid) >> {
+    + calculatePrice(treatment: Treatment): Money
+}
+
+' Concrete pricing strategy for medical procedures
+class ProcedurePricingStrategy implements PricingStrategy {
+    - baseRate: Money
+    - modifierRules: String
+    + calculatePrice(treatment: Treatment): Money
+}
+
+' Concrete pricing strategy for medications
+class MedicationPricingStrategy implements PricingStrategy {
+    - unitPrice: Money
+    - markupRules: String
+    + calculatePrice(treatment: Treatment): Money
+}
+
+' Concrete pricing strategy for diagnostic services
+class DiagnosticPricingStrategy implements PricingStrategy {
+    - fixedFee: Money
+    - tierRules: String
+    + calculatePrice(treatment: Treatment): Money
+}
+
+' Concrete pricing strategy for accommodation charges
+class AccommodationPricingStrategy implements PricingStrategy {
+    - dailyRate: Money
+    - discountRules: String
+    + calculatePrice(treatment: Treatment): Money
+}
+
+' Abstract base class for all types of treatments/services
+abstract class Treatment {
+    - treatmentId: String
+    - description: String
+    - datePerformed: Date
+    # pricingStrategy: PricingStrategy
+    + Treatment(id: String, desc: String, date: Date, strategy: PricingStrategy)
+    + getTreatmentId(): String
+    + getDescription(): String
+    + getDatePerformed(): Date
+    + getCost(): Money
+    + setPricingStrategy(strategy: PricingStrategy): void
+}
+
+' Concrete treatment type: Medical Procedure
+class MedicalProcedure extends Treatment {
+    - procedureCode: String
+    + MedicalProcedure(id: String, desc: String, date: Date, strategy: PricingStrategy, code: String)
+}
+
+' Concrete treatment type: Medication
+class Medication extends Treatment {
+    - drugName: String
+    - dosage: String
+    + Medication(id: String, desc: String, date: Date, strategy: PricingStrategy, name: String, dosage: String)
+}
+
+' Concrete treatment type: Diagnostic Service
+class DiagnosticService extends Treatment {
+    - serviceCode: String
+    - result: String
+    + DiagnosticService(id: String, desc: String, date: Date, strategy: PricingStrategy, code: String, result: String)
+}
+
+' Concrete treatment type: Accommodation Charge
+class AccommodationCharge extends Treatment {
+    - roomType: String
+    - nights: Integer
+    + AccommodationCharge(id: String, desc: String, date: Date, strategy: PricingStrategy, room: String, nights: Integer)
+}
+
+' Represents a discharge invoice for a patient
+class Invoice {
+    - invoiceId: String
+    - invoiceDate: Date
+    - patient: Patient
+    - totalAmount: Money
+    - patientResponsibility: Money
+    - insurerResponsibility: Money
+    - governmentResponsibility: Money
+    - treatments: List<Treatment>
+    + Invoice(id: String, date: Date, patient: Patient)
+    + addTreatment(treatment: Treatment): void
+    + calculateTotalAmount(): void
+    + applyBillingPolicy(): void
+    + getInvoiceId(): String
+    + getTotalAmount(): Money
+    + getPatientResponsibility(): Money
+    + getInsurerResponsibility(): Money
+    + getGovernmentResponsibility(): Money
+}
+
+' Main orchestrator for hospital administration tasks
+class HospitalAdministrationPlatform {
+    + generateDischargeInvoice(patient: Patient): Invoice
+    + updateBillingPolicy(policyName: String, newPolicy: BillingPolicy): void
+    + updatePricingStrategy(strategyName: String, newStrategy: PricingStrategy): void
+}
+
+' ----------------------------------------------------------------------------------
+' Relationships
+' ----------------------------------------------------------------------------------
+
+' Patient has a specific patient category
+Patient "1" -- "1" PatientCategory : has >
+
+' A patient receives multiple treatments during their stay
+Patient "1" -- "*" Treatment : receives >
+
+' An invoice is generated for one patient
+Invoice "1" -- "1" Patient : for >
+
+' An invoice aggregates multiple treatments
+Invoice "1" -- "*" Treatment : aggregates >
+
+' Each treatment uses a specific pricing strategy to calculate its cost
+Treatment "1" -- "1" PricingStrategy : uses >
+
+' Each patient category determines which billing policy applies
+PatientCategory "1" -- "1" BillingPolicy : determines >
+
+' The platform manages patients and generates invoices
+HospitalAdministrationPlatform "1" --> "1" Patient : manages >
+HospitalAdministrationPlatform "1" --> "1" Invoice : generates >
+
+' ----------------------------------------------------------------------------------
+' Notes for clarity and design justification
+' ----------------------------------------------------------------------------------
+
+note "Strategy Pattern: Allows dynamic interchangeability of billing logic at runtime. New policies can be added without modifying core Invoice or PatientCategory classes." as N1
+BillingPolicy .. N1
+
+note "Strategy Pattern: Enables flexible pricing rules for different treatment types. Pricing logic can be adjusted independently of Treatment definitions." as N2
+PricingStrategy .. N2
+
+note "Ensures strict separation between patient information, pricing modules, and billing policies, promoting loose coupling and extensibility." as N3
+Patient .. N3
+PricingStrategy .. N3
+BillingPolicy .. N3
+
+note "Money is a Value Object to handle currency amounts, preventing primitive obsession and ensuring type safety for financial calculations." as N4
+Money .. N4
+
+note "The HospitalAdministrationPlatform acts as an orchestrator, providing a high-level interface for core system functionalities." as N5
+HospitalAdministrationPlatform .. N5
+
+@enduml

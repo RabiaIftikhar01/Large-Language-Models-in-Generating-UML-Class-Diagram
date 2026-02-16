@@ -1,0 +1,174 @@
+@startuml
+!theme plain
+
+' Define a Value Object for handling monetary values
+class Money {
+  - amount: BigDecimal
+  - currency: Currency
+  --
+  + getAmount(): BigDecimal
+  + getCurrency(): Currency
+  + add(other: Money): Money
+  + subtract(other: Money): Money
+  + multiply(multiplier: BigDecimal): Money
+  + toString(): String
+}
+
+' Enum to categorize patients, influencing billing policies
+enum PatientCategoryType {
+  INSURED
+  GOVERNMENT_BENEFICIARY
+  SELF_FUNDED
+}
+
+' Represents a patient in the hospital system
+class Patient {
+  - patientId: String
+  - name: String
+  - admissionDate: Date
+  - dischargeDate: Date
+  - patientCategory: PatientCategoryType
+  --
+  + getPatientId(): String
+  + getName(): String
+  + getPatientCategory(): PatientCategoryType
+  + setPatientCategory(category: PatientCategoryType): void
+  ' ... other patient details and accessors
+}
+
+' Abstract base class for all types of treatments, defining common properties and an abstract cost calculation
+abstract class Treatment {
+  - treatmentId: String
+  - description: String
+  - datePerformed: Date
+  - baseCost: Money
+  --
+  + getTreatmentId(): String
+  + getDescription(): String
+  + getDatePerformed(): Date
+  + getBaseCost(): Money
+  + {abstract} getCost(): Money
+}
+
+' Concrete treatment types inheriting from Treatment
+class MedicalProcedure extends Treatment {
+  - procedureCode: String
+  --
+  + getProcedureCode(): String
+  + getCost(): Money
+}
+
+class Medication extends Treatment {
+  - medicationName: String
+  - dosage: String
+  - unitCost: Money
+  - quantity: int
+  --
+  + getMedicationName(): String
+  + getQuantity(): int
+  + getUnitCost(): Money
+  + getCost(): Money
+}
+
+class DiagnosticService extends Treatment {
+  - serviceCode: String
+  - serviceType: String
+  --
+  + getServiceCode(): String
+  + getServiceType(): String
+  + getCost(): Money
+}
+
+class AccommodationCharge extends Treatment {
+  - roomType: String
+  - dailyRate: Money
+  - numberOfDays: int
+  --
+  + getRoomType(): String
+  + getDailyRate(): Money
+  + getNumberOfDays(): int
+  + getCost(): Money
+}
+
+' Strategy interface for defining different billing policies
+interface BillingPolicyStrategy {
+  + applyPolicy(patient: Patient, treatments: List<Treatment>): Map<String, Money>
+}
+
+' Concrete billing policy for insured patients
+class InsurerBillingPolicy implements BillingPolicyStrategy {
+  - coverageParameters: Map<String, String>
+  - reimbursementThresholds: Map<String, String>
+  - coPayArrangements: Map<String, String>
+  --
+  + configurePolicy(params: Map<String, String>): void
+  + applyPolicy(patient: Patient, treatments: List<Treatment>): Map<String, Money>
+}
+
+' Concrete billing policy for government beneficiaries
+class GovernmentBillingPolicy implements BillingPolicyStrategy {
+  - subsidizedAmounts: Map<String, String>
+  --
+  + configurePolicy(params: Map<String, String>): void
+  + applyPolicy(patient: Patient, treatments: List<Treatment>): Map<String, Money>
+}
+
+' Concrete billing policy for self-funded patients
+class SelfFundedBillingPolicy implements BillingPolicyStrategy {
+  + applyPolicy(patient: Patient, treatments: List<Treatment>): Map<String, Money>
+}
+
+' Represents the final discharge invoice for a patient
+class DischargeInvoice {
+  - invoiceId: String
+  - invoiceDate: Date
+  - totalGrossAmount: Money
+  - patientShareAmount: Money
+  - coveredAmount: Money
+  - auditTrail: List<String>
+  --
+  + getInvoiceId(): String
+  + getInvoiceDate(): Date
+  + getTotalGrossAmount(): Money
+  + getPatientShareAmount(): Money
+  + getCoveredAmount(): Money
+  + addAuditEntry(entry: String): void
+  + generateInvoiceDocument(): Document
+}
+
+' Orchestrates the calculation of a discharge invoice using a specific billing policy
+class InvoiceCalculator {
+  - billingPolicy: BillingPolicyStrategy
+  --
+  + setBillingPolicy(policy: BillingPolicyStrategy): void
+  + calculateInvoice(patient: Patient, treatments: List<Treatment>): DischargeInvoice
+  - determinePolicyForPatient(patient: Patient): BillingPolicyStrategy
+}
+
+' Relationships
+Patient "1" --> "0..*" Treatment : has
+DischargeInvoice "1" --> "1" Patient : for >
+DischargeInvoice "1" --> "0..*" Treatment : aggregates >
+
+InvoiceCalculator "1" --> "1" BillingPolicyStrategy : uses >
+InvoiceCalculator "1" --> "1" Patient : calculates for >
+InvoiceCalculator "1" --> "0..*" Treatment : processes >
+
+BillingPolicyStrategy <|.. InsurerBillingPolicy
+BillingPolicyStrategy <|.. GovernmentBillingPolicy
+BillingPolicyStrategy <|.. SelfFundedBillingPolicy
+
+Treatment <|-- MedicalProcedure
+Treatment <|-- Medication
+Treatment <|-- DiagnosticService
+Treatment <|-- AccommodationCharge
+
+' Explanatory Notes
+note left of PatientCategoryType : Defines patient's billing category.
+note right of BillingPolicyStrategy : Implements the Strategy Pattern for dynamic billing rules, allowing runtime interchangeability.
+note top of DischargeInvoice : Represents the final bill, including patient's share and covered amounts, with an audit trail for compliance.
+note bottom of InvoiceCalculator : Orchestrates the billing process by applying the appropriate policy based on patient category.
+note "Money is a Value Object\nfor robust financial calculations." as MoneyNote
+Money .. MoneyNote
+
+@enduml

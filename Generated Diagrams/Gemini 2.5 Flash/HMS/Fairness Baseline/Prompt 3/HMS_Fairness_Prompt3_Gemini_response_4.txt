@@ -1,0 +1,157 @@
+@startuml
+!theme plain
+
+' Design Practices Applied:
+' - Classes named as singular nouns, PascalCase, short.
+' - Attributes assigned carefully, operations are focused.
+' - Strategy pattern for BillingPolicy ensures dynamic interchangeability and extensibility.
+' - Inheritance for Service types handles distinct pricing rules for different sources.
+' - Clear separation of concerns: Patient data, Service pricing, Billing policies.
+' - Multiplicity and role names clarify relationships.
+' - Unidirectional associations used where appropriate.
+' - Loose coupling achieved through interfaces and orchestration service.
+
+' Enums for patient categories
+enum PatientCategory {
+    INSURED
+    GOVERNMENT_BENEFICIARY
+    SELF_FUNDED
+}
+
+' Core Entities
+class Patient {
+    - patientId: String
+    - name: String
+    - dateOfBirth: Date
+    - category: PatientCategory
+    --
+    + getPatientInfo(): Map<String, String>
+}
+
+class HospitalStay {
+    - stayId: String
+    - admissionDate: Date
+    - dischargeDate: Date
+    --
+    + addService(service: Service): void
+    + getServices(): List<Service>
+    + getDurationInDays(): int
+}
+
+abstract class Service {
+    - serviceId: String
+    - description: String
+    --
+    + {abstract} getCost(): BigDecimal
+}
+
+' Concrete Service Types (each with distinct pricing logic in getCost())
+class MedicalProcedure extends Service {
+    - procedureCode: String
+    - basePrice: BigDecimal
+    --
+    + getCost(): BigDecimal
+}
+
+class Medication extends Service {
+    - drugName: String
+    - quantity: int
+    - unitPrice: BigDecimal
+    --
+    + getCost(): BigDecimal
+}
+
+class DiagnosticService extends Service {
+    - testType: String
+    - basePrice: BigDecimal
+    --
+    + getCost(): BigDecimal
+}
+
+class AccommodationCharge extends Service {
+    - roomType: String
+    - dailyRate: BigDecimal
+    - numberOfDays: int
+    --
+    + getCost(): BigDecimal
+}
+
+class DischargeInvoice {
+    - invoiceId: String
+    - issueDate: Date
+    - totalAmount: BigDecimal
+    --
+    + getTotalAmount(): BigDecimal
+}
+
+' Billing Policy Strategy Interface
+interface BillingPolicy {
+    + applyPolicy(stay: HospitalStay): BigDecimal
+}
+note top of BillingPolicy : Strategy Pattern\nEnables dynamic billing rule interchangeability.
+
+' Concrete Billing Policy Implementations
+class InsuredBillingPolicy implements BillingPolicy {
+    - coverageParameters: Map<String, String>
+    - coPayAmount: BigDecimal
+    - reimbursementThresholds: Map<String, BigDecimal>
+    --
+    + applyPolicy(stay: HospitalStay): BigDecimal
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - subsidyPercentage: BigDecimal
+    - fixedSubsidizedAmounts: Map<String, BigDecimal>
+    --
+    + applyPolicy(stay: HospitalStay): BigDecimal
+}
+
+class SelfFundedBillingPolicy implements BillingPolicy {
+    + applyPolicy(stay: HospitalStay): BigDecimal
+}
+
+' Orchestration Service
+class InvoiceService {
+    --
+    + createDischargeInvoice(patient: Patient, stay: HospitalStay): DischargeInvoice
+}
+note left of InvoiceService : Orchestrates invoice generation\nby selecting the appropriate BillingPolicy\nbased on PatientCategory.
+
+' Relationships
+
+' Patient and HospitalStay
+Patient "1" -- "0..*" HospitalStay : has >
+
+' HospitalStay and Services (Aggregation)
+' A HospitalStay includes multiple Services. Services can exist independently but are aggregated by a stay.
+HospitalStay "1" o-- "0..*" Service : includes >
+
+' DischargeInvoice and HospitalStay
+' An Invoice is generated for a specific HospitalStay.
+DischargeInvoice "0..1" <-- "1" HospitalStay : generated for
+
+' DischargeInvoice and BillingPolicy
+' The Invoice's calculation logic depends on a BillingPolicy.
+DischargeInvoice "1" -- "1" BillingPolicy : uses >
+
+' InvoiceService orchestrates the process
+InvoiceService ..> Patient : uses
+InvoiceService ..> HospitalStay : uses
+InvoiceService ..> DischargeInvoice : creates
+InvoiceService ..> BillingPolicy : selects
+
+' Patient and PatientCategory
+Patient "1" -- "1" PatientCategory : is of category >
+
+' Inheritance for Services
+Service <|-- MedicalProcedure
+Service <|-- Medication
+Service <|-- DiagnosticService
+Service <|-- AccommodationCharge
+
+' Implementation for Billing Policies
+BillingPolicy <|.. InsuredBillingPolicy
+BillingPolicy <|.. GovernmentBillingPolicy
+BillingPolicy <|.. SelfFundedBillingPolicy
+
+@enduml

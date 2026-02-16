@@ -1,0 +1,263 @@
+@startuml
+!pragma layout smetana
+
+hide empty members
+
+' Title for the diagram
+title Hospital Discharge Invoice System - Class Diagram
+
+' Define Packages for strict separation as per requirements
+package "Patient Management" {
+    class Patient {
+        - patientId: String
+        - name: String
+        - dateOfBirth: Date
+        - patientCategory: PatientCategoryType <<enum>>
+        --
+        + getPatientId(): String
+        + getName(): String
+        + getPatientCategory(): PatientCategoryType
+    }
+
+    class HospitalStay {
+        - stayId: String
+        - admissionDate: Date
+        - dischargeDate: Date
+        --
+        + getStayId(): String
+        + getAdmissionDate(): Date
+        + getDischargeDate(): Date
+    }
+
+    enum PatientCategoryType {
+        INSURED
+        GOVERNMENT_BENEFICIARY
+        SELF_FUNDED
+    }
+
+    Patient "1" -- "0..*" HospitalStay : has >
+}
+
+package "Treatment Records" {
+    abstract class TreatmentRecord {
+        - recordId: String
+        - description: String
+        - datePerformed: Date
+        - quantity: int
+        --
+        + getRecordId(): String
+        + getDescription(): String
+        + getDatePerformed(): Date
+        + getQuantity(): int
+        + getBaseCost(service: PricingService): Money <<abstract>>
+    }
+
+    class MedicalProcedureRecord extends TreatmentRecord {
+        - procedureCode: String
+        --
+        + getProcedureCode(): String
+        + getBaseCost(service: PricingService): Money
+    }
+
+    class MedicationRecord extends TreatmentRecord {
+        - drugName: String
+        - dosage: String
+        --
+        + getDrugName(): String
+        + getDosage(): String
+        + getBaseCost(service: PricingService): Money
+    }
+
+    class DiagnosticServiceRecord extends TreatmentRecord {
+        - serviceCode: String
+        --
+        + getServiceCode(): String
+        + getBaseCost(service: PricingService): Money
+    }
+
+    class AccommodationRecord extends TreatmentRecord {
+        - roomType: String
+        - nights: int
+        --
+        + getRoomType(): String
+        + getNights(): int
+        + getBaseCost(service: PricingService): Money
+    }
+
+    HospitalStay "1" -- "0..*" TreatmentRecord : records >
+}
+
+package "Pricing Module" {
+    class PricingService {
+        - pricingRules: List<PricingRule>
+        --
+        + calculateBaseCost(record: TreatmentRecord): Money
+    }
+
+    interface PricingRule {
+        + appliesTo(record: TreatmentRecord): boolean
+        + calculateCost(record: TreatmentRecord): Money
+    }
+
+    class ProcedurePricingRule implements PricingRule {
+        - baseRate: Money
+        --
+        + appliesTo(record: TreatmentRecord): boolean
+        + calculateCost(record: TreatmentRecord): Money
+    }
+
+    class MedicationPricingRule implements PricingRule {
+        - unitPrice: Money
+        --
+        + appliesTo(record: TreatmentRecord): boolean
+        + calculateCost(record: TreatmentRecord): Money
+    }
+
+    class DiagnosticPricingRule implements PricingRule {
+        - flatFee: Money
+        --
+        + appliesTo(record: TreatmentRecord): boolean
+        + calculateCost(record: TreatmentRecord): Money
+    }
+
+    class AccommodationPricingRule implements PricingRule {
+        - dailyRate: Money
+        --
+        + appliesTo(record: TreatmentRecord): boolean
+        + calculateCost(record: TreatmentRecord): Money
+    }
+
+    PricingService "1" *-- "0..*" PricingRule : uses >
+}
+
+package "Billing Policy Module" {
+    interface BillingPolicy {
+        + applyPolicy(invoice: Invoice, patient: Patient, records: Collection<TreatmentRecord>): void
+    }
+
+    class InsuredBillingPolicy implements BillingPolicy {
+        - insurer: Insurer
+        --
+        + applyPolicy(invoice: Invoice, patient: Patient, records: Collection<TreatmentRecord>): void
+    }
+
+    class GovernmentBillingPolicy implements BillingPolicy {
+        - governmentProgram: GovernmentProgram
+        --
+        + applyPolicy(invoice: Invoice, patient: Patient, records: Collection<TreatmentRecord>): void
+    }
+
+    class SelfFundedBillingPolicy implements BillingPolicy {
+        + applyPolicy(invoice: Invoice, patient: Patient, records: Collection<TreatmentRecord>): void
+    }
+
+    class Insurer {
+        - insurerId: String
+        - name: String
+        - coverageDetails: String
+        --
+        + getInsurerId(): String
+        + getName(): String
+        + getCoverageDetails(): String
+    }
+
+    class GovernmentProgram {
+        - programId: String
+        - name: String
+        - subsidyDetails: String
+        --
+        + getProgramId(): String
+        + getName(): String
+        + getSubsidyDetails(): String
+    }
+
+    InsuredBillingPolicy ..> Insurer : consults >
+    GovernmentBillingPolicy ..> GovernmentProgram : consults >
+}
+
+package "Invoice Management" {
+    class Invoice {
+        - invoiceId: String
+        - issueDate: Date
+        - totalAmount: Money
+        - status: InvoiceStatus <<enum>>
+        --
+        + getInvoiceId(): String
+        + getIssueDate(): Date
+        + getTotalAmount(): Money
+        + setTotalAmount(amount: Money): void
+        + getStatus(): InvoiceStatus
+        + setStatus(status: InvoiceStatus): void
+        + addInvoiceItem(item: InvoiceItem): void
+    }
+
+    class InvoiceItem {
+        - itemId: String
+        - description: String
+        - baseCost: Money
+        - finalAmount: Money
+        --
+        + getItemId(): String
+        + getDescription(): String
+        + getBaseCost(): Money
+        + getFinalAmount(): Money
+        + setFinalAmount(amount: Money): void
+    }
+
+    enum InvoiceStatus {
+        DRAFT
+        PENDING_PAYMENT
+        PAID
+        CANCELLED
+    }
+
+    Invoice "1" *-- "1..*" InvoiceItem : contains >
+    InvoiceItem "1" -- "1" TreatmentRecord : references >
+}
+
+package "Orchestration" {
+    class InvoiceCalculator {
+        - pricingService: PricingService
+        - billingPolicyResolver: BillingPolicyResolver
+        --
+        + generateDischargeInvoice(patient: Patient, stay: HospitalStay): Invoice
+    }
+
+    class BillingPolicyResolver {
+        + resolvePolicy(category: PatientCategoryType): BillingPolicy
+    }
+
+    InvoiceCalculator ..> PricingService : uses >
+    InvoiceCalculator ..> BillingPolicyResolver : uses >
+    BillingPolicyResolver ..> BillingPolicy : creates >
+}
+
+' Value Object for Money to handle currency and precision
+class Money <<value object>> {
+    - amount: BigDecimal
+    - currency: Currency
+    --
+    + add(other: Money): Money
+    + subtract(other: Money): Money
+    + multiply(factor: BigDecimal): Money
+    + isGreaterThan(other: Money): boolean
+    + toString(): String
+}
+
+' Explanatory notes to highlight key design decisions
+note "Ensures strict separation between modules:\n- Patient Information\n- Pricing Logic\n- Billing Policies" as N1
+(Patient, PricingService, BillingPolicy) .. N1
+
+note "Strategy Pattern for flexible billing rules based on patient category, allowing dynamic interchangeability." as N2
+(BillingPolicy, InsuredBillingPolicy, GovernmentBillingPolicy, SelfFundedBillingPolicy) .. N2
+
+note "Each TreatmentRecord subclass delegates base cost calculation to the PricingService, promoting loose coupling." as N3
+(TreatmentRecord) .. N3
+
+note "PricingService uses a collection of PricingRule implementations to determine costs based on TreatmentRecord type." as N4
+(PricingService, PricingRule) .. N4
+
+note "InvoiceCalculator orchestrates the invoice generation process by utilizing PricingService and a resolved BillingPolicy." as N5
+(InvoiceCalculator) .. N5
+
+@enduml

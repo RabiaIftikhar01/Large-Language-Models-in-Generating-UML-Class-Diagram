@@ -1,0 +1,182 @@
+@startuml
+' Skin parameters for readability and consistent style
+skinparam classAttributeFontColor #000000
+skinparam classAttributeFontName "Arial"
+skinparam classAttributeFontSize 12
+skinparam classMethodFontColor #000000
+skinparam classMethodFontName "Arial"
+skinparam classMethodFontSize 12
+skinparam classFontColor #000000
+skinparam classFontName "Arial"
+skinparam classFontSize 14
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam linetype ortho
+
+' Enums for clear categorization
+enum PatientCategoryType {
+  INSURED
+  GOVERNMENT_BENEFICIARY
+  SELF_FUNDED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+' Core Classes
+class Patient {
+  - patientId: String
+  - name: String
+  - admissionDate: Date
+  - dischargeDate: Date
+  - categoryType: PatientCategoryType
+  --
+  + getPatientInfo(): String
+  + addTreatmentRecord(record: TreatmentRecord): void
+  + getTreatmentRecords(): List<TreatmentRecord>
+}
+
+abstract class ChargeItem {
+  - itemId: String
+  - name: String
+  - description: String
+  --
+  + {abstract} getBasePrice(): decimal
+}
+
+class MedicalProcedure extends ChargeItem {
+  - procedureCode: String
+  --
+  + getBasePrice(): decimal
+}
+
+class PrescribedMedication extends ChargeItem {
+  - drugCode: String
+  - dosage: String
+  --
+  + getBasePrice(): decimal
+}
+
+class DiagnosticService extends ChargeItem {
+  - serviceCode: String
+  --
+  + getBasePrice(): decimal
+}
+
+class AccommodationCharge extends ChargeItem {
+  - roomType: String
+  - dailyRate: decimal
+  --
+  + getBasePrice(): decimal
+}
+
+class TreatmentRecord {
+  - recordId: String
+  - datePerformed: Date
+  - quantity: int
+  --
+  + getCost(): decimal
+}
+
+class DischargeInvoice {
+  - invoiceId: String
+  - invoiceDate: Date
+  - totalAmount: decimal
+  - status: InvoiceStatus
+  --
+  + generateInvoiceDetails(): String
+}
+
+class InvoiceLineItem {
+  - lineItemId: String
+  - description: String
+  - quantity: int
+  - unitCost: decimal
+  - billedAmount: decimal
+  - adjustmentAmount: decimal
+  --
+  + calculateBilledAmount(policy: BillingPolicy, patient: Patient, config: PolicyConfiguration): void
+}
+
+interface BillingPolicy <<Strategy>> {
+  + {abstract} calculateBilledAmount(record: TreatmentRecord, patient: Patient, config: PolicyConfiguration): decimal
+}
+
+class InsuredBillingPolicy implements BillingPolicy {
+  - <<private>> getCoverageParameters(patient: Patient, config: PolicyConfiguration): Map<String, String>
+  --
+  + calculateBilledAmount(record: TreatmentRecord, patient: Patient, config: PolicyConfiguration): decimal
+}
+
+class GovernmentBeneficiaryBillingPolicy implements BillingPolicy {
+  - <<private>> getSubsidyValues(patient: Patient, config: PolicyConfiguration): Map<String, String>
+  --
+  + calculateBilledAmount(record: TreatmentRecord, patient: Patient, config: PolicyConfiguration): decimal
+}
+
+class SelfFundedBillingPolicy implements BillingPolicy {
+  + calculateBilledAmount(record: TreatmentRecord, patient: Patient, config: PolicyConfiguration): decimal
+}
+
+class PolicyConfiguration {
+  - parameters: Map<PatientCategoryType, Map<String, String>> ' e.g., { "INSURED": { "coPayRate": "0.1", "threshold": "1000" } }
+  --
+  + getParameter(policyType: PatientCategoryType, key: String): String
+  + updateParameter(policyType: PatientCategoryType, key: String, value: String): void
+}
+
+class InvoiceCalculator {
+  - billingPolicies: Map<PatientCategoryType, BillingPolicy>
+  - policyConfig: PolicyConfiguration
+  --
+  + createInvoice(patient: Patient): DischargeInvoice
+  - determineBillingPolicy(patient: Patient): BillingPolicy
+}
+
+' Relationships
+Patient "1" -- "0..*" TreatmentRecord : has >
+TreatmentRecord "1" -- "1" ChargeItem : for >
+
+DischargeInvoice "1" -- "1" Patient : isFor >
+DischargeInvoice "1" -- "1..*" InvoiceLineItem : contains >
+
+InvoiceLineItem "1" -- "1" TreatmentRecord : derivesFrom >
+
+ChargeItem <|-- MedicalProcedure
+ChargeItem <|-- PrescribedMedication
+ChargeItem <|-- DiagnosticService
+ChargeItem <|-- AccommodationCharge
+
+BillingPolicy <|.. InsuredBillingPolicy
+BillingPolicy <|.. GovernmentBeneficiaryBillingPolicy
+BillingPolicy <|.. SelfFundedBillingPolicy
+
+InvoiceCalculator "1" -- "1" PolicyConfiguration : uses >
+InvoiceCalculator "1" -- "1..*" BillingPolicy : uses >
+InvoiceCalculator ..> DischargeInvoice : creates >
+InvoiceCalculator ..> Patient : processes >
+
+' Explanatory Notes
+note left of BillingPolicy
+  This interface defines the strategy
+  for calculating billed amounts based
+  on patient category and policy rules.
+  Ensures dynamic interchangeability
+  at runtime as per requirements.
+end note
+
+note right of PolicyConfiguration
+  Stores configurable parameters
+  (e.g., coverage, reimbursement, co-pay, subsidy values)
+  for billing policies. Allows dynamic updates
+  without triggering structural redesign.
+end note
+
+note "The InvoiceCalculator orchestrates the invoice generation process.\nIt selects the appropriate BillingPolicy based on the Patient's category\nand utilizes PolicyConfiguration for dynamic rule parameters, ensuring\nloose coupling and extensibility." as N1
+InvoiceCalculator .. N1
+
+@enduml
