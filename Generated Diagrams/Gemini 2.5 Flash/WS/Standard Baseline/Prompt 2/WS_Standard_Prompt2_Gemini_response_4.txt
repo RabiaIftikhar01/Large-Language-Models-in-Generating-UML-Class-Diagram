@@ -1,0 +1,101 @@
+@startuml
+!theme mars
+
+title Environmental Monitoring Platform Class Diagram
+
+class EnvironmentalMonitoringPlatform {
+    + platformId: String
+    + name: String
+    --
+    + initiateMonitoringCycle(): void
+    + processTelemetry(normalizedData: Measurement): void
+}
+
+class Organization {
+    + organizationId: String
+    + name: String
+    + type: String <<enum>> {Government, Academic, InfrastructureOperator}
+}
+
+class WeatherStation {
+    + stationId: String
+    + location: String
+    + reportingInterval: Duration
+    + lastReportedAt: DateTime
+    --
+    + transmitRawData(): String <<proprietary format>>
+}
+
+class Sensor {
+    + sensorId: String
+    + manufacturer: String
+    + model: String
+    + sensorType: String <<enum>> {Temperature, Humidity, Pressure, WindSpeed, etc.}
+    + proprietaryFormatSpec: String
+}
+
+class Measurement {
+    + measurementId: String
+    + timestamp: DateTime
+    + rawValue: String
+    + normalizedValue: Double
+    + unit: String
+}
+
+class DataCollector {
+    + collectorId: String
+    --
+    + requestData(stationId: String): String <<proprietary format>>
+}
+
+class DataIngestionService {
+    + serviceId: String
+    --
+    + receiveRawData(rawData: String, sourceStationId: String, sensorId: String): void
+}
+
+class DataNormalizer {
+    + normalizerId: String
+    --
+    + normalize(rawData: String, sensorFormatSpec: String): Measurement
+}
+
+' Relationships
+
+Organization "1" -- "0..*" WeatherStation : manages >
+
+WeatherStation "1" -- "1..*" Sensor : contains >
+
+Sensor "1" -- "0..*" Measurement : produces >
+
+' Platform components (composition)
+EnvironmentalMonitoringPlatform "1" *-- "1" DataCollector : uses >
+EnvironmentalMonitoringPlatform "1" *-- "1" DataIngestionService : uses >
+EnvironmentalMonitoringPlatform "1" *-- "1" DataNormalizer : uses >
+
+' Data flow relationships
+DataCollector "1" --> "1" WeatherStation : requests data from >
+WeatherStation "1" --> "1" DataIngestionService : transmits raw data to >
+DataIngestionService "1" --> "1" DataNormalizer : forwards raw data to >
+DataNormalizer "1" --> "1" Measurement : creates normalized >
+Measurement "1" --> "1" EnvironmentalMonitoringPlatform : delivers normalized data to >
+
+' Notes for clarity
+note left of EnvironmentalMonitoringPlatform
+  Handles high-volume data ingestion
+  and dependable operation across
+  widely separated geographic regions.
+end note
+
+note right of DataNormalizer
+  Converts proprietary sensor formats
+  into a standardized format.
+end note
+
+note right of WeatherStation
+  Reporting intervals can vary
+  between stations and may change
+  over time.
+end note
+
+@enduml

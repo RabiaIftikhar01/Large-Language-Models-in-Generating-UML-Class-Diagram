@@ -1,0 +1,112 @@
+@startuml
+!theme mars
+
+title Environmental Monitoring Platform UML Class Diagram
+
+class EnvironmentalMonitoringPlatform {
+    + name: String
+    + description: String
+    --
+    + initiateDataRequest(stationId: String)
+    + storeNormalizedData(data: NormalizedMeasurement)
+}
+
+class WeatherStation {
+    + stationId: String
+    + name: String
+    + location: String (e.g., "Lat, Lon")
+    + reportingInterval: Duration
+    + lastCommunicationTime: DateTime
+    --
+    + transmitData(): RawMeasurement[]
+}
+
+class Sensor {
+    + sensorId: String
+    + manufacturer: String
+    + model: String
+    + sensorType: String (e.g., Temperature, Humidity)
+    + proprietaryFormatDetails: String
+    --
+    + readRawData(): RawMeasurement
+}
+
+class Organization {
+    + orgId: String
+    + name: String
+    + type: OrgType
+}
+
+enum OrgType {
+    GOVERNMENT
+    ACADEMIC
+    INFRASTRUCTURE_OPERATOR
+}
+
+class GeographicRegion {
+    + regionId: String
+    + name: String
+}
+
+class RawMeasurement {
+    + rawPayload: String
+    + timestamp: DateTime
+    + sensorId: String
+    + stationId: String
+}
+
+class NormalizedMeasurement {
+    + value: Double
+    + unit: String
+    + timestamp: DateTime
+    + sensorId: String
+    + stationId: String
+    + dataType: String
+}
+
+class DataIngestionModule {
+    + status: IngestionStatus
+    --
+    + receiveData(data: RawMeasurement)
+    + routeToNormalization(data: RawMeasurement)
+}
+
+enum IngestionStatus {
+    ACTIVE
+    PAUSED
+    ERROR
+}
+
+class DataNormalizationModule {
+    + normalizationRules: Map<String, String>
+    --
+    + normalize(data: RawMeasurement): NormalizedMeasurement
+}
+
+' Relationships '
+
+EnvironmentalMonitoringPlatform "1" -- "1" DataIngestionModule : uses >
+EnvironmentalMonitoringPlatform "1" -- "0..*" WeatherStation : manages / requests data from >
+EnvironmentalMonitoringPlatform "1" -- "1..*" GeographicRegion : operates across >
+
+WeatherStation "1" -- "1..*" Sensor : contains >
+WeatherStation "1" -- "1" Organization : managed by >
+WeatherStation "1" -- "1" GeographicRegion : located in >
+
+Sensor "1" -- "0..*" RawMeasurement : produces >
+
+DataIngestionModule "1" -- "1" DataNormalizationModule : uses >
+DataIngestionModule "1" -- "0..*" RawMeasurement : receives >
+
+DataNormalizationModule "1" -- "1" RawMeasurement : transforms >
+DataNormalizationModule "1" -- "1" NormalizedMeasurement : produces >
+
+Organization "1" -- "1" OrgType : has type >
+DataIngestionModule "1" -- "1" IngestionStatus : has status >
+
+' Notes '
+note top of EnvironmentalMonitoringPlatform : Accommodates high-volume data ingestion\nMaintains dependable operation
+note right of Sensor : Delivers measurements in proprietary formats
+note bottom of DataNormalizationModule : Required for proprietary formats
+note left of WeatherStation : Reporting intervals can vary between stations
+@enduml

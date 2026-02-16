@@ -1,0 +1,128 @@
+@startuml
+!theme plain
+
+' Define the main components of the platform
+class EnvironmentalMonitoringPlatform {
+    - platformId: String
+    - name: String
+    --
+    + startMonitoring()
+    + stopMonitoring()
+}
+
+' Represents a physical weather station
+class WeatherStation {
+    - stationId: String
+    - location: GeographicLocation
+    - currentReportingInterval: Duration
+    --
+    + requestSensorData(): RawTelemetry
+    + updateReportingInterval(newInterval: Duration)
+}
+
+' Represents a sensor within a weather station
+class Sensor {
+    - sensorId: String
+    - type: String
+    - model: String
+    - proprietaryFormat: String
+    --
+    + collectMeasurement(): RawMeasurement
+}
+
+' Represents a single measurement from a sensor
+class SensorReading {
+    - readingId: String
+    - value: Double
+    - unit: String
+    - timestamp: DateTime
+    - isNormalized: Boolean
+}
+
+' Represents the entities managing weather stations
+class Organization {
+    - organizationId: String
+    - name: String
+    - type: OrganizationType <<enum>>
+}
+
+' Represents the manufacturers of sensors
+class Manufacturer {
+    - manufacturerId: String
+    - name: String
+}
+
+' Service responsible for ingesting and normalizing data
+class DataIngestionService {
+    --
+    + ingestRawTelemetry(rawTelemetry: RawTelemetry)
+    + normalizeMeasurement(rawMeasurement: RawMeasurement): SensorReading
+}
+
+' Service responsible for communicating with weather stations
+class CommunicationService {
+    --
+    + initiateConnection(stationId: String)
+    + requestTelemetry(stationId: String): RawTelemetry
+    + disconnect(stationId: String)
+}
+
+' Storage for normalized sensor readings
+class TelemetryDataStore {
+    --
+    + storeSensorReading(reading: SensorReading)
+    + retrieveSensorReadings(query: Query): List<SensorReading>
+}
+
+' Enum for different types of organizations
+enum OrganizationType {
+    GOVERNMENT
+    ACADEMIC
+    INFRASTRUCTURE_OPERATOR
+}
+
+' Placeholder for raw data types
+class RawTelemetry << (D,orchid) Data >> {
+    - stationId: String
+    - rawMeasurements: List<RawMeasurement>
+    - timestamp: DateTime
+}
+
+class RawMeasurement << (D,orchid) Data >> {
+    - sensorId: String
+    - rawValue: String
+    - rawFormatIdentifier: String
+}
+
+' Relationships
+
+EnvironmentalMonitoringPlatform "1" -- "1" CommunicationService : uses >
+EnvironmentalMonitoringPlatform "1" -- "1" DataIngestionService : uses >
+EnvironmentalMonitoringPlatform "1" -- "1" TelemetryDataStore : uses >
+
+EnvironmentalMonitoringPlatform "1" -- "*" WeatherStation : monitors >
+
+WeatherStation "1" -- "*" Sensor : contains >
+WeatherStation "1" -- "1" Organization : managed by >
+WeatherStation "1" -- "*" RawTelemetry : generates >
+
+Sensor "1" -- "1" Manufacturer : produced by >
+Sensor "1" -- "*" RawMeasurement : produces >
+
+CommunicationService "1" -- "*" WeatherStation : communicates with >
+CommunicationService ..> RawTelemetry : requests
+
+DataIngestionService "1" -- "*" SensorReading : creates >
+DataIngestionService "1" -- "1" TelemetryDataStore : writes to >
+DataIngestionService ..> RawTelemetry : processes
+DataIngestionService ..> RawMeasurement : normalizes
+
+TelemetryDataStore "1" -- "*" SensorReading : stores >
+
+' Notes for additional context
+note top of EnvironmentalMonitoringPlatform : Accommodates high-volume data ingestion\nMaintains dependable operation\nAcross widely separated geographic regions
+note top of Sensor : Delivers measurements in proprietary formats
+note top of DataIngestionService : Responsible for parsing and normalizing\nproprietary sensor data formats
+note top of CommunicationService : Initiates communication with stations\nand requests data transmission
+note top of WeatherStation : Reporting intervals can vary\nand change over time
+@enduml

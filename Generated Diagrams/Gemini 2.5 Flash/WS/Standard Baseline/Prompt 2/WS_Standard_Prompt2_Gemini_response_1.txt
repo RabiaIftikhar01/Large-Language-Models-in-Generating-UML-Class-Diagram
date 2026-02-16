@@ -1,0 +1,112 @@
+@startuml
+!theme mars
+
+' Define Classes '
+class EnvironmentalMonitoringPlatform {
+    - platformId: String
+    - name: String
+    --
+    + requestData(stationId: String)
+    + ingestData(rawData: TelemetryData)
+    + manageOperations()
+}
+
+class WeatherStation {
+    - stationId: String
+    - name: String
+    - reportingInterval: Duration
+    --
+    + transmitData(): TelemetryData
+}
+
+class Sensor {
+    - sensorId: String
+    - type: String
+    - proprietaryFormatDescription: String
+    --
+    + generateMeasurement(): TelemetryData
+}
+
+class TelemetryData {
+    - dataId: String
+    - timestamp: DateTime
+    - rawValue: String
+    - normalizedValue: Double
+    - unit: String
+}
+
+class DataIngestionService {
+    - serviceId: String
+    --
+    + receiveRawData(rawData: TelemetryData)
+    + normalizeData(rawData: TelemetryData): TelemetryData
+    + storeNormalizedData(normalizedData: TelemetryData)
+}
+
+class DataStorage {
+    - storageId: String
+    - type: String
+    --
+    + save(data: TelemetryData)
+    + retrieve(query: String): List<TelemetryData>
+}
+
+class Organization {
+    - orgId: String
+    - name: String
+    - type: OrganizationType
+}
+
+enum OrganizationType {
+    Government
+    Academic
+    Infrastructure
+}
+
+class Manufacturer {
+    - manufacturerId: String
+    - name: String
+}
+
+class GeographicRegion {
+    - regionId: String
+    - name: String
+}
+
+class Location {
+    - latitude: Double
+    - longitude: Double
+}
+
+' Define Relationships '
+
+' Platform relationships '
+EnvironmentalMonitoringPlatform "1" -- "N" GeographicRegion : operates across >
+EnvironmentalMonitoringPlatform "1" -- "1" DataIngestionService : uses >
+EnvironmentalMonitoringPlatform "1" -- "1" DataStorage : manages >
+EnvironmentalMonitoringPlatform "1" -- "N" WeatherStation : monitors / requests data from >
+
+' WeatherStation relationships '
+WeatherStation "1" -- "1" Location : has >
+WeatherStation "1" -- "1" GeographicRegion : located in >
+WeatherStation "1" *-- "N" Sensor : contains
+WeatherStation "N" -- "1" Organization : managed by >
+WeatherStation "1" --> "N" TelemetryData : sends >
+
+' Sensor relationships '
+Sensor "N" -- "1" Manufacturer : produced by >
+Sensor "1" --> "N" TelemetryData : generates >
+
+' TelemetryData relationships '
+TelemetryData "N" -- "1" Sensor : originates from <
+TelemetryData "N" -- "1" WeatherStation : collected by <
+TelemetryData "N" -- "1" DataIngestionService : processed by <
+TelemetryData "N" -- "1" DataStorage : stored in <
+
+' Service relationships '
+DataIngestionService "1" --> "1" DataStorage : writes to >
+
+' Enum relationship '
+Organization "1" -- "1" OrganizationType : has type >
+
+@enduml

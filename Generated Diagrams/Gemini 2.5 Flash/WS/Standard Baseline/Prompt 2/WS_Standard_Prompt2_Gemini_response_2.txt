@@ -1,0 +1,88 @@
+@startuml
+!theme mars
+
+title Environmental Monitoring Platform - Class Diagram
+
+class EnvironmentalMonitoringPlatform {
+  -platformId: String
+  -name: String
+  +accommodateHighVolumeIngestion()
+  +maintainDependableOperationAcrossRegions()
+  +initiateCommunication(station: WeatherStation)
+  +requestDataTransmission(station: WeatherStation)
+}
+
+class WeatherStation {
+  -stationId: String
+  -location: String // e.g., "Lat: X, Lon: Y"
+  -reportingInterval: Duration // e.g., 1 hour, 30 minutes
+  +transmitData(): List<Measurement>
+}
+
+class Sensor {
+  -sensorId: String
+  -sensorType: String // e.g., "Temperature", "Humidity", "Pressure"
+  -proprietaryFormatDetails: String // e.g., "VendorX_FormatV2_JSON", "VendorY_Binary"
+  +readRawData(): String // Returns data in proprietary format
+}
+
+class Measurement {
+  -measurementId: String
+  -timestamp: DateTime
+  -rawValue: String
+  -normalizedValue: Double
+  -unit: String // e.g., "Celsius", "Percent", "hPa"
+  +isNormalized(): Boolean
+}
+
+class Organization {
+  -organizationId: String
+  -name: String
+  -type: OrganizationType
+}
+
+enum OrganizationType {
+  GovernmentBody
+  AcademicOrganization
+  InfrastructureOperator
+}
+
+class Manufacturer {
+  -manufacturerId: String
+  -name: String
+}
+
+class DataIngestionService {
+  +ingestRawTelemetry(rawReadings: Map<Sensor, String>): List<Measurement>
+}
+
+class DataNormalizationService {
+  +normalizeMeasurement(sensor: Sensor, rawValue: String): Measurement
+}
+
+EnvironmentalMonitoringPlatform "1" -- "*" WeatherStation : communicates with >
+WeatherStation "1" -- "*" Sensor : contains >
+Sensor "1" -- "*" Measurement : produces >
+Sensor "1" -- "1" Manufacturer : produced by >
+WeatherStation "1" -- "1" Organization : managed by >
+Organization "1" -- "1" OrganizationType : has type >
+
+EnvironmentalMonitoringPlatform ..> DataIngestionService : uses >
+DataIngestionService ..> DataNormalizationService : uses >
+DataNormalizationService ..> Measurement : creates >
+DataNormalizationService ..> Sensor : uses format details from >
+
+note "High-volume data ingestion" as N1
+EnvironmentalMonitoringPlatform .. N1
+
+note "Operates across widely separated geographic regions" as N2
+EnvironmentalMonitoringPlatform .. N2
+
+note "Sensor readings delivered once per hour,\nintervals can vary and change" as N3
+WeatherStation .. N3
+
+note "Proprietary formats require normalization" as N4
+Measurement .. N4
+Sensor .. N4
+
+@enduml

@@ -1,0 +1,106 @@
+@startuml
+!theme toy
+
+skinparam ClassAttributeIconStyle private
+skinparam class {
+    BorderColor #A3B18A
+    BackgroundColor #DAD7CD
+    ArrowColor #344E41
+    FontColor #344E41
+}
+skinparam Arrow {
+    Color #344E41
+}
+
+title Environmental Monitoring Platform UML Class Diagram
+
+package "Environmental Monitoring Platform" {
+
+    class EnvironmentalMonitoringSystem {
+        - name: String
+        - description: String
+        + requestData(stationId: String): void
+        + processTelemetry(data: RawMeasurement): void
+    }
+
+    class DataIngestionComponent {
+        - name: String
+        - ingestionCapacityGbPerHour: Integer
+        + ingest(rawMeasurement: RawMeasurement): void
+        + applyNormalization(rawMeasurement: RawMeasurement): NormalizedMeasurement
+    }
+
+    class NormalizationRule {
+        - ruleId: String
+        - sourceFormatIdentifier: String
+        - targetFormatIdentifier: String
+        - transformationLogic: String
+    }
+
+    class RawMeasurement {
+        - measurementId: String
+        - stationId: String
+        - sensorId: String
+        - timestamp: DateTime
+        - proprietaryData: String // The raw, proprietary format data
+        - manufacturerSpecificMetadata: Map<String, String>
+    }
+
+    class NormalizedMeasurement {
+        - measurementId: String
+        - stationId: String
+        - sensorId: String
+        - timestamp: DateTime
+        - sensorType: String // e.g., Temperature, Humidity, Pressure
+        - value: Double
+        - unit: String // e.g., Celsius, %, hPa
+    }
+
+    EnvironmentalMonitoringSystem "1" -- "1" DataIngestionComponent : uses >
+    DataIngestionComponent "1" -- "*" NormalizationRule : applies
+    RawMeasurement "1" -- "1" NormalizedMeasurement : transforms to >
+    DataIngestionComponent "1" -- "*" RawMeasurement : ingests
+    DataIngestionComponent "1" -- "*" NormalizedMeasurement : produces
+
+}
+
+package "External Entities" {
+
+    class WeatherStation {
+        - stationId: String
+        - location: String // e.g., GPS coordinates, address
+        - reportingInterval: String // e.g., "hourly", "30min", "variable"
+        - lastTransmissionTime: DateTime
+        + transmitData(): RawMeasurement
+    }
+
+    class Sensor {
+        - sensorId: String
+        - manufacturer: String
+        - model: String
+        - sensorType: String // e.g., Temperature, Humidity, WindSpeed
+        - proprietaryFormatDetails: String // Description or ID of the format
+        + generateReading(): RawMeasurement
+    }
+
+    class Organization {
+        - organizationId: String
+        - name: String
+        - type: String // e.g., Government, Academic, InfrastructureOperator
+    }
+
+    class GeographicRegion {
+        - regionName: String
+        - description: String
+    }
+
+    EnvironmentalMonitoringSystem "1" -- "*" GeographicRegion : operates across
+    EnvironmentalMonitoringSystem "1" -- "*" WeatherStation : monitors / requests data from
+    WeatherStation "1" -- "*" Sensor : contains
+    Sensor "1" -- "1" RawMeasurement : produces >
+    Organization "1" -- "*" WeatherStation : manages
+
+    WeatherStation "1" ..> RawMeasurement : "delivers"
+
+}
+@enduml

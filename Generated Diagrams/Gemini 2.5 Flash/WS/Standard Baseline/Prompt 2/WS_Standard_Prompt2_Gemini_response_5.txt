@@ -1,0 +1,98 @@
+@startuml
+!theme plain
+
+class EnvironmentalMonitoringPlatform {
+    - platformId: String
+    - name: String
+    + requestData(stationId: String)
+    + operateAcrossRegions()
+}
+
+class WeatherStation {
+    - stationId: String
+    - name: String
+    - location: String // e.g., "Lat, Lon, Geographic Region"
+    - currentReportingInterval: Duration
+    - lastReportTime: DateTime
+    + transmitData(measurements: List<Measurement>)
+}
+
+class Sensor {
+    - sensorId: String
+    - manufacturer: String
+    - model: String
+    - sensorType: String // e.g., Temperature, Humidity, Pressure
+    - measurementUnit: String
+    - proprietaryFormatDetails: String
+    + produceRawMeasurement(): Measurement
+}
+
+class Measurement {
+    - measurementId: String
+    - sensorId: String
+    - timestamp: DateTime
+    - rawValue: String // Proprietary format
+    - normalizedValue: String
+    - measurementType: String
+    - unit: String
+}
+
+class DataIngestionModule {
+    - moduleId: String
+    + ingestRawData(rawData: String): Measurement
+    + normalize(rawData: String): Measurement
+}
+
+class DataStorage {
+    - storageId: String
+    - type: String // e.g., TimeSeriesDB, ObjectStorage
+    + store(normalizedData: Measurement)
+    + retrieve(query: String): List<Measurement>
+}
+
+class Organization {
+    - organizationId: String
+    - name: String
+    - type: String // Government, Academic, Infrastructure Operator
+}
+
+' Relationships
+
+EnvironmentalMonitoringPlatform "1" -- "N" WeatherStation : manages >
+EnvironmentalMonitoringPlatform "1" -- "1" DataIngestionModule : utilizes >
+DataIngestionModule "1" -- "1" DataStorage : stores data in >
+
+WeatherStation "1" -- "N" Sensor : contains >
+WeatherStation "N" -- "1" Organization : is managed by <
+
+Sensor "1" -- "N" Measurement : produces >
+
+WeatherStation "1" ..> "N" Measurement : transmits >
+' This implies WeatherStation sends the measurements produced by its sensors.
+
+Measurement "N" -- "1" DataIngestionModule : processed by >
+
+' Notes for clarity
+note left of EnvironmentalMonitoringPlatform
+  Initiates communication with stations
+  Requests data transmission
+  Accommodates high-volume ingestion
+  Maintains dependable operation
+  across widely separated regions
+end note
+
+note right of DataIngestionModule
+  Handles proprietary formats
+  Performs normalization
+end note
+
+note bottom of WeatherStation
+  Reporting intervals vary
+  and can change over time
+end note
+
+note top of Sensor
+  Produced by various manufacturers
+end note
+
+@enduml

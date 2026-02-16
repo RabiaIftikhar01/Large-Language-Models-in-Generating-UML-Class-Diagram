@@ -1,0 +1,116 @@
+@startuml
+!theme plain
+
+' Define classes for the core entities and services
+class EnvironmentalMonitoringSystem {
+    - systemId: String
+    + initiateDataRequest(stationId: String)
+    + manageStation(station: WeatherStation)
+}
+
+class WeatherStation {
+    - stationId: String
+    - name: String
+    - location: String // e.g., "Lat: X, Lon: Y, Region: Z"
+    - currentReportingInterval: Duration
+    + transmitRawData(data: RawMeasurement[])
+}
+
+class Sensor {
+    - sensorId: String
+    - manufacturer: String
+    - model: String
+    - type: String // e.g., Temperature, Humidity, Pressure
+    - proprietaryFormatDescription: String
+}
+
+' Represents data in its original, proprietary format
+class RawMeasurement {
+    - rawDataPayload: String // The actual proprietary data string/byte array
+    - timestamp: DateTime
+    - sensorId: String
+    - stationId: String
+}
+
+' Represents data after normalization into a common format
+class Measurement {
+    - measurementId: String
+    - value: Double
+    - unit: String
+    - timestamp: DateTime
+    - sensorId: String
+    - stationId: String
+    - normalizedFormatVersion: String
+}
+
+class Organization {
+    - organizationId: String
+    - name: String
+    - type: OrganizationType
+}
+
+enum OrganizationType {
+    Government
+    Academic
+    InfrastructureOperator
+}
+
+class DataIngestionService {
+    + receiveRawTelemetry(rawData: RawMeasurement[])
+    - handleHighVolume: Boolean
+}
+
+class DataNormalizationService {
+    + normalize(rawData: RawMeasurement): Measurement
+}
+
+' Define relationships between classes
+
+' System manages stations
+EnvironmentalMonitoringSystem "1" -- "*" WeatherStation : manages >
+
+' Stations contain sensors
+WeatherStation "1" -- "*" Sensor : contains >
+
+' Stations are owned by organizations
+WeatherStation "1" -- "1" Organization : owned by >
+
+' Sensors produce raw measurements
+Sensor "1" -- "0..*" RawMeasurement : produces >
+
+' Weather stations deliver raw measurements to the system
+WeatherStation "1" -- "0..*" RawMeasurement : delivers >
+
+' The system uses the data ingestion service
+EnvironmentalMonitoringSystem "1" -- "1" DataIngestionService : uses >
+
+' The data ingestion service uses the data normalization service
+DataIngestionService "1" -- "1" DataNormalizationService : uses >
+
+' Data flow:
+' DataIngestionService receives RawMeasurements
+DataIngestionService "1" <-- "0..*" RawMeasurement : receives
+
+' DataNormalizationService transforms RawMeasurements
+DataNormalizationService "1" <-- "1" RawMeasurement : transforms
+
+' DataNormalizationService creates Measurements from transformed data
+DataNormalizationService "1" --> "1" Measurement : creates
+
+' Add notes for specific requirements and characteristics
+
+note "Accommodates high-volume data ingestion" as N_Volume
+DataIngestionService .. N_Volume
+
+note "Maintains dependable operation\nacross widely separated geographic regions" as N_Dependability
+EnvironmentalMonitoringSystem .. N_Dependability
+
+note "Sensors deliver measurements\nin proprietary formats that require normalization" as N_Proprietary
+Sensor .. N_Proprietary
+RawMeasurement .. N_Proprietary
+DataNormalizationService .. N_Proprietary
+
+note "Reporting intervals can vary\nbetween stations and change over time" as N_Interval
+WeatherStation .. N_Interval
+
+@enduml

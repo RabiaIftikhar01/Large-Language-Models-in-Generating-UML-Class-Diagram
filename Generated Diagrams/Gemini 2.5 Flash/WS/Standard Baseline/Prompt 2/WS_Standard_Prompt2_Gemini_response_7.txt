@@ -1,0 +1,91 @@
+@startuml
+!pragma layout smetana
+
+' Define classes
+class EnvironmentalMonitoringSystem {
+    + initiateCommunication(station: WeatherStation)
+    + requestData(station: WeatherStation)
+    + processNormalizedData(data: NormalizedMeasurement)
+}
+
+class WeatherStation {
+    + stationId: String
+    + location: GeographicLocation
+    + reportingInterval: Duration
+    --
+    + transmitRawData(): RawMeasurement[]
+}
+
+class Sensor {
+    + sensorId: String
+    + manufacturer: String
+    + model: String
+    + sensorType: String
+    + proprietaryFormatDetails: String
+    --
+    + readRawData(): RawMeasurement
+}
+
+class RawMeasurement {
+    + rawValue: String
+    + timestamp: DateTime
+    + sensorId: String
+    + stationId: String
+}
+
+class NormalizedMeasurement {
+    + value: Double
+    + unit: String
+    + sensorType: String
+    + timestamp: DateTime
+    + stationId: String
+    + sensorId: String
+}
+
+class DataIngestionService {
+    + ingestRawData(data: RawMeasurement[])
+    + routeForNormalization(data: RawMeasurement)
+}
+
+class NormalizationService {
+    + normalize(rawData: RawMeasurement): NormalizedMeasurement
+}
+
+class GeographicRegion {
+    + regionName: String
+    + description: String
+}
+
+class Organization {
+    + organizationName: String
+    + organizationType: String <<enum>>
+}
+
+' Define relationships
+
+' System and its components/deployment
+EnvironmentalMonitoringSystem "1" *-- "1..*" GeographicRegion : operates in >
+EnvironmentalMonitoringSystem "1" o-- "1" DataIngestionService : uses >
+EnvironmentalMonitoringSystem "1" --> "1..*" WeatherStation : requests data from >
+
+' Data flow and processing
+WeatherStation "1" *-- "1..*" Sensor : contains >
+Sensor "1" --> "1" RawMeasurement : produces >
+
+WeatherStation "1" --> "1" DataIngestionService : transmits raw data to >
+DataIngestionService "1" o-- "1" NormalizationService : utilizes >
+RawMeasurement "1" --> "1" NormalizationService : submitted to >
+NormalizationService "1" --> "1" NormalizedMeasurement : produces >
+DataIngestionService "1" --> "1" NormalizedMeasurement : stores/forwards >
+
+' Management
+Organization "1..*" --> "1..*" WeatherStation : manages >
+
+' Notes/Stereotypes
+note left of EnvironmentalMonitoringSystem : Distributed Platform\nfor Environmental Monitoring
+note right of DataIngestionService : Accommodates high-volume\ndata ingestion
+note right of NormalizationService : Converts proprietary\nformats to standard
+note top of WeatherStation : Thousands of stations\nwith varying reporting intervals
+note top of Sensor : Mix of manufacturers\nand proprietary formats
+
+@enduml

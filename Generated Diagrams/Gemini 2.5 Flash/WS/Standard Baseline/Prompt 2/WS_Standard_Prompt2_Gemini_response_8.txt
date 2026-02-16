@@ -1,0 +1,113 @@
+@startuml
+!theme mars
+
+' Classes
+class EnvironmentalMonitoringPlatform {
+    - platformName: String
+    + initiateDataRequest(stationId: String)
+    + receiveRawTelemetry(rawMeasurement: RawMeasurement)
+    + ensureDependableOperation()
+}
+
+class GeographicRegion {
+    - regionId: String
+    - name: String
+    - coverageArea: String
+}
+
+class WeatherStation {
+    - stationId: String
+    - location: String
+    - currentReportingInterval: Duration
+    - lastTransmissionTime: DateTime
+    + transmitData(): RawMeasurement[]
+}
+
+class Sensor {
+    - sensorId: String
+    - manufacturer: String
+    - model: String
+    - proprietaryFormatIdentifier: String
+    + generateRawMeasurement(): RawMeasurement
+}
+
+class RawMeasurement {
+    - measurementId: String
+    - sensorId: String
+    - timestamp: DateTime
+    - rawData: byte[]
+    - formatVersion: String
+}
+
+class NormalizedMeasurement {
+    - measurementId: String
+    - sensorId: String
+    - timestamp: DateTime
+    - normalizedData: Map<String, Object>
+    - units: Map<String, String>
+}
+
+class DataIngestionService {
+    - maxIngestionRate: Long // e.g., measurements/second
+    + ingest(rawMeasurement: RawMeasurement)
+    + bufferAndRoute(rawMeasurement: RawMeasurement)
+}
+
+class DataNormalizationService {
+    + normalize(rawMeasurement: RawMeasurement): NormalizedMeasurement
+    + registerFormat(formatId: String, strategy: NormalizationStrategy)
+}
+
+abstract class StationManager {
+    - managerId: String
+    - name: String
+    + manageStation(station: WeatherStation)
+}
+
+class GovernmentBody extends StationManager {
+    - departmentName: String
+}
+
+class AcademicOrganization extends StationManager {
+    - institutionName: String
+    - researchFocus: String
+}
+
+class InfrastructureOperator extends StationManager {
+    - operatorType: String
+    - serviceArea: String
+}
+
+interface NormalizationStrategy {
+    + apply(rawData: byte[], formatVersion: String): Map<String, Object>
+}
+
+' Relationships
+
+EnvironmentalMonitoringPlatform "1" -- "1" DataIngestionService : uses >
+EnvironmentalMonitoringPlatform "1" -- "1..*" GeographicRegion : operates across >
+EnvironmentalMonitoringPlatform "1" -- "*" WeatherStation : initiates communication with >
+
+DataIngestionService "1" -- "1" DataNormalizationService : routes to >
+DataIngestionService "1" -- "*" RawMeasurement : ingests >
+
+DataNormalizationService "1" -- "*" RawMeasurement : transforms >
+DataNormalizationService "1" -- "*" NormalizedMeasurement : produces >
+DataNormalizationService "1" -- "1..*" NormalizationStrategy : uses >
+
+WeatherStation "1" -- "1..*" Sensor : contains >
+WeatherStation "1" -- "1" StationManager : is managed by >
+
+Sensor "1" -- "*" RawMeasurement : generates >
+
+RawMeasurement "1" -- "1" Sensor : from >
+NormalizedMeasurement "1" -- "1" Sensor : from >
+
+' Notes for clarification
+note right of EnvironmentalMonitoringPlatform : Accommodates high-volume data ingestion\nMaintains dependable operation across regions
+note right of DataNormalizationService : Handles proprietary formats\nRequires specific strategies for each format
+note right of WeatherStation : Reporting intervals vary between stations\nand may change over time
+note right of RawMeasurement : Delivered in proprietary formats
+note right of NormalizedMeasurement : Standardized format for analysis and storage
+
+@enduml
