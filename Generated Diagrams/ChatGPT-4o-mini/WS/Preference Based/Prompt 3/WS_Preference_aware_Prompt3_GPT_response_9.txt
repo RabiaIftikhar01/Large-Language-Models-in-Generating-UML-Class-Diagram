@@ -1,0 +1,32 @@
+```plantuml
+@startuml
+abstract class WeatherStation {
+    - id : int
+    - location : string
+    + requestData() : void
+}
+
+class Sensor {
+    - id : int
+    - type : string
+    + readData() : Measurement
+}
+
+class Measurement {
+    - value : float
+    - unit : string
+    + getValue() : float
+    + getUnit() : string
+}
+
+class WeatherInfoSystem {
+    - stations : List<WeatherStation>
+    + linkStation(station : WeatherStation) : void
+    + receiveData(data : Measurement) : void
+}
+
+WeatherStation "1" o-- "*" Sensor : contains
+WeatherStation --> WeatherInfoSystem : requests data
+WeatherInfoSystem --> Measurement : receives
+@enduml
+```
