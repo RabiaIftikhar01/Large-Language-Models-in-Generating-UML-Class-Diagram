@@ -1,0 +1,132 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+interface BillingStrategy {
+  + calculateBill(patient: Patient, charges: List<Charge>): Invoice
+}
+
+class InsuredBillingStrategy {
+  - coveragePercentage: double
+  - copayAmount: double
+  - reimbursementThreshold: double
+  + calculateBill(patient: Patient, charges: List<Charge>): Invoice
+}
+
+class GovernmentSubsidyBillingStrategy {
+  - subsidyAmount: double
+  - fixedRates: Map<String, double>
+  + calculateBill(patient: Patient, charges: List<Charge>): Invoice
+}
+
+class SelfPayBillingStrategy {
+  + calculateBill(patient: Patient, charges: List<Charge>): Invoice
+}
+
+class Patient {
+  - patientId: String
+  - name: String
+  - category: PatientCategory
+  - billingStrategy: BillingStrategy
+  + setBillingStrategy(strategy: BillingStrategy): void
+  + getBillingStrategy(): BillingStrategy
+}
+
+enum PatientCategory {
+  INSURED
+  GOVERNMENT_BENEFICIARY
+  SELF_PAY
+}
+
+abstract class Charge {
+  # chargeId: String
+  # description: String
+  # baseAmount: double
+  + {abstract} calculateAmount(): double
+  + getDescription(): String
+  + getBaseAmount(): double
+}
+
+class MedicalProcedureCharge {
+  - procedureCode: String
+  - complexity: String
+  + calculateAmount(): double
+}
+
+class MedicationCharge {
+  - medicationName: String
+  - quantity: int
+  - unitPrice: double
+  + calculateAmount(): double
+}
+
+class DiagnosticServiceCharge {
+  - serviceType: String
+  - equipmentUsed: String
+  + calculateAmount(): double
+}
+
+class AccommodationCharge {
+  - roomType: String
+  - numberOfDays: int
+  - dailyRate: double
+  + calculateAmount(): double
+}
+
+class Invoice {
+  - invoiceId: String
+  - patient: Patient
+  - charges: List<Charge>
+  - totalAmount: double
+  - coveredAmount: double
+  - patientResponsibility: double
+  - generatedDate: Date
+  + addCharge(charge: Charge): void
+  + calculateTotal(): void
+  + getInvoiceDetails(): String
+}
+
+class BillingPolicyManager {
+  - policies: Map<PatientCategory, BillingStrategy>
+  + registerPolicy(category: PatientCategory, strategy: BillingStrategy): void
+  + getPolicy(category: PatientCategory): BillingStrategy
+  + updatePolicy(category: PatientCategory, strategy: BillingStrategy): void
+}
+
+class InvoiceCalculator {
+  - policyManager: BillingPolicyManager
+  + generateInvoice(patient: Patient, charges: List<Charge>): Invoice
+  + applyBillingPolicy(patient: Patient, charges: List<Charge>): Invoice
+}
+
+class PricingModule {
+  - pricingRules: Map<String, double>
+  + getPriceForService(serviceCode: String): double
+  + updatePricing(serviceCode: String, price: double): void
+}
+
+BillingStrategy <|.. InsuredBillingStrategy
+BillingStrategy <|.. GovernmentSubsidyBillingStrategy
+BillingStrategy <|.. SelfPayBillingStrategy
+
+Patient --> BillingStrategy
+Patient --> PatientCategory
+
+Charge <|-- MedicalProcedureCharge
+Charge <|-- MedicationCharge
+Charge <|-- DiagnosticServiceCharge
+Charge <|-- AccommodationCharge
+
+Invoice --> Patient
+Invoice --> Charge
+
+InvoiceCalculator --> BillingPolicyManager
+InvoiceCalculator --> Invoice
+InvoiceCalculator --> Patient
+InvoiceCalculator --> Charge
+
+BillingPolicyManager --> BillingStrategy
+BillingPolicyManager --> PatientCategory
+
+PricingModule ..> Charge
+
+@enduml
