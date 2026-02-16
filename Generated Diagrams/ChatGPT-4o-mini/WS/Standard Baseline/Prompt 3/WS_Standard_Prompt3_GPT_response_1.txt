@@ -1,0 +1,39 @@
+@startuml
+
+class WeatherStation {
+    +id: String
+    +location: String
+    +sensorData: List<SensorData>
+    +requestData(): void
+}
+
+class Sensor {
+    +id: String
+    +type: String
+    +unit: String
+    +getData(): SensorData
+}
+
+class SensorData {
+    +timestamp: Date
+    +value: float
+    +format: String
+}
+
+class WeatherInformationSystem {
+    +stations: List<WeatherStation>
+    +ingestData(station: WeatherStation): void
+    +normalizeData(data: SensorData): NormalizedData
+}
+
+class NormalizedData {
+    +timestamp: Date
+    +value: float
+    +unit: String
+}
+
+WeatherStation "1" -- "*" Sensor : contains >
+WeatherStation "1" -- "*" SensorData : reports >
+WeatherInformationSystem "1" -- "*" WeatherStation : monitors >
+
+@enduml
