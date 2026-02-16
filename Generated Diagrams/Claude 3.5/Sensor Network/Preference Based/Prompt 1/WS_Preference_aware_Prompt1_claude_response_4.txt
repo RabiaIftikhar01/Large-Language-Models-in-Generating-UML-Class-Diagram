@@ -1,0 +1,85 @@
+@startuml
+abstract class Sensor {
+    - id : string
+    - manufacturer : string
+    + {abstract} readData() : string
+    + getId() : string
+    + getManufacturer() : string
+}
+
+class TemperatureSensor extends Sensor {
+    + readData() : string
+}
+
+class HumiditySensor extends Sensor {
+    + readData() : string
+}
+
+class PressureSensor extends Sensor {
+    + readData() : string
+}
+
+abstract class DataNormalizer {
+    + {abstract} normalize(rawData : string) : TelemetryData
+}
+
+class TemperatureNormalizer extends DataNormalizer {
+    + normalize(rawData : string) : TelemetryData
+}
+
+class HumidityNormalizer extends DataNormalizer {
+    + normalize(rawData : string) : TelemetryData
+}
+
+class PressureNormalizer extends DataNormalizer {
+    + normalize(rawData : string) : TelemetryData
+}
+
+class TelemetryData {
+    - timestamp : datetime
+    - value : float
+    - unit : string
+    - stationId : string
+    + getTimestamp() : datetime
+    + getValue() : float
+    + getUnit() : string
+    + getStationId() : string
+}
+
+class WeatherStation {
+    - id : string
+    - location : string
+    - operatorType : string
+    - transmissionFrequency : int
+    - sensors : List<Sensor>
+    + getId() : string
+    + getLocation() : string
+    + addSensor(s : Sensor)
+    + removeSensor(s : Sensor)
+    + collectData() : List<string>
+    + setTransmissionFrequency(freq : int)
+    + getTransmissionFrequency() : int
+}
+
+class DataIngestionService {
+    - static instance : DataIngestionService
+    + getInstance() : DataIngestionService
+    + ingestData(data : List<TelemetryData>)
+    + processRawData(rawData : string, normalizer : DataNormalizer) : TelemetryData
+}
+
+class WeatherInformationSystem {
+    - stations : List<WeatherStation>
+    + addStation(station : WeatherStation)
+    + removeStation(station : WeatherStation)
+    + requestData(station : WeatherStation)
+    + receiveData(stationId : string, rawData : List<string>)
+}
+
+WeatherStation o-- Sensor
+WeatherInformationSystem o-- WeatherStation
+WeatherInformationSystem --> DataIngestionService
+DataIngestionService --> DataNormalizer
+DataIngestionService --> TelemetryData
+DataNormalizer ..> TelemetryData
+@enduml
