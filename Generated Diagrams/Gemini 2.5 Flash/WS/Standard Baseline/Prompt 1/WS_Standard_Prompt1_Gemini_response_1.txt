@@ -1,0 +1,96 @@
+@startuml
+' Set a more modern theme
+!theme mars
+
+' Classes representing the core entities and components
+class WeatherStation {
+    - stationId: String
+    - location: String
+    - dataFrequency: String
+    + getSensorData(): List<RawMeasurement>
+}
+
+class Sensor {
+    - sensorId: String
+    - manufacturer: String
+    - model: String
+    - type: String
+    + readMeasurement(): RawMeasurement
+}
+
+class RawMeasurement {
+    - sensorId: String
+    - stationId: String
+    - timestamp: DateTime
+    - rawValue: String
+    - nativeUnit: String
+    - nativeFormat: String
+}
+
+class NormalizedMeasurement {
+    - sensorId: String
+    - stationId: String
+    - timestamp: DateTime
+    - normalizedValue: Double
+    - standardUnit: String
+}
+
+class WeatherInformationSystem {
+    + establishLink(stationId: String)
+    + requestData(stationId: String)
+    + receiveData(stationId: String, data: List<RawMeasurement>)
+    + aggregateTelemetry(): List<NormalizedMeasurement>
+}
+
+class DataIngestionService {
+    + ingest(rawMeasurements: List<RawMeasurement>): void
+    - ensureReliability(): void
+    - handleScale(): void
+}
+
+class NormalizationService {
+    + normalize(rawMeasurement: RawMeasurement): NormalizedMeasurement
+}
+
+' Relationships between classes
+WeatherStation "1" -- "1..*" Sensor : hosts >
+Sensor "1" -- "0..*" RawMeasurement : reports >
+
+WeatherInformationSystem "1" -- "1..*" WeatherStation : interacts with >
+WeatherInformationSystem "1" -- "1" DataIngestionService : uses >
+
+DataIngestionService "1" -- "0..*" RawMeasurement : processes >
+DataIngestionService "1" -- "1" NormalizationService : delegates to >
+
+NormalizationService ..> RawMeasurement : <<input>>
+NormalizationService ..> NormalizedMeasurement : <<output>>
+
+DataIngestionService "1" ..> NormalizedMeasurement : stores >
+
+WeatherInformationSystem "1" -- "0..*" NormalizedMeasurement : aggregates >
+
+' Package to group internal system components
+package "Distributed Environmental Monitoring Platform" {
+    WeatherInformationSystem
+    DataIngestionService
+    NormalizationService
+    NormalizedMeasurement
+}
+
+' Notes to add context from the scenario
+note "Thousands of stations,\ngeographically dispersed" as N1
+WeatherStation .. N1
+
+note "Heterogeneous sensors,\ndifferent manufacturers" as N2
+Sensor .. N2
+
+note "Measurements in native formats,\nmust be normalized upon ingestion" as N3
+RawMeasurement .. N3
+
+note "Supports large-scale data ingestion\nwhile ensuring reliability" as N4
+DataIngestionService .. N4
+
+note "Data sent hourly (frequency may differ\nand be modified in the future)" as N5
+WeatherStation .. N5
+
+@enduml

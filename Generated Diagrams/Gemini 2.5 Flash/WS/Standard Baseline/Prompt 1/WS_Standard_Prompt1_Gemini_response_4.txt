@@ -1,0 +1,108 @@
+@startuml
+!theme plain
+
+' Abstract base for Measurements
+abstract class Measurement {
+    + timestamp: DateTime
+    + sensorId: String
+    + stationId: String
+}
+
+' Represents raw, unnormalized data from a sensor
+class RawMeasurement extends Measurement {
+    + rawValue: String // Or Object to represent heterogeneous native data
+    + rawUnit: String
+    + nativeFormat: String
+}
+
+' Represents normalized data, ready for processing/storage
+class NormalizedMeasurement extends Measurement {
+    + value: Double
+    + unit: String
+    + dataType: String // e.g., "Temperature", "Pressure"
+}
+
+' Represents a single sensor within a weather station
+class Sensor {
+    + sensorId: String
+    + type: String // e.g., "Temperature", "Humidity"
+    + manufacturer: String
+    + nativeFormat: String // Format of data reported by this sensor
+    --
+    + generateRawMeasurement(): RawMeasurement
+}
+
+' Represents a physical weather station
+class WeatherStation {
+    + stationId: String
+    + location: String
+    + reportingFrequency: Duration
+    + lastDataTransmission: DateTime
+    --
+    + transmitData(): RawMeasurement[]
+}
+
+' Represents an entity operating weather stations
+class StationOperator {
+    + operatorId: String
+    + name: String
+    + type: String // e.g., "Government Agency", "Research Institution", "Infrastructure Provider"
+}
+
+' The overall distributed monitoring platform
+class EnvironmentalMonitoringPlatform {
+    + name: String
+    + deploymentRegion: String
+    --
+    + aggregateTelemetry(): void
+    + ensureReliability(): void
+}
+
+' Component responsible for communication with stations and data request
+class WeatherInformationSystem {
+    + systemId: String
+    + status: String
+    --
+    + establishLink(stationId: String): void
+    + requestData(stationId: String): void
+    + receiveRawData(data: RawMeasurement[]): void
+}
+
+' Service for handling large-scale data ingestion
+class DataIngestionService {
+    + scale: String
+    + reliability: String
+    --
+    + ingestRawData(data: RawMeasurement[]): void
+}
+
+' Service for converting raw data to a standard, normalized format
+class DataNormalizationService {
+    + supportedFormats: String[]
+    --
+    + normalize(raw: RawMeasurement): NormalizedMeasurement
+}
+
+' --- Relationships ---
+
+EnvironmentalMonitoringPlatform "1" -- "1" WeatherInformationSystem : manages >
+EnvironmentalMonitoringPlatform "1" -- "1" DataIngestionService : manages >
+EnvironmentalMonitoringPlatform "1" -- "1" DataNormalizationService : manages >
+
+WeatherInformationSystem "1" -- "*" WeatherStation : links with / requests data from >
+WeatherStation "1" -- "*" Sensor : hosts >
+
+StationOperator "1" -- "*" WeatherStation : operates >
+
+' Data flow dependencies
+WeatherStation "1" ..> "1..*" RawMeasurement : transmits >
+Sensor "1" ..> "1" RawMeasurement : generates >
+
+WeatherInformationSystem "1" ..> "1..*" RawMeasurement : receives >
+DataIngestionService "1" ..> "1..*" RawMeasurement : ingests >
+
+DataIngestionService "1" -- "1" DataNormalizationService : forwards data to >
+DataNormalizationService "1" ..> "1" RawMeasurement : uses (input)
+DataNormalizationService "1" ..> "1" NormalizedMeasurement : produces (output)
+
+@enduml

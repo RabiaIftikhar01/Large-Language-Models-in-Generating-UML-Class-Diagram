@@ -1,0 +1,80 @@
+@startuml
+!theme plain
+
+package "Distributed Environmental Monitoring Platform" {
+
+    class WeatherInformationSystem {
+        - dataRequestScheduler: Scheduler
+        + initiateDataRequest(stationId: String)
+        + receiveTelemetry(measurements: List<NativeMeasurement>)
+    }
+
+    class DataIngestionService {
+        + ingest(measurements: List<NativeMeasurement>): List<NormalizedMeasurement>
+    }
+
+    class NormalizationService {
+        + normalize(nativeMeasurement: NativeMeasurement): NormalizedMeasurement
+    }
+
+    class DataStorageService {
+        + store(normalizedMeasurements: List<NormalizedMeasurement>)
+    }
+
+    WeatherInformationSystem "1" -- "1" DataIngestionService : uses >
+    DataIngestionService "1" -- "1" NormalizationService : uses >
+    DataIngestionService "1" -- "1" DataStorageService : stores data in >
+}
+
+class WeatherStation {
+    - stationId: String
+    - location: String
+    - operatorType: String // e.g., Government, Research, Infrastructure
+    - dataFrequency: Duration // e.g., PT1H (1 hour), configurable
+    + collectAndTransmitData(): List<NativeMeasurement>
+}
+
+class Sensor {
+    - sensorId: String
+    - manufacturer: String
+    - sensorType: String // e.g., Temperature, Humidity, Pressure
+    - nativeFormatSpec: String // e.g., "JSON_V1_TempSensorXYZ", "XML_Barometer_V2"
+    + readNativeMeasurement(): NativeMeasurement
+}
+
+class NativeMeasurement {
+    - measurementId: String
+    - sensorId: String
+    - timestamp: DateTime
+    - rawData: String // Represents the data in its native format (e.g., JSON string, XML string)
+    - nativeFormatSpec: String // Reference to the format specification
+}
+
+class NormalizedMeasurement {
+    - measurementId: String
+    - stationId: String
+    - sensorId: String
+    - timestamp: DateTime
+    - value: Double
+    - unit: String // e.g., "Celsius", "hPa", "%"
+    - measurementType: String // e.g., "Temperature", "Pressure", "Humidity"
+}
+
+' Relationships between external entities and platform components
+WeatherInformationSystem "1" -- "*" WeatherStation : requests data from
+WeatherStation ..> WeatherInformationSystem : transmits data to
+
+' Internal relationships of WeatherStation and Sensor
+WeatherStation "1" -- "*" Sensor : hosts
+Sensor ..> NativeMeasurement : creates
+
+' Data flow dependencies within the platform
+WeatherInformationSystem ..> NativeMeasurement : receives
+DataIngestionService ..> NativeMeasurement : consumes
+NormalizationService ..> NativeMeasurement : consumes
+NormalizationService ..> NormalizedMeasurement : produces
+DataIngestionService ..> NormalizedMeasurement : processes
+DataStorageService ..> NormalizedMeasurement : stores
+
+hide circle
+@enduml

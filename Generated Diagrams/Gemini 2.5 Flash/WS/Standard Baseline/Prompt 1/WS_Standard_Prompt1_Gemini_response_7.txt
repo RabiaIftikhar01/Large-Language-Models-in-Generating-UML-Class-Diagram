@@ -1,0 +1,84 @@
+@startuml
+!theme plain
+
+class WeatherStation {
+    - stationId: String
+    - location: String // e.g., "latitude,longitude"
+    - currentTransmissionFrequency: Duration
+    + transmitData(): List<RawMeasurement>
+}
+
+class Sensor {
+    - sensorId: String
+    - manufacturer: String
+    - model: String
+    - type: String // e.g., "Temperature", "Humidity", "Pressure"
+    - nativeFormatDescription: String // Describes the structure/encoding of raw data
+    + generateRawMeasurement(): RawMeasurement
+}
+
+class RawMeasurement {
+    - measurementId: String
+    - sensorId: String
+    - timestamp: DateTime
+    - rawValue: String // Heterogeneous native format data (e.g., JSON, XML, binary blob)
+    - nativeUnit: String
+}
+
+class NormalizedMeasurement {
+    - measurementId: String
+    - sensorId: String
+    - timestamp: DateTime
+    - value: Double
+    - unit: String
+    - measurementType: String // e.g., "Temperature", "Humidity"
+}
+
+class WeatherInformationSystem {
+    - systemId: String
+    + establishLink(station: WeatherStation)
+    + requestData(station: WeatherStation): List<RawMeasurement>
+    + ingestData(rawData: List<RawMeasurement>)
+}
+
+class NormalizationEngine {
+    + normalize(raw: RawMeasurement): NormalizedMeasurement
+}
+
+class Operator {
+    - operatorId: String
+    - name: String
+    - type: OperatorType
+}
+
+enum OperatorType {
+    GovernmentAgency
+    ResearchInstitution
+    InfrastructureProvider
+}
+
+WeatherStation "1" -- "*" Sensor : hosts >
+Sensor "1" -- "0..*" RawMeasurement : produces >
+
+WeatherInformationSystem "1" -- "1..*" WeatherStation : requests/receives from >
+WeatherInformationSystem "1" -- "1" NormalizationEngine : uses >
+
+RawMeasurement "1" -- "1" NormalizedMeasurement : is normalized into >
+
+Operator "1" -- "*" WeatherStation : operates >
+
+note left of WeatherInformationSystem
+  Handles establishing links,
+  requesting data, and managing
+  ingestion frequency.
+end note
+
+note right of NormalizationEngine
+  Converts heterogeneous native
+  sensor data formats into a
+  standardized, usable format.
+end note
+
+note "The Distributed Environmental Monitoring Platform is the overarching system that integrates the WeatherInformationSystem, NormalizationEngine, and data storage (not explicitly modeled)." as PlatformNote
+
+@enduml

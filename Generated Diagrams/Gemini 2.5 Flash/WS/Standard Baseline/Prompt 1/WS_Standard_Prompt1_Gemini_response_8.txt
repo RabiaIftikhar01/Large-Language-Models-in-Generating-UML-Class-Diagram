@@ -1,0 +1,76 @@
+@startuml
+package "Distributed Environmental Monitoring Platform" {
+
+  class WeatherInformationSystem {
+    + requestData(stationId: String): void
+    + receiveAndIngest(rawData: TelemetryData): void
+    + normalizeData(rawData: TelemetryData): NormalizedTelemetryData
+    --
+    - dataIngestionQueue: Queue<TelemetryData>
+  }
+
+  class WeatherStation {
+    + stationId: String
+    + name: String
+    + location: String
+    + dataTransmissionFrequency: Duration
+    + collectAndSendData(): TelemetryData
+  }
+
+  class Sensor {
+    + sensorId: String
+    + manufacturer: String
+    + model: String
+    + serialNumber: String
+    + nativeDataFormat: String
+    + readRawMeasurement(): String
+  }
+
+  class TelemetryData {
+    + rawValue: String
+    + rawUnit: String
+    + timestamp: DateTime
+    + sensorId: String
+    + stationId: String
+    + dataTypeHint: String
+  }
+
+  class NormalizedTelemetryData {
+    + value: Double
+    + unit: String
+    + timestamp: DateTime
+    + sensorId: String
+    + stationId: String
+    + measurementType: String
+    + qualityFlags: List<String>
+  }
+
+  class Operator {
+    + operatorId: String
+    + name: String
+    + type: OperatorType <<enum>>
+  }
+
+  enum OperatorType {
+    GovernmentAgency
+    ResearchInstitution
+    InfrastructureProvider
+  }
+
+  WeatherInformationSystem "1" -- "*" WeatherStation : requests/receives data from >
+  WeatherStation "1" -- "*" Sensor : hosts >
+  Sensor "1" ..> TelemetryData : generates >
+  WeatherStation "1" ..> TelemetryData : sends >
+  WeatherInformationSystem "1" ..> TelemetryData : processes >
+  WeatherInformationSystem "1" ..> NormalizedTelemetryData : creates >
+
+  Operator "1" -- "*" WeatherStation : operates >
+
+  note left of WeatherInformationSystem : Supports large-scale data ingestion\nEnsures reliability\nPerforms data normalization
+  note right of WeatherStation : Thousands of stations\nGeographically dispersed\nConfigurable data transmission frequency
+  note right of Sensor : Heterogeneous sensors\nFrom different manufacturers\nReports measurements in native formats
+  note right of TelemetryData : Raw measurement data
+  note right of NormalizedTelemetryData : Standardized and normalized data
+
+}
+@endumml

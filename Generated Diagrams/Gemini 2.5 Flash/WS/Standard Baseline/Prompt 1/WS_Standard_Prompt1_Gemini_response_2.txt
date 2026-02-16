@@ -1,0 +1,81 @@
+@startuml
+!theme plain
+
+' Classes representing the components of the distributed environmental monitoring platform
+
+class EnvironmentalMonitoringPlatform {
+    + aggregateTelemetry()
+    --
+    // Orchestrates data flow and processing
+}
+
+class WeatherStation {
+    - stationId: String
+    - location: String
+    - dataSendFrequency: Duration
+    --
+    + collectSensorData(): SensorData
+    + transmitData(WIS): void
+}
+
+class Sensor {
+    - sensorId: String
+    - manufacturer: String
+    - type: String
+    - nativeFormatDescription: String
+    --
+    + readRawValue(): String
+}
+
+class Measurement {
+    - measurementId: String
+    - timestamp: DateTime
+    - rawValue: String
+    - unit: String
+    - normalizedValue: Double
+    --
+    + normalize(): void
+}
+
+class SensorData {
+    - dataId: String
+    - stationId: String
+    - collectionTimestamp: DateTime
+    --
+    // A collection of measurements from a station at a given time
+}
+
+class WeatherInformationSystem {
+    - systemId: String
+    --
+    + establishLink(WeatherStation): void
+    + requestData(WeatherStation): void
+    + receiveSensorData(SensorData): void
+    + forwardToIngestion(SensorData): void
+}
+
+class DataIngestionService {
+    - serviceId: String
+    --
+    + ingest(SensorData): void
+    + applyNormalization(Measurement): void
+}
+
+' Relationships between the classes
+
+EnvironmentalMonitoringPlatform "1" *-- "1" WeatherInformationSystem : manages >
+EnvironmentalMonitoringPlatform "1" *-- "1" DataIngestionService : manages >
+
+WeatherStation "1" *-- "*" Sensor : hosts >
+
+WeatherInformationSystem "1" -- "1..*" WeatherStation : requests/transmits data >
+
+SensorData "1" *-- "1..*" Measurement : contains >
+Sensor "1" --> "*" Measurement : produces >
+
+WeatherInformationSystem "1" --> "1" DataIngestionService : forwards data >
+
+DataIngestionService "1" ..> "1" Measurement : normalizes >
+DataIngestionService "1" ..> "1" SensorData : processes >
+
+@enduml

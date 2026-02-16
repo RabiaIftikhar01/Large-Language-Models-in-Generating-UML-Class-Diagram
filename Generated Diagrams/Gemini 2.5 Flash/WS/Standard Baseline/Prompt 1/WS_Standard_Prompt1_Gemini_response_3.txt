@@ -1,0 +1,93 @@
+@startuml
+!theme plain
+
+package "Distributed Environmental Monitoring Platform" {
+
+    class WeatherInformationSystem {
+        + establishLink(station: WeatherStation)
+        + requestData(station: WeatherStation): RawSensorData
+        + receiveData(data: RawSensorData)
+    }
+
+    class DataIngestionService {
+        + ingest(rawData: RawSensorData): List<NormalizedMeasurement>
+        - normalize(rawMeasurement: RawMeasurement): NormalizedMeasurement
+        + store(measurements: List<NormalizedMeasurement>)
+    }
+
+    class DataStorage {
+        + save(measurement: NormalizedMeasurement)
+        + query(criteria: Map): List<NormalizedMeasurement>
+    }
+
+    WeatherInformationSystem "1" --> "1" DataIngestionService : forwards RawSensorData to >
+    DataIngestionService "1" --> "1" DataStorage : stores NormalizedMeasurement in >
+}
+
+class WeatherStation {
+    - id: String
+    - location: String
+    - operatorType: OperatorType
+    - transmissionFrequency: Duration
+    + sendData(): RawSensorData
+}
+
+class Sensor {
+    - id: String
+    - manufacturer: String
+    - model: String
+    - type: SensorType
+    - nativeFormat: String
+    + generateRawMeasurement(): RawMeasurement
+}
+
+class RawMeasurement {
+    - sensorId: String
+    - timestamp: DateTime
+    - rawValue: String
+    - nativeUnit: String
+}
+
+class NormalizedMeasurement {
+    - id: String
+    - sensorId: String
+    - timestamp: DateTime
+    - value: Double
+    - unit: String
+    - type: String
+}
+
+class RawSensorData {
+    - measurements: List<RawMeasurement>
+}
+
+
+WeatherInformationSystem "1" -- "0..*" WeatherStation : requests/receives from >
+WeatherStation "1" -- "1..*" Sensor : hosts >
+Sensor "1" -- "0..*" RawMeasurement : generates >
+RawSensorData "1" -- "1..*" RawMeasurement : contains >
+
+DataIngestionService ..> RawMeasurement : processes
+DataIngestionService ..> NormalizedMeasurement : creates
+
+NormalizedMeasurement "0..*" -- "1" DataStorage : stored in >
+
+enum OperatorType {
+    GovernmentAgency
+    ResearchInstitution
+    InfrastructureProvider
+}
+WeatherStation "1" -- "1" OperatorType : operated by >
+
+enum SensorType {
+    Temperature
+    Humidity
+    Pressure
+    WindSpeed
+    WindDirection
+    Precipitation
+    // ... other types as needed
+}
+Sensor "1" -- "1" SensorType : is of type >
+
+@enduml

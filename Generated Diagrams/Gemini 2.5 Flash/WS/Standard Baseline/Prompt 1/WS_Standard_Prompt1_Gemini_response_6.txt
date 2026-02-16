@@ -1,0 +1,83 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+' External Entities
+class Operator {
+    + name: String
+    + type: String ' e.g., Government Agency, Research Institution
+}
+
+class WeatherStation {
+    + id: String
+    + location: String
+    + reportingFrequency: Duration
+    --
+    + establishLink(): void
+    + sendData(measurements: List<Measurement>): void
+}
+
+class Sensor {
+    + id: String
+    + type: String
+    + manufacturer: String
+    + model: String
+    + nativeFormatDescription: String
+    --
+    + generateRawMeasurement(): Measurement
+}
+
+class Measurement {
+    + timestamp: DateTime
+    + sensorId: String
+    + rawValue: String
+    + rawUnit: String
+    + normalizedValue: Double
+    + normalizedUnit: String
+    + isNormalized: Boolean = false
+}
+
+' Platform Components
+package "Distributed Environmental Monitoring Platform" {
+
+    class WeatherInformationSystem {
+        - dataIngestionService: DataIngestionService
+        - normalizationService: NormalizationService
+        --
+        + processTelemetry(rawMeasurements: List<Measurement>): void
+        + aggregateNormalizedData(): void
+    }
+
+    class DataIngestionService {
+        --
+        + requestDataFromStation(station: WeatherStation): List<Measurement>
+        + receiveData(stationId: String, rawMeasurements: List<Measurement>): void
+    }
+
+    class NormalizationService {
+        --
+        + normalize(measurement: Measurement): void
+    }
+
+    WeatherInformationSystem "1" *-- "1" DataIngestionService : uses >
+    WeatherInformationSystem "1" *-- "1" NormalizationService : uses >
+
+    DataIngestionService "1" --> "1" NormalizationService : forwards raw measurements >
+}
+
+' Relationships between external and platform components
+Operator "1" -- "*" WeatherStation : operates >
+
+WeatherStation "1" -- "*" Sensor : hosts >
+
+Sensor "1" -- "*" Measurement : produces >
+
+' Data flow and communication
+WeatherStation "1" ..> DataIngestionService : sends data to >
+DataIngestionService "..>" WeatherStation : requests data from >
+
+Measurement "1" --> "1" NormalizationService : is processed by >
+' NormalizationService updates the Measurement object with normalized values.
+
+WeatherInformationSystem "1" -- "*" Measurement : aggregates normalized >
+
+@enduml

@@ -1,0 +1,94 @@
+@startuml
+!theme plain
+
+' Classes
+class WeatherStation {
+    - stationId: String
+    - location: String
+    - deploymentRegion: String
+    --
+    + transmitDataBundle(): String // Aggregated raw data from its sensors
+}
+
+class Sensor {
+    - sensorId: String
+    - model: String
+    - type: String // e.g., Temperature, Humidity, Pressure, Pressure
+    - nativeFormatDescription: String // Describes the sensor's specific raw data format
+    --
+    + readNativeData(): String // Reads current data in its native format
+}
+
+class Measurement {
+    - measurementId: String
+    - timestamp: DateTime
+    - nativeFormatData: String // The raw data string as received
+    - normalizedValue: Double
+    - normalizedUnit: String
+    - sensorType: String // Derived from Sensor.type
+    - stationId: String
+    - sensorId: String
+}
+
+class WeatherInformationSystem {
+    - systemId: String
+    --
+    + establishLink(stationId: String): void
+    + requestData(stationId: String): void
+    + ingestDataBundle(dataBundle: String, stationId: String): List<Measurement> // Processes a bundle into multiple measurements
+    + aggregateMeasurements(): List<Measurement>
+}
+
+class DataNormalizer {
+    --
+    + normalize(nativeData: String, sensorType: String): Map<String, Object> // Returns {value, unit, ...}
+}
+
+class Operator {
+    - operatorId: String
+    - name: String
+    - type: OperatorType
+}
+
+enum OperatorType {
+    GOVERNMENT_AGENCY
+    RESEARCH_INSTITUTION
+    INFRASTRUCTURE_PROVIDER
+}
+
+class Manufacturer {
+    - manufacturerId: String
+    - name: String
+}
+
+' Relationships
+WeatherStation "1" *-- "1..*" Sensor : hosts
+Sensor "1" --> "0..*" Measurement : produces
+WeatherStation "1" -- "1" Operator : operated by
+WeatherInformationSystem "1" -- "0..*" WeatherStation : monitors / interacts with
+WeatherInformationSystem "1" --> "1" DataNormalizer : uses
+WeatherInformationSystem "1" -- "0..*" Measurement : aggregates
+Manufacturer "1" -- "0..*" Sensor : supplies
+
+' Notes
+note left of WeatherInformationSystem
+  Handles large-scale data ingestion
+  Ensures reliability in dispersed deployments
+end note
+
+note right of Measurement
+  Contains raw and normalized data.
+  Normalization happens upon ingestion.
+end note
+
+note right of WeatherStation
+  Sends data hourly (frequency may vary)
+  upon request from WIS.
+end note
+
+note left of DataNormalizer
+  Converts heterogeneous native
+  sensor formats to a common schema.
+end note
+
+@enduml

@@ -1,0 +1,84 @@
+@startuml
+
+' Define the main components of the distributed environmental monitoring platform
+
+class WeatherInformationSystem {
+    + requestData(stationId: String)
+    + ingestRawData(rawData: String)
+    + normalizeMeasurement(rawMeasurement: Measurement): Measurement
+    + storeMeasurement(normalizedMeasurement: Measurement)
+}
+
+class WeatherStation {
+    + stationId: String
+    + location: String
+    + transmissionFrequency: String // e.g., "hourly", "daily", "configurable"
+    + sendData(): Measurement[]
+}
+
+class Sensor {
+    + sensorId: String
+    + manufacturer: String
+    + type: String // e.g., "temperature", "humidity", "pressure"
+    + nativeFormatSpec: String // Describes the sensor's native data format
+    + readMeasurement(): Measurement
+}
+
+class Measurement {
+    + measurementId: String
+    + value: String // The actual measured value, could be numeric
+    + unit: String // e.g., "Celsius", "hPa"
+    + timestamp: DateTime
+    + rawData: String // The data in its original native format
+    + normalizedData: String // The data after normalization
+}
+
+class StationOperator {
+    + operatorId: String
+    + name: String
+    + type: String <<enum>> // e.g., GovernmentAgency, ResearchInstitution, InfrastructureProvider
+}
+
+' Define relationships between the components
+
+' Weather Information System interacts with Weather Stations
+WeatherInformationSystem "1" -- "*" WeatherStation : requests/receives data from >
+
+' Weather Stations host multiple Sensors
+WeatherStation "1" -- "*" Sensor : hosts >
+
+' Sensors produce multiple Measurements over time
+Sensor "1" -- "*" Measurement : produces >
+
+' Weather Information System ingests and processes Measurements
+WeatherInformationSystem "1" -- "*" Measurement : ingests/processes >
+
+' Weather Stations are operated by a Station Operator
+StationOperator "1" -- "*" WeatherStation : operates >
+
+' Add notes for additional context as per the scenario description
+
+note left of WeatherInformationSystem
+  Aggregates telemetry from thousands of stations,
+  ensures reliability in dispersed deployments,
+  supports large-scale data ingestion.
+end note
+
+note right of WeatherStation
+  Geographically dispersed.
+  Transmission frequency may differ
+  and be modified in the future.
+end note
+
+note right of Sensor
+  Heterogeneous sensors supplied by
+  different manufacturers,
+  reporting in native formats.
+end note
+
+note bottom of Measurement
+  Raw data must be normalized
+  upon ingestion.
+end note
+
+@enduml
