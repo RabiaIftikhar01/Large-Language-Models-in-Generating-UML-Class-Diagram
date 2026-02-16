@@ -1,0 +1,120 @@
+@startuml
+!pragma layout smetana
+
+' Title and general system context
+title Environmental Monitoring System - Class Diagram
+
+' Define classes with attributes and operations
+class Organization {
+  + organizationId: String
+  + name: String
+  + type: String  ' e.g., "Public Agency", "Research Center", "Infrastructure Entity"
+  --
+  + getStations(): List<WeatherStation>
+}
+
+class WeatherStation {
+  + stationId: String
+  + name: String
+  + latitude: Double
+  + longitude: Double
+  + reportingFrequencyHours: Integer ' Cadence of data transmission
+  --
+  + requestDataTransfer(): void
+  + transmitData(data: List<RawTelemetry>): void
+}
+
+class Sensor {
+  + sensorId: String
+  + type: String    ' e.g., "Temperature", "Humidity", "Pressure"
+  + unit: String    ' e.g., "C", "%", "hPa"
+  + model: String
+  + serialNumber: String
+  --
+  + readRawData(): RawTelemetry
+}
+
+class Vendor {
+  + vendorId: String
+  + name: String
+  --
+  + getSupportedSensorModels(): List<String>
+}
+
+class RawTelemetry {
+  + rawDataId: String
+  + timestamp: DateTime
+  + sensorId: String ' ID of the sensor that generated this raw data
+  + nativeFormatPayload: String ' Data in its original, vendor-specific format
+}
+
+class StandardizedTelemetry {
+  + telemetryId: String
+  + timestamp: DateTime
+  + value: Double
+  + unit: String
+  + dataType: String ' e.g., "Temperature", "Humidity"
+  --
+  ' Associations link this to Sensor and WeatherStation
+}
+
+class DataIngestionService {
+  --
+  + ingestRawData(rawData: RawTelemetry): void
+  - standardize(rawData: RawTelemetry): StandardizedTelemetry
+  - storeTelemetry(standardizedData: StandardizedTelemetry): void
+  + processIngestionQueue(): void ' Handles large-scale ingestion demands
+}
+
+class MonitoringSystem {
+  --
+  + connectToStation(stationId: String): void
+  + triggerDataRequest(stationId: String): void
+  + receiveRawTelemetry(rawData: RawTelemetry): void ' Entry point for incoming data
+  + queryTelemetry(criteria: Map<String, String>): List<StandardizedTelemetry>
+}
+
+' Define relationships between classes
+
+' Organization operates WeatherStations
+Organization "1" -- "0..*" WeatherStation : operates >
+
+' WeatherStation has Sensors (composition)
+WeatherStation "1" *-- "1..*" Sensor : has >
+
+' Sensor is supplied by a Vendor (unidirectional association)
+Sensor "*" -- "1" Vendor : suppliedBy >
+
+' Data Flow Dependencies (usage/creation)
+' WeatherStation transmits RawTelemetry
+WeatherStation "1" ..> "0..*" RawTelemetry : transmits >
+' Sensor generates RawTelemetry
+Sensor "1" ..> "1" RawTelemetry : generates >
+
+' MonitoringSystem interacts with WeatherStations
+MonitoringSystem "1" -- "0..*" WeatherStation : connectsTo >
+' MonitoringSystem uses DataIngestionService
+MonitoringSystem "1" --> "1" DataIngestionService : uses >
+
+' DataIngestionService processes RawTelemetry and produces StandardizedTelemetry
+DataIngestionService "1" ..> "0..*" RawTelemetry : processes >
+DataIngestionService "1" ..> "0..*" StandardizedTelemetry : produces >
+
+' StandardizedTelemetry links back to its origin Sensor and WeatherStation
+StandardizedTelemetry "*" -- "1" Sensor : reportsFor >
+StandardizedTelemetry "*" -- "1" WeatherStation : collectedAt >
+
+
+' Add explanatory notes for clarity
+note top of MonitoringSystem : Central orchestrator for initiating data requests,\nreceiving raw telemetry, and providing query access.
+note top of DataIngestionService : Dedicated component for handling large-scale ingestion,\nstandardizing diverse native data formats, and storing processed data.
+note "RawTelemetry represents data in its original, native format from sensors.\nRequires standardization before storage/use." as N1
+RawTelemetry .. N1
+note "StandardizedTelemetry represents data after conversion to a common format.\nReady for storage, analysis, and querying." as N2
+StandardizedTelemetry .. N2
+note "The system is designed to handle thousands of stations\nand diverse sensor types from multiple vendors." as N3
+MonitoringSystem .. N3
+WeatherStation .. N3
+Sensor .. N3
+
+@enduml

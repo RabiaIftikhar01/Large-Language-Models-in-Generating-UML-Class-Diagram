@@ -1,0 +1,105 @@
+@startuml
+' Global settings for clarity and consistency
+skinparam classAttributeFontColor #000000
+skinparam classAttributeFontStrikeColor #FF0000
+skinparam classAttributeFontsize 12
+skinparam classAttributeFontName Arial
+skinparam classMethodFontColor #000000
+skinparam classMethodFontsize 12
+skinparam classMethodFontName Arial
+skinparam classFontColor #000000
+skinparam classFontsize 14
+skinparam classFontName Arial
+skinparam arrowFontsize 10
+skinparam arrowFontName Arial
+skinparam defaultTextAlignment center
+
+' Define Classes
+
+class WEATHERSTATION {
+    - stationId: String
+    - location: String
+    - ownerType: String ' e.g., PublicAgency, ResearchCenter
+    - cadence: String ' e.g., hourly, daily
+
+    + WEATHERSTATION(id: String, loc: String, owner: String, cadence: String)
+    + getStationId(): String
+    + getLocation(): String
+    + getOwnerType(): String
+    + getCadence(): String
+    + requestDataTransfer()
+    + configureCadence(newCadence: String)
+}
+
+class SENSOR {
+    - sensorId: String
+    - type: String ' e.g., temperature, humidity, pressure
+    - model: String
+    - nativeFormat: String ' e.g., JSON, XML, proprietary
+
+    + SENSOR(id: String, type: String, model: String, format: String)
+    + getSensorId(): String
+    + getType(): String
+    + getModel(): String
+    + getNativeFormat(): String
+    + readRawData(): String
+}
+
+class VENDOR {
+    - vendorId: String
+    - name: String
+
+    + VENDOR(id: String, name: String)
+    + getVendorId(): String
+    + getName(): String
+}
+
+class SENSORDATA {
+    - dataId: String
+    - timestamp: DateTime
+    - rawValue: String
+    - standardizedValue: String
+    - unit: String
+
+    + SENSORDATA(id: String, timestamp: DateTime, rawVal: String, unit: String)
+    + getDataId(): String
+    + getTimestamp(): DateTime
+    + getRawValue(): String
+    + getStandardizedValue(): String
+    + getUnit(): String
+    + setStandardizedValue(value: String)
+}
+
+class DATACOLLECTOR {
+    - collectorId: String
+
+    + DATACOLLECTOR(id: String)
+    + getCollectorId(): String
+    + connectToStation(stationId: String)
+    + requestData(stationId: String)
+    + ingestData(sensorData: SENSORDATA)
+}
+
+class DATASTANDARDIZER {
+    + DATASTANDARDIZER()
+    + standardize(sensorData: SENSORDATA): SENSORDATA
+}
+
+' Define Relationships
+
+WEATHERSTATION "1" -- "*" SENSOR : has
+SENSOR "1" -- "1" VENDOR : manufacturedBy
+SENSOR "1" --> "*" SENSORDATA : generates
+DATACOLLECTOR "1" --> "*" WEATHERSTATION : collectsFrom
+DATACOLLECTOR "1" --> "1" DATASTANDARDIZER : uses
+DATASTANDARDIZER "1" --> "*" SENSORDATA : processes
+
+' Notes for clarity
+note right of WEATHERSTATION : Represents a physical weather station.
+note right of SENSOR : Device collecting environmental metrics.
+note right of VENDOR : Manufacturer of sensors.
+note right of SENSORDATA : A single data point from a sensor.
+note left of DATACOLLECTOR : Component for data acquisition and ingestion.
+note left of DATASTANDARDIZER : Ensures data consistency by converting native formats.
+
+@enduml

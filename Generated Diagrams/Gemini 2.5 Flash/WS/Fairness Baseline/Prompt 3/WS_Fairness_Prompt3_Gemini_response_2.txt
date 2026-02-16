@@ -1,0 +1,94 @@
+@startuml
+!pragma layout smetana
+
+' Define enums for distinct owner types
+enum OwnerType {
+  PublicAgency
+  ResearchCenter
+  InfrastructureEntity
+}
+
+' Class representing a physical Weather Station
+class WeatherStation {
+  - stationId: String
+  - location: String
+  - ownerType: OwnerType
+  - transmissionCadence: Duration
+  - connectionDetails: String
+  --
+  + requestDataTransfer() : void
+  + transmitSensorData(data: SensorData) : void
+}
+
+' Class representing a specific Sensor device
+class Sensor {
+  - sensorId: String
+  - sensorType: String
+  - model: String
+  - serialNumber: String
+  - nativeFormat: String
+  --
+  + readData(): SensorData
+}
+
+' Class representing a Sensor Manufacturer
+class SensorVendor {
+  - vendorId: String
+  - name: String
+}
+
+' Class representing a single data reading from a Sensor
+class SensorData {
+  - dataId: String
+  - timestamp: DateTime
+  - value: String
+  - unit: String
+  - nativePayload: String
+  - standardizedPayload: String
+}
+
+' Class responsible for data ingestion, standardization, and storage
+class DataIngestor {
+  --
+  + ingestSensorData(sensorData: SensorData) : SensorData
+  + standardizeData(nativePayload: String, nativeFormat: String) : String
+  + storeData(standardizedData: SensorData) : void
+}
+
+
+' Define relationships between classes
+
+' A WeatherStation is equipped with multiple Sensors (Aggregation)
+WeatherStation "1" o-- "0..*" Sensor : has >
+
+' A Sensor is manufactured by a single SensorVendor (Association)
+Sensor "0..*" --> "1" SensorVendor : manufacturedBy >
+
+' SensorData originates from a single Sensor (Association)
+SensorData "0..*" --> "1" Sensor : isFrom >
+
+' DataIngestor requests data from WeatherStations (Unidirectional Association)
+DataIngestor "1" --> "0..*" WeatherStation : requestsDataFrom >
+
+' WeatherStation transmits collected SensorData to DataIngestor (Unidirectional Association)
+WeatherStation "1" --> "1" DataIngestor : transmitsTo >
+
+' DataIngestor processes SensorData (Unidirectional Association)
+DataIngestor "1" --> "0..*" SensorData : processes >
+
+
+' Add explanatory notes for clarity
+note top of DataIngestor
+  Responsible for receiving, standardizing,
+  and storing sensor telemetry.
+end note
+
+note top of WeatherStation
+  Represents a physical station
+  collecting environmental data.
+end note
+
+note "Duration could be 'PT1H' for hourly, 'PT30M' for half-hourly, etc." as N1
+WeatherStation .. N1
+
+@enduml

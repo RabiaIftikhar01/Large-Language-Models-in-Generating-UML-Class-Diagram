@@ -1,0 +1,132 @@
+@startuml
+' Global settings for clarity and style
+skinparam classAttributeIconSize 0
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam class {
+  BorderColor #347C98
+  BackgroundColor #E0F2F7
+  ArrowColor #347C98
+}
+
+' Title and general purpose note
+title Environmental Monitoring System - Class Diagram
+note "This diagram models the core components for data ingestion and standardization\nwithin a distributed environmental monitoring system.\nIt emphasizes loose coupling and clear responsibilities." as N1
+
+' --- Classes ---
+
+class EnvironmentalMonitoringSystem {
+  - platformId: String
+  - name: String
+  -- Operations (Implementor) --
+  + requestDataTransfer(stationId: String): void
+  + ingestRawData(rawData: SensorData): void
+  + processStandardizedData(data: StandardizedSensorData): void
+  -- Operations (Access) --
+  + getPlatformId(): String
+}
+
+class WeatherStation {
+  - stationId: String
+  - location: String ' e.g., "latitude,longitude"
+  - cadence: String ' e.g., "hourly", "daily", "configurable"
+  -- Operations (Implementor) --
+  + transmitData(): List<SensorData>
+  + updateCadence(newCadence: String): void
+  -- Operations (Access) --
+  + getStationId(): String
+  + getLocation(): String
+  + getCadence(): String
+}
+
+class Sensor {
+  - sensorId: String
+  - type: String ' e.g., "Temperature", "Humidity", "Pressure"
+  - nativeFormat: String ' e.g., "JSON", "XML", "ProprietaryBinary"
+  -- Operations (Implementor) --
+  + readRawData(): SensorData
+  -- Operations (Access) --
+  + getSensorId(): String
+  + getType(): String
+  + getNativeFormat(): String
+}
+
+class SensorData {
+  - dataId: String
+  - timestamp: DateTime
+  - rawValue: String ' Raw data as received, in its native format
+  - unit: String ' Unit of measurement (e.g., "Celsius", "%")
+  - originalFormat: String ' Format of the rawValue, copied from Sensor
+  -- Operations (Access) --
+  + getDataId(): String
+  + getTimestamp(): DateTime
+  + getRawValue(): String
+  + getUnit(): String
+  + getOriginalFormat(): String
+}
+
+class StandardizedSensorData {
+  - dataId: String
+  - timestamp: DateTime
+  - value: Double ' Standardized numeric value
+  - unit: String
+  - standardFormatVersion: String ' Version of the standard format used
+  -- Operations (Access) --
+  + getDataId(): String
+  + getTimestamp(): DateTime
+  + getValue(): Double
+  + getUnit(): String
+  + getStandardFormatVersion(): String
+}
+
+class DataStandardizer {
+  -- Operations (Implementor) --
+  + standardize(rawData: SensorData): StandardizedSensorData
+}
+
+class StationOperator {
+  - operatorId: String
+  - name: String
+  - type: String ' e.g., "PublicAgency", "ResearchCenter", "InfrastructureEntity"
+  -- Operations (Access) --
+  + getOperatorId(): String
+  + getName(): String
+  + getType(): String
+}
+
+class SensorVendor {
+  - vendorId: String
+  - name: String
+  -- Operations (Access) --
+  + getVendorId(): String
+  + getName(): String
+}
+
+' --- Relationships ---
+
+EnvironmentalMonitoringSystem "1" --> "0..*" WeatherStation : manages >
+EnvironmentalMonitoringSystem "1" --> "1" DataStandardizer : uses >
+
+WeatherStation "1" *-- "1..*" Sensor : contains >
+WeatherStation "1" --> "1" StationOperator : operated by >
+
+Sensor "1" --> "0..*" SensorData : generates >
+Sensor "1" --> "1" SensorVendor : supplied by >
+
+SensorData "1" --> "1" DataStandardizer : processed by >
+DataStandardizer "1" --> "1" StandardizedSensorData : produces >
+
+StandardizedSensorData "1" --> "1" SensorData : derived from >
+
+' --- Explanatory Notes for Specific Elements ---
+note right of EnvironmentalMonitoringSystem : Coordinates data flow, handles ingestion,\nand ensures system reliability.
+note right of WeatherStation : Represents a physical station with configurable data transmission cadence.
+note right of Sensor : Reports data in its native format, requiring standardization.
+note right of DataStandardizer : Dedicated component for converting diverse native sensor data\ninto a uniform, standardized format.
+note "SensorData holds the raw, untransformed telemetry." as SensorDataNote
+SensorDataNote . SensorData
+
+note "StandardizedSensorData represents data after conversion to a common format." as StandardizedSensorDataNote
+StandardizedSensorDataNote . StandardizedSensorData
+
+@enduml

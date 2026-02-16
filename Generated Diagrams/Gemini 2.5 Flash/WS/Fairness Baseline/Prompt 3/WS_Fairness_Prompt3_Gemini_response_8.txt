@@ -1,0 +1,95 @@
+@startuml
+' Styling for better readability and conformity to design practices
+skinparam classAttributeFontColor #00008B
+skinparam classAttributeFontName "Arial"
+skinparam classAttributeFontSize 12
+skinparam classMethodFontColor #00008B
+skinparam classMethodFontName "Arial"
+skinparam classMethodFontSize 12
+skinparam classFontColor #00008B
+skinparam classFontName "Arial Black"
+skinparam classFontSize 14
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam noteFontColor #00008B
+skinparam noteFontName "Arial"
+skinparam noteFontSize 12
+skinparam linetype ortho
+skinparam shadowing false
+
+' Define Classes
+class MonitoringPlatform {
+    - platformId: String
+    - name: String
+    + requestAndIngestData(stationId: String): void
+}
+
+class WeatherStation {
+    - stationId: String
+    - location: String
+    - cadence: String
+    + provideRawSensorReadings(): List<Map<String, String>>
+}
+
+class Sensor {
+    - sensorId: String
+    - type: String
+    - vendor: String
+    - unit: String
+    - nativeFormat: String
+    + readRawValue(): String
+}
+
+class Owner {
+    - ownerId: String
+    - name: String
+    - type: String ' e.g., "Public Agency", "Research Center", "Infrastructure Entity"
+}
+
+class DataIngestionService {
+    - serviceId: String
+    + ingestAndStandardize(stationId: String, sensorId: String, rawValue: String, nativeFormat: String, timestamp: DateTime): SensorData
+    + storeSensorData(data: SensorData): void
+}
+
+class SensorData {
+    - dataId: String
+    - timestamp: DateTime
+    - value: Double
+    - sensorType: String
+    - unit: String
+    - stationId: String ' Reference to WeatherStation
+    - sensorId: String  ' Reference to Sensor
+    - originalFormat: String
+    - standardizedFormat: String
+}
+
+' Define Relationships
+
+' MonitoringPlatform uses DataIngestionService to process data.
+MonitoringPlatform "1" -- "uses" > "1" DataIngestionService
+
+' MonitoringPlatform requests data from WeatherStations.
+MonitoringPlatform "1" -- "requests data from" > "0..*" WeatherStation
+
+' WeatherStation contains multiple Sensors (Aggregation).
+WeatherStation "1" o-- "1..*" Sensor : contains >
+
+' Owner manages multiple WeatherStations.
+Owner "1" -- "manages" > "0..*" WeatherStation
+
+' DataIngestionService produces SensorData after standardization.
+DataIngestionService "1" -- "produces" > "0..*" SensorData
+
+' SensorData implicitly originates from WeatherStation and Sensor via its attributes (stationId, sensorId).
+' No direct association from SensorData back to WeatherStation/Sensor to keep the diagram simple and avoid redundancy.
+
+' Add Explanatory Notes
+note top of MonitoringPlatform : Central component for system orchestration,\ndata requests, and initial reception routing.
+note top of DataIngestionService : Handles raw data ingestion, standardization\nfrom diverse native formats, and storage.
+note bottom of SensorData : Represents standardized telemetry data\nready for analysis and further processing.
+note bottom of WeatherStation : Collects raw data from its equipped sensors\nand provides it upon platform request.
+note left of Sensor : Device that reads environmental parameters\nand reports data in its native format.
+note right of Owner : Entity responsible for running one or more weather stations.
+
+@enduml

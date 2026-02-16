@@ -1,0 +1,149 @@
+@startuml
+!theme mars
+
+title Environmental Monitoring System - Class Diagram
+
+' Define classes
+class MonitoringSystem {
+  -systemId: String
+  -name: String
+  --
+  +requestDataTransfer(stationId: String)
+  +receiveAndProcessData(dataPackage: List<SensorReading>, stationId: String)
+  +getSystemId(): String
+  +getName(): String
+}
+
+class WeatherStation {
+  -stationId: String
+  -name: String
+  -location: String
+  -reportingCadence: Duration
+  --
+  +collectSensorReadings(): List<SensorReading>
+  +getStationId(): String
+  +getName(): String
+  +getLocation(): String
+}
+
+class Sensor {
+  -sensorId: String
+  -type: String
+  -vendor: String
+  -nativeFormat: String
+  --
+  +readRawData(): String
+  +getSensorId(): String
+  +getType(): String
+  +getNativeFormat(): String
+}
+
+class Measurement {
+  -timestamp: DateTime
+  -value: Real
+  -unit: String
+  -sensorId: String
+  -stationId: String
+  --
+  +getTimestamp(): DateTime
+  +getValue(): Real
+  +getUnit(): String
+  +getSensorId(): String
+  +getStationId(): String
+}
+
+class Organization {
+  -organizationId: String
+  -name: String
+  -type: String
+  --
+  +getOrganizationId(): String
+  +getName(): String
+  +getType(): String
+}
+
+class DataIngestionService {
+  --
+  +standardizeAndCreateMeasurement(reading: SensorReading): Measurement
+}
+
+' Data Transfer Object (DTO) for raw sensor data during ingestion
+class SensorReading << (D,orchid) DTO >> {
+  -sensorId: String
+  -rawData: String
+  -nativeFormat: String
+  -timestamp: DateTime
+  --
+  +getSensorId(): String
+  +getRawData(): String
+  +getNativeFormat(): String
+  +getTimestamp(): DateTime
+}
+
+
+' Define relationships
+
+' MonitoringSystem orchestrates data requests from WeatherStations
+MonitoringSystem "1" --> "0..*" WeatherStation : orchestrates >
+
+' WeatherStation contains multiple Sensors (composition)
+WeatherStation "1" *-- "1..*" Sensor : contains >
+
+' WeatherStation is operated by a single Organization (unidirectional)
+WeatherStation "0..*" --> "1" Organization : operated by >
+
+' MonitoringSystem uses DataIngestionService for data processing (composition)
+MonitoringSystem "1" *-- "1" DataIngestionService : uses >
+
+' DataIngestionService creates Measurement objects after standardization
+DataIngestionService "1" --> "0..*" Measurement : creates >
+
+' MonitoringSystem stores and manages the collected Measurements
+MonitoringSystem "1" --> "0..*" Measurement : stores >
+
+' WeatherStation produces SensorReading DTOs when collecting data (dependency)
+WeatherStation ..> SensorReading : produces >
+
+' DataIngestionService processes SensorReading DTOs as input (dependency)
+DataIngestionService ..> SensorReading : processes >
+
+
+' Add explanatory notes for clarity
+note top of MonitoringSystem
+  Central component for system orchestration,
+  data request initiation, and management
+  of processed measurements.
+end note
+
+note top of WeatherStation
+  Represents a physical weather station.
+  Responsible for collecting raw data
+  from its equipped sensors.
+end note
+
+note top of Sensor
+  Represents an individual sensor device
+  at a weather station. Provides raw data
+  in its specific native format.
+end note
+
+note top of Measurement
+  A standardized and processed data point
+  originating from a sensor, ready for
+  analysis and storage.
+end note
+
+note top of DataIngestionService
+  Dedicated service responsible for
+  standardizing raw sensor data (SensorReading)
+  into structured Measurement objects.
+end note
+
+note bottom of SensorReading
+  Transient data transfer object (DTO)
+  encapsulating raw sensor data along with
+  its metadata (e.g., native format)
+  during the ingestion pipeline.
+end note
+
+@enduml
