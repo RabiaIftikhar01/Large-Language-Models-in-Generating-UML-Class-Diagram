@@ -1,0 +1,53 @@
+@startuml
+
+class Patient {
+    +patientId: String
+    +name: String
+    +dateOfBirth: Date
+    +contactInfo: String
+}
+
+class Bill {
+    +billId: String
+    +amount: Double
+    +issueDate: Date
+    +status: String
+    +generateBill(): void
+}
+
+class Charge {
+    +chargeId: String
+    +description: String
+    +amount: Double
+    +chargeType: String
+}
+
+class BillingPolicy {
+    +policyId: String
+    +name: String
+    +description: String
+    +calculateBill(p: Patient, charges: List<Charge>): Double
+}
+
+class InsurancePolicy {
+    +coverageRules: String
+    +reimbursementLimits: Double
+    +coPaymentStructure: Double
+}
+
+class GovernmentHealthProgram {
+    +subsidizedRates: Double
+}
+
+class SelfPayPolicy {
+    +fullPaymentRequired: Boolean
+}
+
+Patient "1" -- "0..*" Bill : generates >
+Bill "1" -- "0..*" Charge : contains >
+BillingPolicy "1" -- "0..*" Charge : governs >
+BillingPolicy <|-- InsurancePolicy
+BillingPolicy <|-- GovernmentHealthProgram
+BillingPolicy <|-- SelfPayPolicy
+
+@enduml
