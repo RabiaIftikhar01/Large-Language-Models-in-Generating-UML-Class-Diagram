@@ -1,0 +1,92 @@
+@startuml
+abstract class BillingStrategy {
+    + {abstract} calculateBill(treatments : List<Treatment>) : decimal
+}
+
+class InsuredBilling extends BillingStrategy {
+    - coverageLimit : decimal
+    - copayPercentage : decimal
+    + calculateBill(treatments : List<Treatment>) : decimal
+    + setCoverageLimit(limit : decimal)
+    + setCopayPercentage(percentage : decimal)
+}
+
+class GovernmentSubsidyBilling extends BillingStrategy {
+    - subsidyAmount : decimal
+    + calculateBill(treatments : List<Treatment>) : decimal
+    + setSubsidyAmount(amount : decimal)
+}
+
+class SelfFundedBilling extends BillingStrategy {
+    + calculateBill(treatments : List<Treatment>) : decimal
+}
+
+class Patient {
+    - id : int
+    - name : string
+    - category : string
+    + getId() : int
+    + getName() : string
+    + getCategory() : string
+    + setCategory(category : string)
+}
+
+class Invoice {
+    - invoiceId : int
+    - totalAmount : decimal
+    - patient : Patient
+    - treatments : List<Treatment>
+    - billingStrategy : BillingStrategy
+    + generateInvoice() : decimal
+    + setBillingStrategy(strategy : BillingStrategy)
+    + addTreatment(treatment : Treatment)
+    + getInvoiceId() : int
+    + getTotalAmount() : decimal
+}
+
+abstract class Treatment {
+    - treatmentId : int
+    - description : string
+    + {abstract} calculateCost() : decimal
+    + getTreatmentId() : int
+    + getDescription() : string
+}
+
+class MedicalProcedure extends Treatment {
+    - procedureCost : decimal
+    + calculateCost() : decimal
+    + setProcedureCost(cost : decimal)
+}
+
+class Medication extends Treatment {
+    - unitPrice : decimal
+    - quantity : int
+    + calculateCost() : decimal
+    + setUnitPrice(price : decimal)
+    + setQuantity(qty : int)
+}
+
+class DiagnosticService extends Treatment {
+    - serviceCost : decimal
+    + calculateCost() : decimal
+    + setServiceCost(cost : decimal)
+}
+
+class Accommodation extends Treatment {
+    - dailyRate : decimal
+    - numberOfDays : int
+    + calculateCost() : decimal
+    + setDailyRate(rate : decimal)
+    + setNumberOfDays(days : int)
+}
+
+class BillingProcessor {
+    + processInvoice(invoice : Invoice) : decimal
+    + applyStrategy(strategy : BillingStrategy, treatments : List<Treatment>) : decimal
+}
+
+Invoice --> Patient
+Invoice o-- Treatment
+Invoice --> BillingStrategy
+BillingProcessor --> Invoice
+@enduml
