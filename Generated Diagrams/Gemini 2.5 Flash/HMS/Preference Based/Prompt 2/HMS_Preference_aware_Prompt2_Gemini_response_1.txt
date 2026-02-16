@@ -1,0 +1,157 @@
+@startuml
+!define LIGHTBLUE #ADD8E6
+!define LIGHTGREEN #90EE90
+!define LIGHTYELLOW #FFFFE0
+
+skinparam class {
+    BackgroundColor LIGHTYELLOW
+    ArrowColor #2688d4
+    BorderColor #2688d4
+}
+skinparam interface {
+    BackgroundColor LIGHTBLUE
+    ArrowColor #2688d4
+    BorderColor #2688d4
+}
+skinparam abstract {
+    BackgroundColor LIGHTGREEN
+    ArrowColor #2688d4
+    BorderColor #2688d4
+}
+
+title Hospital Discharge Billing System
+
+' Patient Data and Classification
+enum PatientClassification {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+class Patient {
+    - id : String
+    - name : String
+    - classification : PatientClassification
+    + getPatientId() : String
+    + getName() : String
+    + getClassification() : PatientClassification
+}
+
+Patient --> PatientClassification : has a >
+
+' Treatments / Services (Pricing Elements)
+abstract class Treatment {
+    - id : String
+    - description : String
+    + {abstract} getBaseCost() : BigDecimal
+    + {abstract} getDescription() : String
+}
+
+class ClinicalProcedure extends Treatment {
+    - procedureCode : String
+    + getBaseCost() : BigDecimal
+}
+
+class Pharmaceutical extends Treatment {
+    - drugCode : String
+    + getBaseCost() : BigDecimal
+}
+
+class LaboratoryDiagnostic extends Treatment {
+    - testCode : String
+    + getBaseCost() : BigDecimal
+}
+
+class RoomUtilization extends Treatment {
+    - roomNumber : String
+    - dailyRate : BigDecimal
+    - numberOfDays : int
+    + getBaseCost() : BigDecimal
+}
+
+' Billing Policies (Strategy Pattern)
+interface BillingStrategy {
+    + {abstract} getUnitPrice(treatment : Treatment, patient : Patient) : BigDecimal
+    + {abstract} calculateBilledAmount(treatment : Treatment, patient : Patient, quantity : int) : BigDecimal
+}
+
+class InsuranceBillingStrategy implements BillingStrategy {
+    - insurerPolicy : InsurerPolicy
+    + getUnitPrice(treatment : Treatment, patient : Patient) : BigDecimal
+    + calculateBilledAmount(treatment : Treatment, patient : Patient, quantity : int) : BigDecimal
+}
+
+class GovernmentBillingStrategy implements BillingStrategy {
+    - subsidySchedule : SubsidySchedule
+    + getUnitPrice(treatment : Treatment, patient : Patient) : BigDecimal
+    + calculateBilledAmount(treatment : Treatment, patient : Patient, quantity : int) : BigDecimal
+}
+
+class SelfPayBillingStrategy implements BillingStrategy {
+    + getUnitPrice(treatment : Treatment, patient : Patient) : BigDecimal
+    + calculateBilledAmount(treatment : Treatment, patient : Patient, quantity : int) : BigDecimal
+}
+
+' Policy/Schedule Data (Configurable Elements)
+class InsurerPolicy {
+    - policyId : String
+    - coverageDetails : Map<String, BigDecimal>
+    - coPaymentModel : Map<String, BigDecimal>
+    + getCoverageFactor(treatment : Treatment) : BigDecimal
+    + getCoPayment(treatment : Treatment) : BigDecimal
+}
+
+class SubsidySchedule {
+    - scheduleId : String
+    - subsidizedRates : Map<String, BigDecimal>
+    + getSubsidizedPrice(treatment : Treatment) : BigDecimal
+}
+
+InsuranceBillingStrategy ..> InsurerPolicy : uses >
+GovernmentBillingStrategy ..> SubsidySchedule : uses >
+
+' Invoice and Billing Entries
+class BillingEntry {
+    - id : String
+    - description : String
+    - quantity : int
+    - unitPrice : BigDecimal
+    - billedAmount : BigDecimal
+    - treatment : Treatment
+    + getBilledAmount() : BigDecimal
+    + getDescription() : String
+    + getTreatment() : Treatment
+}
+
+class Invoice {
+    - id : String
+    - issueDate : Date
+    - patient : Patient
+    - entries : List<BillingEntry>
+    - totalAmount : BigDecimal
+    + addEntry(entry : BillingEntry) : void
+    + calculateTotal() : BigDecimal
+    + getInvoiceDetails() : String
+}
+
+Invoice "1" *-- "1" Patient : for >
+Invoice "1" *-- "0..*" BillingEntry : contains >
+BillingEntry "1" o-- "1" Treatment : refers to >
+
+' Orchestration Service
+class BillingService {
+    + createInvoice(patient : Patient, treatmentsWithQuantities : Map<Treatment, int>) : Invoice
+    - getBillingStrategy(classification : PatientClassification) : BillingStrategy
+    - getInsurerPolicy(patientId : String) : InsurerPolicy
+    - getSubsidySchedule(patientId : String) : SubsidySchedule
+}
+
+BillingService .> BillingStrategy : uses >
+BillingService .> InsurerPolicy : retrieves >
+BillingService .> SubsidySchedule : retrieves >
+BillingService .> Patient : processes >
+BillingService .> Treatment : processes >
+BillingService .> Invoice : creates >
+BillingService .> BillingEntry : creates >
+
+@enduml

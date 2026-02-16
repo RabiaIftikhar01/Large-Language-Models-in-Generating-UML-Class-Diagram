@@ -1,0 +1,130 @@
+@startuml
+' Set a consistent style for better readability
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 14
+
+' Notes to explain key design choices and patterns
+note "Strategy Pattern: Allows billing behavior to vary based on patient classification and be replaceable at runtime." as N1
+note "Each treatment type defines its own base cost calculation." as N2
+note "Invoice aggregates treatments and uses the patient's billing policy to calculate the final amount." as N3
+
+' Classes for Core Entities
+class Patient {
+    - patientId : String
+    - name : String
+    - address : String
+    - contactInfo : String
+    --
+    + getPatientId() : String
+    + getName() : String
+    + getBillingPolicy() : BillingPolicy
+}
+
+class Invoice {
+    - invoiceId : String
+    - invoiceDate : Date
+    - treatments : List<Treatment>
+    - finalAmount : double
+    --
+    + addTreatment(treatment : Treatment)
+    + calculateFinalAmount(patient : Patient) : double
+    + getInvoiceDetails() : String
+}
+
+' Abstract class for all billable treatments/services
+abstract class Treatment {
+    - description : String
+    - baseCost : double
+    --
+    + {abstract} getBaseCost() : double
+    + getDescription() : String
+}
+
+' Concrete Treatment types
+class ClinicalProcedure extends Treatment {
+    - procedureCode : String
+    - unitCost : double
+    - quantity : int
+    --
+    + getBaseCost() : double
+}
+
+class Pharmaceutical extends Treatment {
+    - drugName : String
+    - dosage : String
+    - unitPrice : double
+    - quantity : int
+    --
+    + getBaseCost() : double
+}
+
+class LaboratoryDiagnostic extends Treatment {
+    - testName : String
+    - testCode : String
+    - testPrice : double
+    --
+    + getBaseCost() : double
+}
+
+class RoomUtilization extends Treatment {
+    - roomNumber : String
+    - roomType : String
+    - dailyRate : double
+    - daysOccupied : int
+    --
+    + getBaseCost() : double
+}
+
+' Strategy Pattern for Billing Policies
+interface BillingPolicy {
+    + calculateFinalInvoiceAmount(invoice : Invoice, patient : Patient) : double
+}
+
+class InsuranceBillingPolicy implements BillingPolicy {
+    - insurerName : String
+    - policyNumber : String
+    - coverageDetails : Map<String, Double>
+    - coPaymentRate : double
+    --
+    + calculateFinalInvoiceAmount(invoice : Invoice, patient : Patient) : double
+    + getCoverageDetails() : Map<String, Double>
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - programName : String
+    - subsidySchedule : Map<String, Double>
+    - predeterminedPricing : Map<String, Double>
+    --
+    + calculateFinalInvoiceAmount(invoice : Invoice, patient : Patient) : double
+    + getSubsidySchedule() : Map<String, Double>
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    --
+    + calculateFinalInvoiceAmount(invoice : Invoice, patient : Patient) : double
+}
+
+' Relationships
+Patient "1" o-- "1" BillingPolicy : applies
+Invoice "1" *-- "0..*" Treatment : includes
+Invoice ..> BillingPolicy : <<uses>>
+Invoice ..> Patient : <<uses>>
+
+' Inheritance for Treatments
+Treatment <|-- ClinicalProcedure
+Treatment <|-- Pharmaceutical
+Treatment <|-- LaboratoryDiagnostic
+Treatment <|-- RoomUtilization
+
+' Realization for BillingPolicy
+BillingPolicy <|.. InsuranceBillingPolicy
+BillingPolicy <|.. GovernmentBillingPolicy
+BillingPolicy <|.. SelfPayBillingPolicy
+
+' Link notes to relevant classes
+BillingPolicy .. N1
+Treatment .. N2
+Invoice .. N3
+
+@enduml

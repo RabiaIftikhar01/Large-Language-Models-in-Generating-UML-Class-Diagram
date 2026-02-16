@@ -1,0 +1,111 @@
+@startuml
+' Global settings for consistency
+hide empty members
+skinparam classAttributeIconSize 0
+
+' --- Patient and Classification ---
+class Patient {
+    - patientId : String
+    - name : String
+    - dateOfBirth : Date
+    - classificationType : String ' e.g., "Insurance", "Government", "SelfPay"
+    --
+    + getPatientInfo() : String
+    + setBillingStrategy(strategy : BillingStrategy)
+    + createInvoice(treatments : List<Service>) : Invoice
+}
+
+' --- Billing Strategy (Strategy Pattern) ---
+interface BillingStrategy {
+    + calculateCharge(service : Service, patient : Patient) : Decimal
+}
+note top of BillingStrategy : Policies are configurable\nand replaceable at runtime.
+
+class InsuranceBillingStrategy implements BillingStrategy {
+    - insurerName : String
+    - coveragePolicyId : String
+    - reimbursementCeiling : Decimal
+    + calculateCharge(service : Service, patient : Patient) : Decimal
+}
+
+class GovernmentBillingStrategy implements BillingStrategy {
+    - subsidyProgramId : String
+    - subsidizedPricingSchedule : Map<String, Decimal>
+    + calculateCharge(service : Service, patient : Patient) : Decimal
+}
+
+class SelfPayBillingStrategy implements BillingStrategy {
+    + calculateCharge(service : Service, patient : Patient) : Decimal
+}
+
+' --- Services/Treatments (Billing Entries Source) ---
+abstract class Service {
+    - serviceId : String
+    - name : String
+    - basePrice : Decimal
+    --
+    + getBasePrice() : Decimal
+}
+note top of Service : Each service type has\nits own pricing logic.
+
+class ClinicalProcedure extends Service {
+    - procedureCode : String
+    - durationMinutes : int
+}
+
+class Pharmaceutical extends Service {
+    - drugCode : String
+    - dosage : String
+}
+
+class LaboratoryDiagnostic extends Service {
+    - testCode : String
+    - resultUnits : String
+}
+
+class RoomUtilization extends Service {
+    - roomNumber : String
+    - dailyRate : Decimal
+}
+
+' --- Invoice and Billing Entries ---
+class Invoice {
+    - invoiceId : String
+    - issueDate : Date
+    - totalAmount : Decimal
+    - patientId : String ' Reference to the patient
+    --
+    + addBillingEntry(entry : BillingEntry)
+    + calculateTotalAmount() : Decimal
+    + printInvoice() : String
+}
+
+class BillingEntry {
+    - entryId : String
+    - description : String
+    - quantity : int
+    - rawUnitPrice : Decimal   ' Original price before strategy
+    - unitPriceCharged : Decimal ' Price charged after strategy application
+    - finalBilledAmount : Decimal
+    --
+    + calculateFinalBilledAmount() : Decimal
+}
+
+' --- Relationships ---
+
+' Patient and Billing Strategy
+Patient "1" *-- "1" BillingStrategy : <<uses>> currentStrategy
+' Patient holds and uses a specific billing strategy.
+
+' Patient and Invoice
+Patient "1" -- "0..*" Invoice : generates
+
+' Invoice and BillingEntry
+Invoice "1" o-- "*" BillingEntry : contains
+
+' BillingEntry and Service
+BillingEntry "1" -- "1" Service : references
+
+' Notes for clarity
+note right of Patient.classificationType : Determines initial BillingStrategy assignment.
+@enduml

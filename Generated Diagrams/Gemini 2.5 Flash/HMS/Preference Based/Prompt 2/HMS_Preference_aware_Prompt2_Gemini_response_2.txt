@@ -1,0 +1,131 @@
+@startuml
+' Set a consistent style for better readability
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+hide empty members
+
+' 1. Patient Data and Classification
+class Patient {
+    - patientId : String
+    - name : String
+    - dateOfBirth : Date
+    - classification : PatientClassification
+    + getPatientId() : String
+    + getName() : String
+    + getClassification() : PatientClassification
+}
+
+enum PatientClassification {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+' 2. Billing Policies (Strategy Pattern for runtime configurability)
+interface BillingStrategy {
+    + calculateFinalAmount(invoice : Invoice) : Money
+}
+
+class InsuranceBillingStrategy implements BillingStrategy {
+    - coveragePolicies : Map<String, Object>
+    + calculateFinalAmount(invoice : Invoice) : Money
+}
+
+class GovernmentBillingStrategy implements BillingStrategy {
+    - subsidySchedules : Map<String, Object>
+    + calculateFinalAmount(invoice : Invoice) : Money
+}
+
+class SelfPayBillingStrategy implements BillingStrategy {
+    + calculateFinalAmount(invoice : Invoice) : Money
+}
+
+' 3. Billable Items / Pricing Elements (Polymorphism for varied pricing logic)
+abstract class BillableItem {
+    - itemId : String
+    - description : String
+    - quantity : int
+    + {abstract} getBaseCost() : Money
+    + getItemId() : String
+    + getDescription() : String
+    + getQuantity() : int
+}
+
+class Procedure extends BillableItem {
+    - procedureCode : String
+    - baseChargeRate : Money
+    + getBaseCost() : Money
+}
+
+class Medication extends BillableItem {
+    - drugName : String
+    - unitPrice : Money
+    + getBaseCost() : Money
+}
+
+class LabTest extends BillableItem {
+    - testCode : String
+    - baseFee : Money
+    + getBaseCost() : Money
+}
+
+class RoomStay extends BillableItem {
+    - roomNumber : String
+    - dailyRate : Money
+    - numberOfDays : int
+    + getBaseCost() : Money
+}
+
+' 4. Invoice (The context for the BillingStrategy and aggregator of BillableItems)
+class Invoice {
+    - invoiceId : String
+    - invoiceDate : Date
+    - totalAmount : Money
+    - status : InvoiceStatus
+    - <<private>> billingStrategy : BillingStrategy
+    + addBillableItem(item : BillableItem) : void
+    + calculateTotal() : Money
+    + getInvoiceId() : String
+    + getTotalAmount() : Money
+    + setBillingStrategy(strategy : BillingStrategy) : void
+}
+
+enum InvoiceStatus {
+    DRAFT
+    PENDING
+    PAID
+    CANCELLED
+}
+
+' 5. Value Object for Money (Encapsulates monetary logic)
+class Money {
+    - amount : BigDecimal
+    - currency : String
+    + add(other : Money) : Money
+    + subtract(other : Money) : Money
+    + multiply(factor : BigDecimal) : Money
+    + isGreaterThan(other : Money) : boolean
+    + toString() : String
+}
+
+' Relationships
+Patient "1" -- "1" Invoice : "is billed for"
+Patient "1" -- "1" PatientClassification : "has"
+
+Invoice "1" -- "1" BillingStrategy : "uses" >
+Invoice "1" *-- "0..*" BillableItem : "includes"
+
+Invoice "1" -- "1" InvoiceStatus : "has"
+
+' Notes for clarity and design justification
+note "Billing behavior varies by PatientClassification,\nimplemented using the Strategy Pattern for runtime flexibility." as N1
+BillingStrategy .. N1
+
+note "Different types of services/treatments,\neach with specific pricing logic (Polymorphism)." as N2
+BillableItem .. N2
+
+note "Money is a Value Object to handle currency and amounts safely,\nensuring clear separation of pricing elements." as N3
+Money .. N3
+
+@enduml

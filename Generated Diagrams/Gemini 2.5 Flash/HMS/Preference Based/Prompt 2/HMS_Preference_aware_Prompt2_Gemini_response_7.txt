@@ -1,0 +1,137 @@
+@startuml
+!pragma layout smetana
+
+' Core Entities '
+class Patient {
+    - patientId : String
+    - name : String
+    - classification : PatientClassification <<enum>>
+    + getPatientInfo() : String
+    + assignBillingPolicy(policy : IBillingPolicy)
+}
+
+class Invoice {
+    - invoiceId : String
+    - issueDate : Date
+    - totalAmount : double
+    + addBillingEntry(entry : BillingEntry)
+    + calculateTotal() : double
+    + generateInvoiceDetails() : String
+}
+
+class BillingEntry {
+    - entryId : String
+    - description : String
+    - quantity : int
+    - unitPrice : double
+    - billedAmount : double
+    + calculateBilledAmount() : double
+}
+
+' Abstract base for all billable services (pricing elements) '
+abstract class Service {
+    - serviceCode : String
+    - name : String
+    - baseCost : double
+    + getServiceDetails() : String
+    + getBaseCost() : double
+}
+
+' Concrete Service Implementations '
+class ClinicalProcedure extends Service {
+    - procedureType : String
+    + getProcedureType() : String
+}
+
+class Pharmaceutical extends Service {
+    - drugName : String
+    - dosage : String
+    + getDrugName() : String
+}
+
+class LabDiagnostic extends Service {
+    - testName : String
+    - resultType : String
+    + getTestName() : String
+}
+
+class RoomUtilization extends Service {
+    - roomType : String
+    - durationInDays : int
+    + getRoomType() : String
+}
+
+' Strategy Pattern for Billing Policies '
+interface IBillingPolicy {
+    + calculatePatientCharge(service : Service, patient : Patient) : double
+}
+
+class InsuranceBillingPolicy implements IBillingPolicy {
+    - insurerId : String
+    - coverageDetails : String
+    + calculatePatientCharge(service : Service, patient : Patient) : double
+}
+
+class GovernmentBillingPolicy implements IBillingPolicy {
+    - subsidyScheduleId : String
+    + calculatePatientCharge(service : Service, patient : Patient) : double
+}
+
+class SelfPayBillingPolicy implements IBillingPolicy {
+    + calculatePatientCharge(service : Service, patient : Patient) : double
+}
+
+' Enum for Patient Classification '
+enum PatientClassification {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+' Relationships '
+
+Patient "1" -- "0..*" Invoice : generates >
+Invoice "1" o-- "1..*" BillingEntry : contains >
+BillingEntry "1" --> "1" Service : describes >
+
+Patient "1" --> "1" IBillingPolicy : uses billingStrategy >
+
+' Notes for clarity and design justification '
+note right of PatientClassification
+  Categorizes patients to
+  determine applicable
+  billing policy.
+end note
+
+note top of IBillingPolicy
+  Strategy Pattern:
+  Defines the interface for
+  different billing algorithms,
+  allowing policies to be
+  replaced at runtime.
+end note
+
+note top of Service
+  Abstract base for all billable
+  items, encapsulating their
+  base cost and details.
+end note
+
+note right of InsuranceBillingPolicy
+  Implements insurer-specific
+  coverage, reimbursement,
+  and co-payment logic.
+end note
+
+note right of GovernmentBillingPolicy
+  Applies predetermined
+  subsidized pricing based on
+  government regulations.
+end note
+
+note right of SelfPayBillingPolicy
+  Charges the full,
+  unsubsidized amount.
+end note
+
+@enduml

@@ -1,0 +1,173 @@
+@startuml
+' Set a consistent style for readability and professionalism
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam class {
+    BorderColor #A30000
+    BackgroundColor #FFFDFD
+    ArrowColor #A30000
+    FontColor #A30000
+    HeaderBackgroundColor #F0F0F0
+}
+skinparam enum {
+    BorderColor #006699
+    BackgroundColor #E0F2F7
+    FontColor #006699
+}
+skinparam interface {
+    BorderColor #008000
+    BackgroundColor #E6FFE6
+    FontColor #008000
+}
+skinparam abstract {
+    BorderColor #CC6600
+    BackgroundColor #FFF8E1
+    FontColor #CC6600
+}
+
+' Enum for Patient Classification
+enum PatientClassification {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+' Class representing Patient data
+class Patient {
+    - patientId : String
+    - name : String
+    - classification : PatientClassification
+    --
+    + getPatientId() : String
+    + getName() : String
+    + getClassification() : PatientClassification
+}
+
+' Abstract base class for all billable entries (pricing elements)
+abstract class BillingEntry {
+    - entryId : String
+    - description : String
+    - basePrice : decimal
+    --
+    + getEntryId() : String
+    + getDescription() : String
+    + getBasePrice() : decimal
+    + {abstract} calculateRawCharge() : decimal
+}
+note top of BillingEntry : Base class for all billable items.\nEncapsulates item-specific base pricing logic.
+
+' Concrete Billing Entry types
+class ClinicalProcedure extends BillingEntry {
+    - procedureCode : String
+    --
+    + calculateRawCharge() : decimal
+}
+
+class Pharmaceutical extends BillingEntry {
+    - drugCode : String
+    --
+    + calculateRawCharge() : decimal
+}
+
+class LaboratoryDiagnostic extends BillingEntry {
+    - testCode : String
+    --
+    + calculateRawCharge() : decimal
+}
+
+class RoomUtilization extends BillingEntry {
+    - roomNumber : String
+    - durationHours : int
+    --
+    + calculateRawCharge() : decimal
+}
+
+' Interface for Billing Policies (Strategy Pattern)
+interface BillingPolicy {
+    + applyPolicy(entry: BillingEntry, patient: Patient) : decimal
+}
+note top of BillingPolicy : Strategy for calculating billed amounts\nbased on patient classification and regulatory rules.\nAllows runtime replacement.
+
+' Concrete Billing Policy implementations
+class InsuranceBillingPolicy implements BillingPolicy {
+    - coverageDetails : String
+    - reimbursementCeiling : decimal
+    - coPaymentRate : decimal
+    --
+    + applyPolicy(entry: BillingEntry, patient: Patient) : decimal
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - subsidySchedule : String
+    --
+    + applyPolicy(entry: BillingEntry, patient: Patient) : decimal
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    + applyPolicy(entry: BillingEntry, patient: Patient) : decimal
+}
+
+' Class representing a single line item on an invoice
+class InvoiceLineItem {
+    - description : String
+    - billedAmount : decimal
+    - quantity : int
+    --
+    + getLineItemDetails() : String
+    + getBilledAmount() : decimal
+}
+note top of InvoiceLineItem : Represents a billed item with its final amount\nafter applying the relevant billing policy.
+
+' Class representing the final patient invoice
+class Invoice {
+    - invoiceId : String
+    - issueDate : Date
+    - totalAmount : decimal
+    --
+    + addLineItem(item: InvoiceLineItem)
+    + calculateTotalAmount() : decimal
+    + getInvoiceDetails() : String
+}
+
+' Service class to orchestrate the billing process
+class BillingService {
+    - availablePolicies : Map<PatientClassification, BillingPolicy>
+    --
+    + registerPolicy(classification: PatientClassification, policy: BillingPolicy)
+    + generateInvoice(patient: Patient, entries: List<BillingEntry>) : Invoice
+    - selectPolicy(patient: Patient) : BillingPolicy
+}
+note top of BillingService : Orchestrates the billing process,\nselects and applies policies, and generates invoices.
+
+' Relationships
+
+' Patient and Classification
+Patient "1" -- "1" PatientClassification : has >
+
+' Invoice and Patient (Invoice knows its patient)
+Patient "1" <-- "0..*" Invoice : for >
+
+' Invoice and Line Items (Composition: Invoice owns its line items)
+Invoice "1" *-- "1..*" InvoiceLineItem : contains >
+
+' InvoiceLineItem and BillingEntry (InvoiceLineItem is derived from a BillingEntry)
+InvoiceLineItem "1" --> "1" BillingEntry : derivesFrom >
+
+' BillingService orchestration relationships
+BillingService "1" --> "1" Patient : reads >
+BillingService "1" --> "1" Invoice : creates >
+BillingService "1" ..> "1" BillingPolicy : uses >
+BillingService "1" --> "0..*" BillingEntry : processes >
+
+' Inheritance and Implementation relationships
+BillingPolicy <|.. InsuranceBillingPolicy
+BillingPolicy <|.. GovernmentBillingPolicy
+BillingPolicy <|.. SelfPayBillingPolicy
+
+BillingEntry <|-- ClinicalProcedure
+BillingEntry <|-- Pharmaceutical
+BillingEntry <|-- LaboratoryDiagnostic
+BillingEntry <|-- RoomUtilization
+
+@enduml

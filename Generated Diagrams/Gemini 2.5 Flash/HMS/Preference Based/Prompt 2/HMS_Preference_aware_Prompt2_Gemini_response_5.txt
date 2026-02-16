@@ -1,0 +1,197 @@
+@startuml
+' Set a consistent style for better readability
+skinparam class {
+    BorderColor #4CAF50
+    BackgroundColor #E8F5E9
+    ArrowColor #4CAF50
+    StereotypeFontColor #4CAF50
+    AttributeFontColor #333333
+    MethodFontColor #00796B
+}
+skinparam interface {
+    BorderColor #2196F3
+    BackgroundColor #E3F2FD
+    ArrowColor #2196F3
+    StereotypeFontColor #2196F3
+}
+skinparam abstract {
+    BorderColor #FF9800
+    BackgroundColor #FFF3E0
+    ArrowColor #FF9800
+    StereotypeFontColor #FF9800
+}
+
+' --- Core Entities ---
+class Patient {
+    - patientId : String
+    - name : String
+    - dateOfBirth : Date
+    - contactInfo : String
+    --
+    + assignBillingPolicy(policy : BillingPolicy) : void
+    + generateInvoice(treatments : List<BillableItem>) : Invoice
+}
+
+class Invoice {
+    - invoiceId : String
+    - invoiceDate : Date
+    - totalAmount : Double
+    - status : String
+    --
+    + addEntry(entry : InvoiceEntry) : void
+    + calculateTotal() : Double
+    + getInvoiceDetails() : String
+    + printInvoice() : void
+}
+
+class InvoiceEntry {
+    - entryId : String
+    - quantity : int
+    - unitCost : Double ' Base cost of the item at the time of billing
+    - billedAmount : Double ' Cost after policy application
+    --
+    + getBilledAmount() : Double
+}
+
+' --- Billable Items (Pricing Elements) ---
+abstract class BillableItem {
+    - itemId : String
+    - description : String
+    - basePrice : Double
+    --
+    + {abstract} getBasePrice() : Double
+    + getItemDetails() : String
+}
+
+class ClinicalProcedure extends BillableItem {
+    - procedureCode : String
+    --
+    + getBasePrice() : Double
+}
+
+class Pharmaceutical extends BillableItem {
+    - drugCode : String
+    - dosage : String
+    --
+    + getBasePrice() : Double
+}
+
+class LabDiagnostic extends BillableItem {
+    - testCode : String
+    --
+    + getBasePrice() : Double
+}
+
+class RoomUtilization extends BillableItem {
+    - roomNumber : String
+    - dailyRate : Double
+    --
+    + getBasePrice() : Double ' Returns dailyRate, assuming unit is a day
+}
+
+' --- Billing Policies (Strategy Pattern) ---
+interface BillingPolicy {
+    + {abstract} calculateBilledAmount(item : BillableItem, patient : Patient) : Double
+    + {abstract} getPolicyName() : String
+}
+
+class InsuranceBillingPolicy implements BillingPolicy {
+    - insurerName : String
+    - coverageDetails : CoveragePolicy
+    - reimbursementCeilings : List<ReimbursementCeiling>
+    --
+    + calculateBilledAmount(item : BillableItem, patient : Patient) : Double
+    + getPolicyName() : String
+    + updateCoverage(policy : CoveragePolicy) : void
+    + addReimbursementCeiling(ceiling : ReimbursementCeiling) : void
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - programName : String
+    - subsidySchedule : SubsidySchedule
+    --
+    + calculateBilledAmount(item : BillableItem, patient : Patient) : Double
+    + getPolicyName() : String
+    + updateSubsidySchedule(schedule : SubsidySchedule) : void
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    --
+    + calculateBilledAmount(item : BillableItem, patient : Patient) : Double
+    + getPolicyName() : String
+}
+
+' --- Policy Data Classes (Configurable Policies) ---
+class CoveragePolicy {
+    - policyId : String
+    - insurerName : String
+    - coveredServices : List<String>
+    - deductibleAmount : Double
+    - coPaymentPercentage : Double
+    --
+    + getPolicyDetails() : String
+}
+
+class ReimbursementCeiling {
+    - ceilingId : String
+    - serviceType : String
+    - maxReimbursement : Double
+    --
+    + getCeilingDetails() : String
+}
+
+class SubsidySchedule {
+    - scheduleId : String
+    - serviceType : String
+    - subsidizedRateFactor : Double ' e.g., 0.5 for 50% subsidy
+    - maxSubsidyAmount : Double
+    --
+    + getScheduleDetails() : String
+}
+
+' --- Relationships ---
+
+Patient "1" --> "0..*" Invoice : generates
+Patient "1" *-- "1" BillingPolicy : <<uses>> assignedPolicy
+note right of Patient::assignedPolicy
+  Patient's billing behavior
+  is determined by its
+  assigned policy.
+end note
+
+Invoice "1" *-- "1..*" InvoiceEntry : contains
+
+InvoiceEntry "1" --> "1" BillableItem : refersTo
+
+' Inheritance for BillableItem types
+BillableItem <|-- ClinicalProcedure
+BillableItem <|-- Pharmaceutical
+BillableItem <|-- LabDiagnostic
+BillableItem <|-- RoomUtilization
+
+' Realization of BillingPolicy interface
+BillingPolicy <|.. InsuranceBillingPolicy
+BillingPolicy <|.. GovernmentBillingPolicy
+BillingPolicy <|.. SelfPayBillingPolicy
+
+' Policy data dependencies (Aggregation for configurable data)
+InsuranceBillingPolicy "1" o-- "1" CoveragePolicy : uses
+InsuranceBillingPolicy "1" o-- "0..*" ReimbursementCeiling : uses
+GovernmentBillingPolicy "1" o-- "1" SubsidySchedule : uses
+
+' Notes for clarity and design justification
+note "Strategy Pattern: Encapsulates varying billing algorithms,\nallowing them to be replaced at runtime without modifying Patient." as N1
+BillingPolicy .. N1
+end note
+
+note "These classes represent configurable policy data,\nallowing updates without structural redesign." as N2
+CoveragePolicy .. N2
+ReimbursementCeiling .. N2
+SubsidySchedule .. N2
+end note
+
+note "InvoiceEntry acts as an association class,\ncapturing specific billing details for each item on an invoice." as N3
+InvoiceEntry .. N3
+end note
+
+@enduml

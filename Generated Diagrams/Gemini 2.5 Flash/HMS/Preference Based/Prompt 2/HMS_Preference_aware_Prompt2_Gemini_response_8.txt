@@ -1,0 +1,146 @@
+@startuml
+' Global settings for consistency
+hide empty members
+skinparam classAttributeIconSize 0
+
+' --- Core Entities ---
+class Patient {
+    - patientId : String
+    - name : String
+    - classification : PatientClassificationType
+    + getPatientInfo() : String
+    + getClassification() : PatientClassificationType
+    + assignBillingPolicy(policy : BillingPolicy)
+}
+
+class Invoice {
+    - invoiceId : String
+    - issueDate : Date
+    - totalAmount : Decimal
+    + addEntry(entry : BillingEntry)
+    + calculateTotal() : Decimal
+    + generateInvoiceDetails() : String
+}
+
+class BillingEntry {
+    - entryId : String
+    - description : String
+    - quantity : int
+    - rawUnitPrice : Decimal
+    - adjustedUnitPrice : Decimal
+    + getLineTotal() : Decimal
+    + getRawUnitPrice() : Decimal
+    + setAdjustedUnitPrice(price : Decimal)
+}
+
+' --- Services & Pricing Elements ---
+abstract class Service {
+    - serviceId : String
+    - name : String
+    + {abstract} getRawPrice() : Decimal
+    + getDescription() : String
+}
+
+class ClinicalProcedure extends Service {
+    - procedureCode : String
+    - baseCost : Decimal
+    + getRawPrice() : Decimal
+}
+
+class Pharmaceutical extends Service {
+    - drugCode : String
+    - unitCost : Decimal
+    + getRawPrice() : Decimal
+}
+
+class LaboratoryDiagnostic extends Service {
+    - testCode : String
+    - testCost : Decimal
+    + getRawPrice() : Decimal
+}
+
+class RoomUtilization extends Service {
+    - roomType : String
+    - dailyRate : Decimal
+    + getRawPrice() : Decimal
+}
+
+' --- Billing Policies (Strategy Pattern) ---
+interface BillingPolicy {
+    + calculateAdjustedAmount(entry : BillingEntry, patient : Patient) : Decimal
+}
+
+class InsuranceBillingPolicy implements BillingPolicy {
+    - insurer : Insurer
+    - coverageRules : Map<String, String> ' Specific rules for this policy instance
+    + calculateAdjustedAmount(entry : BillingEntry, patient : Patient) : Decimal
+    + setInsurer(insurer : Insurer)
+    + addCoverageRule(ruleName : String, ruleValue : String)
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - subsidySchedule : Map<String, Decimal> ' e.g., ServiceType -> SubsidyRate
+    + calculateAdjustedAmount(entry : BillingEntry, patient : Patient) : Decimal
+    + setSubsidySchedule(schedule : Map<String, Decimal>)
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    + calculateAdjustedAmount(entry : BillingEntry, patient : Patient) : Decimal
+}
+
+' --- Supporting Classes ---
+class Insurer {
+    - insurerId : String
+    - name : String
+    - masterCoverageDefinitions : Map<String, String> ' General rules from insurer
+    + getMasterCoverageDefinition(serviceType : String) : String
+}
+
+enum PatientClassificationType {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+' --- Relationships ---
+
+Patient "1" -- "0..*" Invoice : generates
+Invoice "1" -- "1..*" BillingEntry : includes
+BillingEntry "1" -- "1" Service : for
+
+' Patient uses a specific BillingPolicy strategy at runtime
+Patient "1" *-- "1" BillingPolicy : <<uses>> currentPolicy
+
+' An InsuranceBillingPolicy applies rules specific to an Insurer
+InsuranceBillingPolicy "1" -- "1" Insurer : applies
+
+' Notes for clarity
+note right of Patient::classification
+  Determines which BillingPolicy
+  is assigned and used.
+end note
+
+note right of BillingPolicy
+  Strategy pattern for flexible
+  and dynamically replaceable
+  billing logic based on patient
+  classification.
+end note
+
+note right of Service
+  Abstract base for all billable
+  healthcare services, each with
+  its own raw pricing logic.
+end note
+
+note "Policies are replaceable at runtime to adapt to regulatory changes." as N1
+BillingPolicy .. N1
+end note
+
+note "Clear separation of patient data, pricing elements, and billing policies." as N2
+Patient .. N2
+Service .. N2
+BillingPolicy .. N2
+end note
+
+@enduml

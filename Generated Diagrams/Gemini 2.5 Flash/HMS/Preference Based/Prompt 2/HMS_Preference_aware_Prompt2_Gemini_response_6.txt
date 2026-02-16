@@ -1,0 +1,105 @@
+@startuml
+!theme plain
+
+' Abstract classes and Interfaces
+abstract class BillingEntry {
+    - description : String
+    - quantity : int
+    + {abstract} calculateAmount() : float
+    + getAmount() : float
+}
+
+abstract class BillingPolicy {
+    + {abstract} calculateAdjustedAmount(baseAmount : float) : float
+}
+
+' Concrete Billing Entries (Pricing Elements)
+class ClinicalProcedure extends BillingEntry {
+    - procedureCode : String
+    - basePrice : float
+    + calculateAmount() : float
+}
+
+class Pharmaceutical extends BillingEntry {
+    - drugCode : String
+    - unitCost : float
+    + calculateAmount() : float
+}
+
+class LabDiagnostic extends BillingEntry {
+    - testCode : String
+    - testFee : float
+    + calculateAmount() : float
+}
+
+class RoomUtilization extends BillingEntry {
+    - roomType : String
+    - dailyRate : float
+    - daysOccupied : int
+    + calculateAmount() : float
+}
+
+' Concrete Billing Policies (Strategies)
+class InsuranceBillingPolicy extends BillingPolicy {
+    - insurerPolicyId : String
+    - coverageDetails : String
+    + calculateAdjustedAmount(baseAmount : float) : float
+}
+
+class GovernmentBillingPolicy extends BillingPolicy {
+    - subsidyScheduleId : String
+    - subsidizedRates : Map<String, Float>
+    + calculateAdjustedAmount(baseAmount : float) : float
+}
+
+class SelfPayBillingPolicy extends BillingPolicy {
+    + calculateAdjustedAmount(baseAmount : float) : float
+}
+
+' Core Classes
+class Patient {
+    - patientId : String
+    - name : String
+    - patientType : String <<enum>>
+    + getPatientInfo() : String
+}
+
+class Invoice {
+    - invoiceId : String
+    - issueDate : Date
+    - totalAmount : float
+    - status : String
+    + addEntry(entry : BillingEntry) : void
+    + removeEntry(entry : BillingEntry) : void
+    + calculateTotal() : float
+    + setBillingPolicy(policy : BillingPolicy) : void
+    + getInvoiceDetails() : String
+}
+
+' Relationships
+Patient "1" --> "0..*" Invoice : generates
+Invoice "1" *-- "0..*" BillingEntry : includes
+Invoice "1" --> "1" BillingPolicy : uses
+
+' Notes for clarity
+note top of Patient
+  patientType determines
+  the initial BillingPolicy
+  selection for an Invoice.
+end note
+
+note top of BillingPolicy
+  Strategy Pattern:
+  Allows billing logic to be
+  swapped at runtime to adapt
+  to different patient classifications
+  and regulatory changes.
+end note
+
+note top of BillingEntry
+  Base for all billable items,
+  each encapsulating its specific
+  pricing logic.
+end note
+
+@enduml

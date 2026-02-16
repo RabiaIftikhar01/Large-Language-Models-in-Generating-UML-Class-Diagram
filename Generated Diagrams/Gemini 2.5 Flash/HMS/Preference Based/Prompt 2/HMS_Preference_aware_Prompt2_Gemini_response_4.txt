@@ -1,0 +1,233 @@
+@startuml
+' Global settings for consistency and readability
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam shadowing false
+
+title Hospital Discharge Billing System
+
+' ----------------------------------------------------------------------------------------------------
+' Core Billing System - Orchestrates the process (Context for Strategy Pattern)
+' ----------------------------------------------------------------------------------------------------
+class DischargeBillingSystem {
+    - currentBillingPolicy : IBillingPolicy
+    - pricingStrategies : Map<ServiceType, IPricingStrategy>
+    -- Operations --
+    + setBillingPolicy(policy : IBillingPolicy) : void
+    + generateDischargeInvoice(patient : Patient, services : List<BillableService>) : Invoice
+    - getPricingStrategy(serviceType : ServiceType) : IPricingStrategy
+}
+
+' ----------------------------------------------------------------------------------------------------
+' Patient Data
+' ----------------------------------------------------------------------------------------------------
+class Patient {
+    - patientId : String
+    - name : String
+    - classification : PatientClassification
+    -- Accessors --
+    + getPatientId() : String
+    + getName() : String
+    + getClassification() : PatientClassification
+}
+
+enum PatientClassification {
+    INSURANCE
+    GOVERNMENT_SPONSORED
+    SELF_PAYING
+}
+
+' ----------------------------------------------------------------------------------------------------
+' Invoice and Invoice Items
+' ----------------------------------------------------------------------------------------------------
+class Invoice {
+    - invoiceId : String
+    - invoiceDate : Date
+    - totalDue : double
+    - patient : Patient
+    - items : List<InvoiceItem>
+    -- Operations --
+    + addInvoiceItem(item : InvoiceItem) : void
+    + calculateTotalDue() : void
+    + getInvoiceDetails() : String
+    + getPatient() : Patient
+}
+
+class InvoiceItem {
+    - itemId : String
+    - description : String
+    - quantity : int
+    - unitPrice : double
+    - totalAmount : double
+    - billableService : BillableService
+    -- Operations --
+    + getUnitPrice() : double
+    + getTotalAmount() : double
+}
+
+' ----------------------------------------------------------------------------------------------------
+' Billable Services and their Pricing Strategies (Strategy Pattern for Service Pricing)
+' ----------------------------------------------------------------------------------------------------
+abstract class BillableService {
+    - serviceId : String
+    - description : String
+    - baseCost : double
+    - serviceType : ServiceType
+    -- Accessors --
+    + getServiceId() : String
+    + getDescription() : String
+    + getBaseCost() : double
+    + getServiceType() : ServiceType
+}
+
+enum ServiceType {
+    CLINICAL_PROCEDURE
+    PHARMACEUTICAL
+    LABORATORY_DIAGNOSTIC
+    ROOM_UTILIZATION
+}
+
+class ClinicalProcedure extends BillableService {
+    - procedureCode : String
+    ' Additional attributes specific to clinical procedures
+}
+
+class Pharmaceutical extends BillableService {
+    - drugCode : String
+    - dosage : String
+    ' Additional attributes specific to pharmaceuticals
+}
+
+class LaboratoryTest extends BillableService {
+    - testCode : String
+    ' Additional attributes specific to lab tests
+}
+
+class RoomStay extends BillableService {
+    - roomNumber : String
+    - numberOfNights : int
+    ' Additional attributes specific to room utilization
+}
+
+interface IPricingStrategy {
+    + {abstract} calculatePrice(service : BillableService, quantity : int) : double
+}
+
+class ClinicalProcedurePricingStrategy implements IPricingStrategy {
+    - procedureSpecificRates : Map<String, double>
+    + calculatePrice(service : BillableService, quantity : int) : double
+}
+
+class PharmaceuticalPricingStrategy implements IPricingStrategy {
+    - drugPriceList : Map<String, double>
+    + calculatePrice(service : BillableService, quantity : int) : double
+}
+
+class LaboratoryPricingStrategy implements IPricingStrategy {
+    - testPriceList : Map<String, double>
+    + calculatePrice(service : BillableService, quantity : int) : double
+}
+
+class RoomUtilizationPricingStrategy implements IPricingStrategy {
+    - dailyRoomRates : Map<String, double>
+    + calculatePrice(service : BillableService, quantity : int) : double
+}
+
+' ----------------------------------------------------------------------------------------------------
+' Billing Policies (Strategy Pattern for Patient Classification Billing)
+' ----------------------------------------------------------------------------------------------------
+interface IBillingPolicy {
+    + {abstract} applyPolicy(invoice : Invoice) : Invoice
+}
+
+class InsuranceBillingPolicy implements IBillingPolicy {
+    - insurerCoveragePolicies : Map<String, double>
+    - reimbursementCeilings : Map<String, double>
+    - coPaymentModels : Map<String, double>
+    -- Operations --
+    + applyPolicy(invoice : Invoice) : Invoice
+    - applyInsurerCoverage(invoice : Invoice) : void
+    - applyReimbursementCeilings(invoice : Invoice) : void
+    - applyCoPayment(invoice : Invoice) : void
+}
+
+class GovernmentBillingPolicy implements IBillingPolicy {
+    - subsidizedPricingSchedule : Map<String, double>
+    -- Operations --
+    + applyPolicy(invoice : Invoice) : Invoice
+    - applySubsidies(invoice : Invoice) : void
+}
+
+class SelfPayBillingPolicy implements IBillingPolicy {
+    -- Operations --
+    + applyPolicy(invoice : Invoice) : Invoice
+    ' No specific attributes needed, simply charges full amount
+}
+
+
+' ----------------------------------------------------------------------------------------------------
+' Relationships
+' ----------------------------------------------------------------------------------------------------
+
+' DischargeBillingSystem uses a BillingPolicy
+DischargeBillingSystem o-- "1" IBillingPolicy : "currentPolicy"
+
+' DischargeBillingSystem uses Pricing Strategies
+DischargeBillingSystem "1" o-- "4" IPricingStrategy : "uses"
+
+' Invoice is generated for a Patient
+Invoice "1" --> "1" Patient : "billedTo"
+
+' Invoice contains InvoiceItems
+Invoice "1" *-- "0..*" InvoiceItem : "contains"
+
+' InvoiceItem references a BillableService
+InvoiceItem "1" --> "1" BillableService : "references"
+
+' Inheritance for BillableService types
+BillableService <|-- ClinicalProcedure
+BillableService <|-- Pharmaceutical
+BillableService <|-- LaboratoryTest
+BillableService <|-- RoomStay
+
+' Inheritance for Pricing Strategies
+IPricingStrategy <|.. ClinicalProcedurePricingStrategy
+IPricingStrategy <|.. PharmaceuticalPricingStrategy
+IPricingStrategy <|.. LaboratoryPricingStrategy
+IPricingStrategy <|.. RoomUtilizationPricingStrategy
+
+' Inheritance for Billing Policies
+IBillingPolicy <|.. InsuranceBillingPolicy
+IBillingPolicy <|.. GovernmentBillingPolicy
+IBillingPolicy <|.. SelfPayBillingPolicy
+
+' Patient uses PatientClassification enum
+Patient .. PatientClassification
+
+' BillableService uses ServiceType enum
+BillableService .. ServiceType
+
+' Notes for clarity
+note top of DischargeBillingSystem
+  Orchestrates invoice generation
+  and policy application.
+  Uses Strategy pattern for
+  both billing policies and
+  service pricing.
+end note
+
+note right of IBillingPolicy
+  Strategy Pattern:
+  Allows billing behavior to
+  be replaced at runtime without
+  modifying DischargeBillingSystem.
+end note
+
+note right of IPricingStrategy
+  Strategy Pattern:
+  Encapsulates varied pricing
+  logic for different service types.
+end note
+
+@enduml
