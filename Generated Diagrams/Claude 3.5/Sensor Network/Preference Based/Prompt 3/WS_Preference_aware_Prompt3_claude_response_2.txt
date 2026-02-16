@@ -1,0 +1,86 @@
+@startuml
+abstract class Sensor {
+    - id : string
+    - vendor : string
+    + {abstract} readData() : SensorData
+    + {abstract} calibrate()
+}
+
+class TemperatureSensor extends Sensor {
+    + readData() : SensorData
+    + calibrate()
+}
+
+class HumiditySensor extends Sensor {
+    + readData() : SensorData
+    + calibrate()
+}
+
+class PressureSensor extends Sensor {
+    + readData() : SensorData
+    + calibrate()
+}
+
+class SensorData {
+    - timestamp : datetime
+    - rawValue : string
+    - sensorId : string
+    + getRawValue() : string
+    + getTimestamp() : datetime
+}
+
+abstract class DataAdapter {
+    + {abstract} normalize(data : SensorData) : StandardizedData
+}
+
+class VendorAAdapter extends DataAdapter {
+    + normalize(data : SensorData) : StandardizedData
+}
+
+class VendorBAdapter extends DataAdapter {
+    + normalize(data : SensorData) : StandardizedData
+}
+
+class StandardizedData {
+    - timestamp : datetime
+    - value : float
+    - unit : string
+    - stationId : string
+    + getValue() : float
+    + getUnit() : string
+}
+
+class WeatherStation {
+    - id : string
+    - location : string
+    - owner : string
+    - transmissionCadence : int
+    + addSensor(s : Sensor)
+    + removeSensor(s : Sensor)
+    + collectData() : List<SensorData>
+    + setTransmissionCadence(cadence : int)
+}
+
+class DataIngestionService {
+    - static instance : DataIngestionService
+    + getInstance() : DataIngestionService
+    + requestData(station : WeatherStation)
+    + processData(data : List<SensorData>)
+}
+
+class MonitoringPlatform {
+    - stations : List<WeatherStation>
+    + registerStation(station : WeatherStation)
+    + unregisterStation(station : WeatherStation)
+    + initiateDataCollection()
+}
+
+WeatherStation o-- Sensor
+Sensor --> SensorData : produces
+DataAdapter --> SensorData : consumes
+DataAdapter --> StandardizedData : produces
+DataIngestionService --> WeatherStation : requests
+DataIngestionService --> DataAdapter : uses
+MonitoringPlatform o-- WeatherStation
+MonitoringPlatform --> DataIngestionService : coordinates
+@enduml
