@@ -1,0 +1,89 @@
+@startuml
+' Title for the diagram
+title Environmental Monitoring System - Class Diagram
+
+' Define the main system and its core components
+class EnvironmentalMonitoringSystem {
+    - systemId: String
+    + requestDataTransfer(stationId: String)
+    + processIngestedData()
+}
+
+' Represents a physical weather station
+class WeatherStation {
+    - stationId: String
+    - location: String
+    - reportingCadence: Duration
+    - ownerType: OwnerType
+    + createAndSendTelemetryData(sensorId: String, rawValue: String)
+}
+
+' Represents a sensor device within a weather station
+class Sensor {
+    - sensorId: String
+    - sensorType: String
+    - vendor: String
+    - nativeFormatSpec: String
+    + collectRawValue(): String
+}
+
+' Represents a single data point reported by a sensor
+class TelemetryData {
+    - timestamp: DateTime
+    - rawValue: String
+    - nativeFormat: String
+    - standardizedValue: String
+    - standardizedFormat: String
+    - stationId: String
+    - sensorId: String
+}
+
+' Service responsible for receiving and queuing raw data
+class DataIngestionService {
+    - ingestionQueue: Queue<TelemetryData>
+    + ingestRawData(data: TelemetryData)
+    + processIngestionQueue()
+}
+
+' Service responsible for standardizing diverse native data formats
+class DataStandardizationService {
+    + standardizeData(data: TelemetryData): TelemetryData
+}
+
+' Enumeration for the types of entities owning weather stations
+enum OwnerType {
+    PublicAgency
+    ResearchCenter
+    InfrastructureEntity
+}
+
+' --- Relationships ---
+
+' The EnvironmentalMonitoringSystem manages the DataIngestionService
+EnvironmentalMonitoringSystem "1" *-- "1" DataIngestionService : manages
+
+' The DataIngestionService uses the DataStandardizationService
+DataIngestionService "1" ..> "1" DataStandardizationService : uses
+
+' A WeatherStation contains multiple Sensors (composition)
+WeatherStation "1" *-- "many" Sensor : contains
+
+' A Sensor belongs to a WeatherStation (implied by composition, but can be explicit)
+Sensor "1" ..> "1" WeatherStation : belongs to
+
+' A WeatherStation sends TelemetryData to the DataIngestionService
+WeatherStation "1" ..> "1" DataIngestionService : sends data to
+
+' The EnvironmentalMonitoringSystem requests data from WeatherStations
+EnvironmentalMonitoringSystem "1" ..> "*" WeatherStation : requests data from
+
+' TelemetryData originates from a specific Sensor
+TelemetryData "1" -- "1" Sensor : originates from
+
+' TelemetryData is recorded by a specific WeatherStation
+TelemetryData "1" -- "1" WeatherStation : recorded by
+
+' A WeatherStation is owned by an OwnerType
+WeatherStation "1" -- "1" OwnerType : owned by
+
+@enduml

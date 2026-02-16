@@ -1,0 +1,55 @@
+@startuml
+!theme mars
+
+class EnvironmentalMonitoringSystem {
+    - String architectureType = "Distributed"
+    - List<String> deploymentLocations
+    --
+    + ingestData(TelemetryData data)
+    + standardizeData(TelemetryData data) : TelemetryData
+    + requestDataTransfer(stationId : String)
+    + processTelemetry(TelemetryData data)
+}
+
+class WeatherStation {
+    - String stationId
+    - String location
+    - String ownerType // e.g., Public Agency, Research Center, Infrastructure Entity
+    - String dataCadence // e.g., "hourly", "daily", "variable"
+    --
+    + transmitData() : List<TelemetryData>
+    + collectSensorData() : List<TelemetryData>
+}
+
+class Sensor {
+    - String sensorId
+    - String sensorType // e.g., Temperature, Humidity, Pressure, Wind
+    - String vendorName
+    - String nativeDataFormat
+    --
+    + readData() : Map<String, Object> // Returns raw sensor readings
+}
+
+class TelemetryData {
+    - String dataRecordId
+    - DateTime timestamp
+    - Map<String, Object> rawValues // Key-value pairs for diverse sensor readings
+    - String originalFormat
+    - String standardizedFormat
+    --
+    + getRawData() : Map<String, Object>
+    + getStandardizedData() : Map<String, Object>
+}
+
+' Relationships'
+EnvironmentalMonitoringSystem "1" -- "0..*" WeatherStation : requests data from >
+EnvironmentalMonitoringSystem "1" -- "0..*" TelemetryData : ingests >
+
+WeatherStation "1" *-- "1..*" Sensor : contains >
+
+Sensor "1" -- "0..*" TelemetryData : produces >
+
+TelemetryData "0..*" -- "1" WeatherStation : originates from >
+TelemetryData "0..*" -- "1" Sensor : reports for >
+
+@enduml

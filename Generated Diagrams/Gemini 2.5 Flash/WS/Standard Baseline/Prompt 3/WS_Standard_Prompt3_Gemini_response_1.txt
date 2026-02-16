@@ -1,0 +1,80 @@
+@startuml
+
+' Define the main components of the environmental monitoring system
+
+class EnvironmentalMonitoringSystem {
+    ' Core responsibilities and interactions of the platform
+    + handleIngestionDemands()
+    + ensureReliability()
+    + requestDataTransfer(stationId: String)
+    + consolidateTelemetry(data: StandardizedTelemetry)
+}
+
+class WeatherStation {
+    ' Represents a physical weather station
+    + stationId: String
+    + location: String
+    + dataCadence: String ' e.g., "hourly", "daily", "on-demand"
+    + ownerType: String ' e.g., "PublicAgency", "ResearchCenter", "InfrastructureEntity"
+    + transferData(): List<TelemetryData>
+}
+
+class Sensor {
+    ' Represents a sensor device within a weather station
+    + sensorId: String
+    + sensorType: String ' e.g., "temperature", "humidity", "windSpeed"
+    + vendor: String ' Manufacturer of the sensor
+    + nativeFormatDescription: String ' Description of the sensor's native data format
+    + readData(): TelemetryData
+}
+
+class TelemetryData {
+    ' Represents raw, native-format data reported by a sensor
+    + timestamp: DateTime
+    + value: String ' Raw value, can be any format
+    + unit: String ' Native unit
+    + sensorId: String
+    + stationId: String
+    + nativeFormat: String ' Identifier for the native data format
+}
+
+class StandardizedTelemetry {
+    ' Represents telemetry data after standardization
+    + timestamp: DateTime
+    + value: Double ' Standardized numeric value
+    + unit: String ' Standardized unit
+    + sensorId: String
+    + stationId: String
+    + standardizedFormat: String ' Identifier for the standardized data format (e.g., "JSON", "Protobuf")
+}
+
+class DataIngestionService {
+    ' Component responsible for receiving and standardizing data
+    + receiveNativeData(data: TelemetryData)
+    + standardizeData(nativeData: TelemetryData): StandardizedTelemetry
+}
+
+' Define relationships between classes
+
+' The EnvironmentalMonitoringSystem uses the DataIngestionService
+EnvironmentalMonitoringSystem "1" -- "1" DataIngestionService : uses >
+
+' The EnvironmentalMonitoringSystem requests data from multiple WeatherStations
+EnvironmentalMonitoringSystem "1" -- "*" WeatherStation : requests data from >
+
+' A WeatherStation contains multiple Sensors (composition)
+WeatherStation "1" *-- "*" Sensor : contains
+
+' A Sensor generates multiple TelemetryData records over time
+Sensor "1" -- "*" TelemetryData : generates >
+
+' The DataIngestionService processes TelemetryData (native)
+DataIngestionService ..> TelemetryData : <<processes>>
+
+' The DataIngestionService produces StandardizedTelemetry
+DataIngestionService ..> StandardizedTelemetry : <<produces>>
+
+' The EnvironmentalMonitoringSystem consolidates (stores/uses) the StandardizedTelemetry
+EnvironmentalMonitoringSystem "1" -- "*" StandardizedTelemetry : consolidates >
+
+@enduml

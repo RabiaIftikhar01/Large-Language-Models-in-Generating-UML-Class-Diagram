@@ -1,0 +1,98 @@
+@startuml
+!theme mars
+
+' Define the main entities and their relationships for an environmental monitoring system.
+
+' Core System Component
+class EnvironmentalMonitoringPlatform {
+    - deploymentId: String
+    - reliabilityStatus: String
+    + handleDataIngestion(sensorData: SensorData)
+    + requestDataTransfer(stationId: String)
+    + manageStation(station: WeatherStation)
+}
+
+' External Entity: Weather Station
+class WeatherStation {
+    - stationId: String
+    - location: String
+    - ownerType: String // e.g., PublicAgency, ResearchCenter, InfrastructureEntity
+    + transmitSensorData(data: SensorData)
+    + getStationCadence(): DataTransferCadence
+}
+
+' Component within a Weather Station
+class Sensor {
+    - sensorId: String
+    - sensorType: String // e.g., Temperature, Humidity, Pressure
+    - vendor: String
+    - nativeDataFormatIdentifier: String // e.g., "JSON_v1", "XML_proprietaryA"
+    + generateData(): SensorData
+}
+
+' Data Structures
+class SensorData {
+    - timestamp: DateTime
+    - rawValue: String // Data in its native format
+    - sensorId: String
+    - stationId: String
+    - nativeFormatIdentifier: String
+}
+
+class StandardizedSensorData {
+    - timestamp: DateTime
+    - standardizedValue: Map<String, Object> // Key-value pairs in a common schema
+    - sensorId: String
+    - stationId: String
+    - standardizedFormatIdentifier: String // e.g., "CommonSchema_v1"
+}
+
+' System Services
+class IngestionService {
+    + receiveData(sensorData: SensorData): StandardizedSensorData
+    + processBatch(dataList: List<SensorData>): List<StandardizedSensorData>
+}
+
+class DataStandardizer {
+    + transform(sensorData: SensorData): StandardizedSensorData
+    + loadFormatMapping(nativeFormat: String, targetSchema: String)
+}
+
+' Configuration/Metadata
+class DataTransferCadence {
+    - frequency: String // e.g., "hourly", "every 30 minutes", "daily"
+    - lastTransferTime: DateTime
+    - nextTransferTime: DateTime
+}
+
+
+' Relationships
+
+EnvironmentalMonitoringPlatform "1" -- "N" WeatherStation : manages >
+note on link: thousands of stations
+
+EnvironmentalMonitoringPlatform "1" -- "1" IngestionService : uses >
+
+WeatherStation "1" -- "N" Sensor : equipped with >
+note on link: diverse sensors
+
+WeatherStation "1" -- "1" DataTransferCadence : defines >
+
+Sensor "1" -- "N" SensorData : generates >
+
+SensorData "N" -- "1" IngestionService : submitted to >
+IngestionService "1" -- "1" DataStandardizer : uses >
+DataStandardizer "1" -- "N" StandardizedSensorData : produces >
+note on link: at point of ingestion
+
+IngestionService "1" -- "N" StandardizedSensorData : outputs >
+
+
+' Notes for additional context from the scenario
+
+note left of EnvironmentalMonitoringPlatform : Handles large-scale ingestion demands\nPreserves reliability\nGeographically distributed deployments
+note right of WeatherStation : Reports data in native formats\nCadence may differ by station
+note left of SensorData : Raw data from sensors\nIn native format
+note right of StandardizedSensorData : Transformed into a common schema for analysis
+note bottom of DataStandardizer : Converts diverse native formats to a single standardized format
+@enduml

@@ -1,0 +1,89 @@
+@startuml
+!pragma layout smetana
+
+' Define the main system and its components
+class EnvironmentalMonitoringSystem {
+  + name: String
+  + architectureType: String = "Distributed"
+  + ingestionCapacity: String
+  + reliabilityMetric: String
+  --
+  + requestDataTransfer(stationId: String): List<TelemetryData>
+  + storeStandardizedData(data: StandardizedTelemetryData): void
+}
+
+class DataIngestionModule {
+  --
+  + ingestRawData(rawData: List<TelemetryData>): void
+  + standardizeFormat(rawData: TelemetryData): StandardizedTelemetryData
+}
+
+' Define entities related to data sources
+class WeatherStation {
+  + stationId: String
+  + location: String
+  + ownerType: String ' e.g., "Public Agency", "Research Center", "Infrastructure Entity"
+  + currentDataCadence: String ' e.g., "Hourly", "Daily"
+  --
+  + provideTelemetryData(): List<TelemetryData>
+}
+
+class Sensor {
+  + sensorId: String
+  + sensorType: String ' e.g., "Temperature", "Humidity", "Pressure"
+  + vendor: String
+  + nativeDataFormat: String ' e.g., "JSON", "XML", "CSV", "Binary"
+  --
+  + readMeasurement(): TelemetryData
+}
+
+' Define data objects
+class TelemetryData {
+  + timestamp: DateTime
+  + sensorId: String
+  + rawValue: String ' Raw data as received from sensor
+  + nativeFormat: String
+}
+
+class StandardizedTelemetryData {
+  + timestamp: DateTime
+  + sensorId: String
+  + stationId: String
+  + value: Double ' Standardized numerical value
+  + unit: String ' Standardized unit, e.g., "Celsius", "hPa"
+  + standardizedFormat: String = "Internal"
+}
+
+' Relationships
+EnvironmentalMonitoringSystem "1" -- "1" DataIngestionModule : uses/composes >
+EnvironmentalMonitoringSystem "1" -- "N" WeatherStation : monitors/requests data from >
+
+WeatherStation "1" -- "N" Sensor : contains >
+
+Sensor "1" --> "1" TelemetryData : produces >
+
+DataIngestionModule "1" -- "N" TelemetryData : processes >
+DataIngestionModule "1" --> "N" StandardizedTelemetryData : creates >
+
+EnvironmentalMonitoringSystem "1" <-- "*" StandardizedTelemetryData : stores/manages <
+
+' Notes for additional context
+note "Handles large-scale ingestion demands\nand ensures reliability" as N1
+EnvironmentalMonitoringSystem .. N1
+
+note "Connects to stations to request data transfers" as N2
+EnvironmentalMonitoringSystem -- N2
+
+note "Reports data in native formats\nwhich must be standardized" as N3
+TelemetryData .. N3
+
+note "Standardizes diverse native formats\ninto a uniform internal format" as N4
+DataIngestionModule .. N4
+
+note "Sensor data transmitted hourly\n(cadence may differ by station)" as N5
+WeatherStation .. N5
+
+note "Diverse sensors from multiple vendors" as N6
+Sensor .. N6
+
+@enduml

@@ -1,0 +1,90 @@
+@startuml
+' Define the main classes of the system
+
+class EnvironmentalMonitoringSystem {
+    + name: String
+    + deploymentLocations: List<String>
+    --
+    + requestDataTransfer(stationId: String): void
+    + consolidateTelemetry(data: TelemetryRecord): void
+    + ensureReliability(): void
+}
+
+class WeatherStation {
+    + stationId: String
+    + location: String
+    + ownerType: String ' e.g., Public Agency, Research Center, Infrastructure Entity
+    + dataCadence: Duration ' e.g., 1 hour, 30 minutes
+    --
+    + transmitData(): void
+}
+
+class Sensor {
+    + sensorId: String
+    + vendor: String
+    + model: String
+    + sensorType: String ' e.g., Temperature, Humidity, Pressure
+    + nativeFormat: String ' e.g., JSON, XML, CSV
+    --
+    + generateReading(): TelemetryRecord
+}
+
+class TelemetryRecord {
+    + recordId: String
+    + timestamp: DateTime
+    + stationId: String
+    + sensorId: String
+    + rawValue: String ' Data in native format
+    + standardizedValue: Map<String, Object> ' Data after standardization
+    + dataType: String ' e.g., "weather_data"
+}
+
+class DataIngestionService {
+    + ingestionEndpoint: URL
+    + maxThroughput: Long ' Capacity for large-scale ingestion
+    --
+    + ingest(record: TelemetryRecord): void
+}
+
+class DataStandardizationService {
+    + supportedFormats: List<String>
+    + transformationRules: Map<String, String> ' Rules for converting native to standard
+    --
+    + standardize(record: TelemetryRecord): TelemetryRecord
+}
+
+' Define relationships between classes
+
+' EnvironmentalMonitoringSystem manages WeatherStations
+EnvironmentalMonitoringSystem "1" -- "*" WeatherStation : manages
+
+' WeatherStation equips multiple Sensors
+WeatherStation "1" -- "*" Sensor : equips
+
+' EnvironmentalMonitoringSystem contains the DataIngestionService
+EnvironmentalMonitoringSystem "1" *-- "1" DataIngestionService : contains
+
+' DataIngestionService utilizes the DataStandardizationService
+DataIngestionService "1" *-- "1" DataStandardizationService : uses
+
+' Data Flow (Dependencies)
+
+' Sensor generates TelemetryRecords
+Sensor .right.> TelemetryRecord : creates
+
+' WeatherStation transmits TelemetryRecords to the DataIngestionService
+WeatherStation .right.> DataIngestionService : transmits (TelemetryRecord)
+
+' DataIngestionService processes TelemetryRecords (receives, validates)
+DataIngestionService .down.> TelemetryRecord : processes
+
+' DataStandardizationService transforms TelemetryRecords from native to standard format
+DataStandardizationService .down.> TelemetryRecord : transforms
+
+' EnvironmentalMonitoringSystem stores and utilizes the processed TelemetryRecords
+EnvironmentalMonitoringSystem .left.< TelemetryRecord : stores
+
+' Add a note for external entities operating stations
+note "Public Agencies, Research Centers,\nInfrastructure Entities operate Weather Stations" as N1
+N1 .down. WeatherStation
+@enduml

@@ -1,0 +1,91 @@
+@startuml
+!theme plain
+
+' Define classes
+class EnvironmentalMonitoringSystem {
+    - systemId: String
+    - name: String
+    - deploymentRegion: String
+    + requestDataTransfer(stationId: String): void
+    + processIngestedData(data: TelemetryData): void
+}
+
+class WeatherStation {
+    - stationId: String
+    - name: String
+    - location: String
+    - reportingCadence: Duration
+    - lastReportTimestamp: DateTime
+    + sendTelemetryData(): List<TelemetryData>
+}
+
+class Sensor {
+    - sensorId: String
+    - type: String
+    - vendor: String
+    - nativeFormatDescriptor: String ' e.g., "JSON-VendorX", "CSV-TypeY"
+    + readRawData(): String
+}
+
+class TelemetryData {
+    - dataId: String
+    - timestamp: DateTime
+    - stationId: String
+    - sensorId: String
+    - rawValue: String ' Data in its native format
+    - nativeFormatDescriptor: String
+    - standardizedValue: String ' Data after standardization
+    - standardizedFormatDescriptor: String
+}
+
+class DataIngestionModule {
+    - ingestionEndpoint: URL
+    + receiveData(rawDataList: List<TelemetryData>): void
+    + enqueueForStandardization(data: TelemetryData): void
+}
+
+class DataStandardizationModule {
+    + standardize(rawData: TelemetryData): TelemetryData
+    - getStandardizationRules(sensorType: String, vendor: String): StandardizationRule
+}
+
+abstract class Organization {
+    - organizationId: String
+    - name: String
+}
+
+class PublicAgency extends Organization {}
+class ResearchCenter extends Organization {}
+class InfrastructureEntity extends Organization {}
+
+' Define relationships
+
+' EnvironmentalMonitoringSystem manages stations and uses ingestion module
+EnvironmentalMonitoringSystem "1" -- "0..*" WeatherStation : manages >
+EnvironmentalMonitoringSystem "1" o-- "1" DataIngestionModule : has >
+
+' Data ingestion and standardization flow
+DataIngestionModule "1" -- "1" DataStandardizationModule : uses >
+DataIngestionModule "1" ..> "0..*" TelemetryData : receives / enqueues
+
+' Weather station and sensors
+WeatherStation "1" *-- "1..*" Sensor : equips >
+
+' Sensor produces telemetry data
+Sensor "1" ..> "1" TelemetryData : produces
+
+' WeatherStation generates/sends telemetry data
+WeatherStation "1" ..> "0..*" TelemetryData : sends
+
+' TelemetryData is transformed by Standardization Module
+DataStandardizationModule "1" ..> "0..*" TelemetryData : transforms
+
+' Organization owns weather stations
+Organization "1" -- "0..*" WeatherStation : owns >
+
+' Notes for additional context
+note top of EnvironmentalMonitoringSystem : Handles large-scale ingestion\nPreserves reliability\nDistributed architecture
+note left of TelemetryData : Data reported in native formats\nStandardized at ingestion point\nCadence varies by station
+note right of Sensor : Diverse sensors from multiple vendors
+note right of DataStandardizationModule : Converts native format to standardized format
+@enduml

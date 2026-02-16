@@ -1,0 +1,60 @@
+@startuml
+!theme plain
+
+class EnvironmentalMonitoringSystem {
+    - systemID: String
+    - deploymentLocation: String[]
+    + requestDataTransfer(stationID: String): void
+}
+
+class WeatherStation {
+    - stationID: String
+    - location: String
+    - reportingCadence: String // e.g., "hourly", "variable"
+    + transmitSensorReadings(readings: Map<String, Map<String, Object>>): void // Map<SensorID, RawData>
+}
+
+class Sensor {
+    - sensorID: String
+    - sensorType: String // e.g., "temperature", "humidity", "pressure"
+    - vendor: String
+    - nativeFormat: String
+    + readData(): Map<String, Object> // Returns raw data in native format
+}
+
+class SensorData {
+    - dataID: String
+    - timestamp: DateTime
+    - rawValue: Map<String, Object>
+    - standardizedValue: Map<String, Object>
+    - nativeFormat: String
+    - standardizedFormat: String
+    - sensorID: String
+    - stationID: String
+}
+
+class DataIngestionService {
+    + ingestRawTelemetry(telemetryPayload: Map<String, Map<String, Object>>, stationID: String): void
+    - processSensorReading(rawReading: Map<String, Object>, nativeFormat: String, sensorID: String, stationID: String): void
+}
+
+class DataStandardizer {
+    + standardize(rawData: Map<String, Object>, nativeFormat: String): Map<String, Object>
+}
+
+class StationOwner {
+    - ownerID: String
+    - name: String
+    - type: String // e.g., "PublicAgency", "ResearchCenter", "InfrastructureEntity"
+}
+
+' Relationships '
+EnvironmentalMonitoringSystem "1" -- "*" WeatherStation : manages
+WeatherStation "1" -- "*" Sensor : contains
+Sensor "1" -- "1" SensorData : produces >
+EnvironmentalMonitoringSystem "1" -- "1" DataIngestionService : uses
+DataIngestionService "1" -- "1" DataStandardizer : employs
+DataIngestionService ..> SensorData : creates
+WeatherStation "1" -- "1" StationOwner : operated by
+
+@enduml

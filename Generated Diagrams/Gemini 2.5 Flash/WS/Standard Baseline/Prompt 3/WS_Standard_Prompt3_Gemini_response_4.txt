@@ -1,0 +1,74 @@
+@startuml
+!theme mars
+
+package "Environmental Monitoring System" {
+    class EnvironmentalMonitoringSystem {
+        + requestDataTransfer(stationId: String)
+        + receiveNativeTelemetry(nativeData: NativeTelemetryData)
+        --
+        - dataIngestionService: DataIngestionService
+    }
+
+    package "Data Ingestion" {
+        class DataIngestionService {
+            + ingest(nativeData: NativeTelemetryData): StandardizedTelemetryData
+            --
+            - standardize(rawData: String, nativeFormat: String): StandardizedTelemetryData
+        }
+
+        class NativeTelemetryData {
+            + sensorId: String
+            + timestamp: DateTime
+            + rawValue: String
+            + nativeFormat: String
+        }
+
+        class StandardizedTelemetryData {
+            + sensorId: String
+            + timestamp: DateTime
+            + value: String
+            + unit: String
+        }
+    }
+}
+
+package "Weather Station Network" {
+    class WeatherStation {
+        + id: String
+        + location: String
+        + reportingCadence: TimeInterval // e.g., hourly, minutely
+        --
+        + transmitData(): NativeTelemetryData
+    }
+
+    class Sensor {
+        + id: String
+        + type: String // e.g., Temperature, Humidity, WindSpeed
+        + vendor: String
+        + nativeFormat: String // e.g., JSON, XML, CSV
+        --
+        + collectRawData(): String
+    }
+
+    class StationOwner {
+        + name: String
+        + type: String // e.g., Public Agency, Research Center, Infrastructure Entity
+    }
+}
+
+' Relationships
+EnvironmentalMonitoringSystem "1" *-- "1" DataIngestionService : manages >
+EnvironmentalMonitoringSystem "1" -- "*" WeatherStation : requests/receives from >
+
+WeatherStation "1" *-- "1..*" Sensor : contains
+WeatherStation "1" -- "1" StationOwner : owned by >
+
+Sensor "1" -- "0..*" NativeTelemetryData : generates >
+
+DataIngestionService "1" -- "0..*" NativeTelemetryData : processes >
+DataIngestionService "1" -- "0..*" StandardizedTelemetryData : produces >
+
+' Data flow / transformation
+NativeTelemetryData <.. DataIngestionService : transformed into
+DataIngestionService ..> StandardizedTelemetryData : produces
+@enduml
