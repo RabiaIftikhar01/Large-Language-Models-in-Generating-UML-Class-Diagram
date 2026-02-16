@@ -1,0 +1,141 @@
+@startuml
+' Interface for defining billing policies, allowing them to be interchangeable at runtime.
+interface BillingPolicy {
+    + calculateTotal(charges : List<Charge>) : decimal
+}
+
+' Concrete billing policy for patients with insurance.
+class InsuranceBillingPolicy implements BillingPolicy {
+    - coverageRules : string
+    - reimbursementLimit : decimal
+    - coPaymentStructure : string
+    + calculateTotal(charges : List<Charge>) : decimal
+}
+
+' Concrete billing policy for patients under government health programs.
+class GovernmentBillingPolicy implements BillingPolicy {
+    - subsidizedRates : string
+    + calculateTotal(charges : List<Charge>) : decimal
+}
+
+' Concrete billing policy for self-paying patients.
+class SelfPayBillingPolicy implements BillingPolicy {
+    + calculateTotal(charges : List<Charge>) : decimal
+}
+
+' Represents a patient in the hospital system.
+class Patient {
+    - patientId : string
+    - name : string
+    - dateOfBirth : date
+    - contactInfo : string
+    + getPatientId() : string
+    + getName() : string
+    + setBillingPolicy(policy : BillingPolicy)
+    + getBillingPolicy() : BillingPolicy
+}
+
+' Represents a patient's stay in the hospital.
+class HospitalStay {
+    - stayId : string
+    - admissionDate : date
+    - dischargeDate : date
+    + addCharge(charge : Charge)
+    + getCharges() : List<Charge>
+    + getStayDuration() : int
+}
+
+' Abstract base class for all types of charges.
+abstract class Charge {
+    - chargeId : string
+    - description : string
+    - baseAmount : decimal
+    + getChargeId() : string
+    + getDescription() : string
+    + getBaseAmount() : decimal
+    + {abstract} getAdjustedAmount() : decimal
+}
+
+' Represents a charge for a medical procedure.
+class ProcedureCharge extends Charge {
+    - procedureCode : string
+    + getAdjustedAmount() : decimal
+}
+
+' Represents a charge for medication.
+class MedicationCharge extends Charge {
+    - medicationCode : string
+    - quantity : int
+    + getAdjustedAmount() : decimal
+}
+
+' Represents a charge for a diagnostic test.
+class DiagnosticTestCharge extends Charge {
+    - testCode : string
+    + getAdjustedAmount() : decimal
+}
+
+' Represents a charge for room occupancy.
+class RoomCharge extends Charge {
+    - roomNumber : string
+    - dailyRate : decimal
+    - numberOfDays : int
+    + getAdjustedAmount() : decimal
+}
+
+' Represents the final bill generated for a patient's hospital stay.
+class Bill {
+    - billId : string
+    - issueDate : date
+    - totalAmount : decimal
+    + generateBill(patient : Patient, stay : HospitalStay)
+    + getBillId() : string
+    + getIssueDate() : date
+    + getTotalAmount() : decimal
+}
+
+' Relationships
+Patient "1" -- "1" BillingPolicy : has >
+note on link
+  A patient is associated with one
+  billing policy at any given time,
+  which can be changed dynamically.
+end note
+
+Patient "1" -- "0..*" HospitalStay : undergoes >
+note on link
+  A patient can have multiple
+  hospital stays over time.
+end note
+
+HospitalStay "1" -- "1" Patient : for >
+note on link
+  Each hospital stay belongs to
+  exactly one patient.
+end note
+
+HospitalStay "1" o-- "0..*" Charge : includes >
+note on link
+  A hospital stay comprises
+  multiple individual charges.
+end note
+
+Bill "1" -- "1" Patient : for >
+note on link
+  A bill is generated for
+  a specific patient.
+end note
+
+Bill "1" -- "1" HospitalStay : covers >
+note on link
+  A bill covers charges from
+  a single hospital stay.
+end note
+
+Bill "1" o-- "0..*" Charge : itemizes >
+note on link
+  A bill itemizes all the
+  charges incurred during a stay.
+end note
+
+@enduml

@@ -1,0 +1,159 @@
+@startuml
+' Set a consistent style for readability and professionalism
+skinparam class {
+    BorderColor #4CAF50
+    BackgroundColor #E8F5E9
+    ArrowColor #4CAF50
+    FontColor #212121
+    AttributeFontColor #424242
+    OperationFontColor #1B5E20
+}
+skinparam arrow {
+    Thickness 2
+    Color #4CAF50
+}
+skinparam interface {
+    BorderColor #2196F3
+    BackgroundColor #E3F2FD
+    FontColor #1976D2
+}
+
+' Explanatory note for the overall design choices
+note "This diagram models the discharge billing process for a hospital platform.\nIt employs the Strategy pattern for flexible and interchangeable billing policies\nand a common abstraction for diverse charge sources.\nThis design promotes loose coupling, extensibility, and maintainability." as N1
+
+' 1. Patient and Hospital Stay - Core entities for billing context
+class Patient {
+    - id : String
+    - name : String
+    - dateOfBirth : Date
+    -- Operations --
+    + getPatientId() : String
+    + getName() : String
+    + assignBillingStrategy(strategy : IBillingStrategy) : void
+    + getBillingStrategy() : IBillingStrategy
+}
+
+class HospitalStay {
+    - id : String
+    - admissionDate : Date
+    - dischargeDate : Date
+    - patientId : String
+    - charges : List<Charge>
+    -- Operations --
+    + addCharge(charge : Charge) : void
+    + removeCharge(charge : Charge) : void
+    + getTotalChargesAmount() : Double
+    + getStayId() : String
+    + getAdmissionDate() : Date
+    + getDischargeDate() : Date
+}
+
+' 2. Billing Strategy - Defines the interchangeable billing algorithms (Strategy Pattern)
+interface IBillingStrategy <<Strategy>> {
+    -- Operations --
+    + calculateBillAmount(stay : HospitalStay) : Double
+}
+
+class InsuranceBillingStrategy implements IBillingStrategy {
+    - coverageRules : String
+    - reimbursementLimits : Double
+    - coPaymentStructure : Double
+    -- Operations --
+    + calculateBillAmount(stay : HospitalStay) : Double
+    + getCoverageRules() : String
+    + getReimbursementLimits() : Double
+    + getCoPaymentStructure() : Double
+}
+
+class GovernmentBillingStrategy implements IBillingStrategy {
+    - subsidizedRatePolicyId : String
+    -- Operations --
+    + calculateBillAmount(stay : HospitalStay) : Double
+    + getSubsidizedRatePolicyId() : String
+}
+
+class SelfPayBillingStrategy implements IBillingStrategy {
+    -- Operations --
+    + calculateBillAmount(stay : HospitalStay) : Double
+}
+
+' 3. Charges - Abstract base and concrete types for all billable items
+abstract class Charge {
+    - description : String
+    - unitPrice : Double
+    - quantity : int
+    -- Operations --
+    + {abstract} getAmount() : Double
+    + getDescription() : String
+    + getUnitPrice() : Double
+    + getQuantity() : int
+}
+
+class ProcedureCharge extends Charge {
+    - procedureCode : String
+    -- Operations --
+    + getAmount() : Double
+    + getProcedureCode() : String
+}
+
+class MedicationCharge extends Charge {
+    - medicationName : String
+    - dosage : String
+    -- Operations --
+    + getAmount() : Double
+    + getMedicationName() : String
+}
+
+class DiagnosticTestCharge extends Charge {
+    - testType : String
+    - labCode : String
+    -- Operations --
+    + getAmount() : Double
+    + getTestType() : String
+}
+
+class RoomCharge extends Charge {
+    - roomNumber : String
+    - dailyRate : Double
+    - numberOfDays : int
+    -- Operations --
+    + getAmount() : Double
+    + getRoomNumber() : String
+    + getDailyRate() : Double
+    + getNumberOfDays() : int
+}
+
+' 4. Bill - The final output of the billing process
+class Bill {
+    - id : String
+    - totalAmount : Double
+    - issueDate : Date
+    - patientId : String
+    - hospitalStayId : String
+    - billingDetails : String
+    -- Operations --
+    + generateBill(stay : HospitalStay, strategy : IBillingStrategy) : void
+    + getBillId() : String
+    + getTotalAmount() : Double
+    + getIssueDate() : Date
+    + getBillingDetails() : String
+}
+
+' Relationships between classes
+Patient "1" -- "0..*" HospitalStay : has >
+note on link: A patient can have multiple hospital stays.
+
+HospitalStay "1" *-- "0..*" Charge : aggregates >
+note on link: A hospital stay is composed of multiple charges.
+
+Patient "1" -- "1" IBillingStrategy : applies >
+note on link: A patient is associated with one specific billing strategy at a time.
+
+HospitalStay "1" -- "1" Bill : generates >
+note on link: A bill is generated for a specific hospital stay.
+
+' Additional notes for clarity
+note left of IBillingStrategy : Implements the Strategy Pattern.\nAllows billing logic to be swapped at runtime.
+note right of Charge : Abstract base class for all types of charges.\nEnsures uniform handling of diverse pricing components.
+
+@enduml

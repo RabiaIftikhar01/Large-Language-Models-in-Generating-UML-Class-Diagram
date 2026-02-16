@@ -1,0 +1,149 @@
+@startuml
+' Professional Software Engineer - UML Class Diagram for Hospital Discharge Billing
+
+' Design Practices Applied:
+' - Simplicity (1): Focus on core entities and relationships, avoiding over-complication.
+' - Naming (2, 3, 4, 23): Singular nouns, PascalCase for classes, camelCase for attributes/methods for consistency.
+' - Attributes (5): Carefully assigned to appropriate classes.
+' - Operations (6, 7, 8, 9, 10): Accessors (getters) provided, core logic in specific methods, access specifiers used.
+' - Relationships (11, 12, 15, 16, 17, 18, 19, 21, 27): Identified, multiplicity determined, unidirectional where suitable, role names used for clarity, promoting loose coupling.
+' - Inheritance (13): Avoided multi-level inheritance (only single level from Service).
+' - Readability (22, 24, 25): Consistent style, standard UML notations, explanatory notes for complex sections.
+' - Avoid Redundancy (26): Information represented once.
+
+' -------------------------------------------------------------------
+' 1. Patient and Hospital Stay Management
+' -------------------------------------------------------------------
+class Patient {
+    - patientId : String
+    - name : String
+    - dateOfBirth : Date
+    - contactInfo : String
+    - insuranceDetails : String ' Simplified: could be a separate class for full details
+    - governmentProgramEligible : Boolean ' Simplified flag for program eligibility
+    + getPatientId() : String
+    + getName() : String
+    + getInsuranceDetails() : String
+    + isGovernmentProgramEligible() : Boolean
+}
+
+class HospitalStay {
+    - stayId : String
+    - admissionDate : Date
+    - dischargeDate : Date
+    - patient : Patient
+    - servicesRendered : List<Service>
+    + addService(service : Service) : void
+    + getServices() : List<Service>
+    + getPatient() : Patient
+    + calculateRawTotal() : Double
+}
+
+' -------------------------------------------------------------------
+' 2. Services (Chargeable Items) - Pricing Components
+' -------------------------------------------------------------------
+abstract class Service {
+    - serviceId : String
+    - description : String
+    - baseCost : Double
+    + getServiceId() : String
+    + getDescription() : String
+    + getBaseCost() : Double
+}
+
+class Procedure extends Service {
+    - procedureCode : String
+    + getProcedureCode() : String
+}
+
+class Medication extends Service {
+    - drugName : String
+    - dosage : String
+    + getDrugName() : String
+}
+
+class DiagnosticTest extends Service {
+    - testType : String
+    + getTestType() : String
+}
+
+class RoomOccupancy extends Service {
+    - roomNumber : String
+    - dailyRate : Double
+    - numberOfDays : int
+    + getRoomNumber() : String
+    + getDailyRate() : Double
+    + getNumberOfDays() : int
+}
+
+' -------------------------------------------------------------------
+' 3. Billing (Bill and Billing Policy - Strategy Pattern)
+' -------------------------------------------------------------------
+class Bill {
+    - billId : String
+    - issueDate : Date
+    - finalAmount : Double
+    - hospitalStay : HospitalStay
+    - appliedPolicy : BillingPolicy
+    + Bill(stay : HospitalStay, policy : BillingPolicy)
+    + calculateFinalAmount() : Double
+    + getBillId() : String
+    + getFinalAmount() : Double
+    + getHospitalStay() : HospitalStay
+}
+
+interface BillingPolicy {
+    + calculateAdjustedAmount(stay : HospitalStay) : Double
+}
+
+class InsuranceBillingPolicy implements BillingPolicy {
+    - policyName : String
+    - coveragePercentage : Double ' e.g., 80% coverage
+    - deductible : Double
+    - coPayment : Double
+    + calculateAdjustedAmount(stay : HospitalStay) : Double
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - programName : String
+    - subsidizedRateFactor : Double ' e.g., 0.5 for 50% subsidy
+    + calculateAdjustedAmount(stay : HospitalStay) : Double
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    + calculateAdjustedAmount(stay : HospitalStay) : Double
+}
+
+' -------------------------------------------------------------------
+' Relationships
+' -------------------------------------------------------------------
+Patient "1" -- "0..*" HospitalStay : has >
+' A Patient can have zero or more HospitalStays.
+
+HospitalStay "1" -- "0..*" Service : includes >
+' A HospitalStay includes zero or more Services rendered.
+
+HospitalStay "1" -- "0..1" Bill : generates >
+' A HospitalStay generates one Bill, or none if billing is handled externally.
+
+Bill "1" *-- "1" BillingPolicy : <<applies>> >
+' A Bill aggregates exactly one BillingPolicy to perform its calculation.
+' This is the core of the Strategy Pattern, allowing billing logic to be
+' interchangeable at runtime based on patient type or regulatory changes.
+
+' -------------------------------------------------------------------
+' Explanatory Notes
+' -------------------------------------------------------------------
+note "Strategy Pattern: BillingPolicy allows dynamic interchange of billing rules based on patient type or regulatory changes. This promotes loose coupling and extensibility, fulfilling the requirement for configurable and adaptable policies." as N1
+BillingPolicy .. N1
+
+note "Services represent diverse charge sources (procedures, medications, tests, room) each with independent pricing via their baseCost attribute. This ensures strong separation of pricing components." as N2
+Service .. N2
+
+note "HospitalStay encapsulates a patient's visit and all services rendered during that period, acting as the primary data source for bill calculation." as N3
+HospitalStay .. N3
+
+note "Patient class holds essential demographic and eligibility information (e.g., insurance, government program eligibility) which is used by a higher-level billing orchestrator (not shown for simplicity) to select the appropriate BillingPolicy." as N4
+Patient .. N4
+
+@enduml

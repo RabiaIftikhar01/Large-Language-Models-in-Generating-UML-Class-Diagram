@@ -1,0 +1,160 @@
+@startuml
+' Style for better readability
+skinparam classAttributeFontColor #111
+skinparam classAttributeFontSize 12
+skinparam classMethodFontColor #005
+skinparam classMethodFontSize 12
+skinparam classStereotypeFontSize 10
+skinparam classStereotypeFontColor #777
+skinparam classFontSize 14
+skinparam classFontColor #000
+skinparam defaultFontName "Arial"
+skinparam noteBackgroundColor #FFFACD
+skinparam noteBorderColor #DAA520
+skinparam noteFontColor #663300
+
+' Classes for Patient and Hospital Stay
+class Patient {
+    - patientId : String
+    - name : String
+    - dateOfBirth : Date
+    -- Operations --
+    + getPatientId() : String
+    + getName() : String
+    + getDateOfBirth() : Date
+}
+
+class HospitalStay {
+    - stayId : String
+    - admissionDate : Date
+    - dischargeDate : Date
+    - patient : Patient
+    - billingPolicy : BillingPolicy
+    - charges : List<Charge>
+    -- Operations --
+    + addCharge(charge : Charge) : void
+    + removeCharge(charge : Charge) : void
+    + calculateTotalCharges() : Decimal
+    + generateBill() : Bill
+    + getStayId() : String
+    + getAdmissionDate() : Date
+    + getDischargeDate() : Date
+    + getPatient() : Patient
+    + getBillingPolicy() : BillingPolicy
+    + getCharges() : List<Charge>
+}
+
+' Billing Policy Strategy
+abstract class BillingPolicy {
+    -- Operations --
+    + {abstract} calculateTotal(stay : HospitalStay) : Decimal
+}
+
+class InsuranceBillingPolicy extends BillingPolicy {
+    - insuranceProvider : String
+    - policyNumber : String
+    - coverageRules : Map<String, Decimal>
+    - reimbursementLimits : Map<String, Decimal>
+    - coPaymentStructure : Decimal
+    -- Operations --
+    + calculateTotal(stay : HospitalStay) : Decimal
+    + getInsuranceProvider() : String
+    + getPolicyNumber() : String
+    + getCoverageRules() : Map<String, Decimal>
+    + getReimbursementLimits() : Map<String, Decimal>
+    + getCoPaymentStructure() : Decimal
+}
+
+class GovernmentBillingPolicy extends BillingPolicy {
+    - programName : String
+    - subsidizedRates : Map<String, Decimal>
+    -- Operations --
+    + calculateTotal(stay : HospitalStay) : Decimal
+    + getProgramName() : String
+    + getSubsidizedRates() : Map<String, Decimal>
+}
+
+class SelfPayBillingPolicy extends BillingPolicy {
+    -- Operations --
+    + calculateTotal(stay : HospitalStay) : Decimal
+}
+
+' Charges Hierarchy
+abstract class Charge {
+    - chargeId : String
+    - description : String
+    - amount : Decimal
+    -- Operations --
+    + getChargeId() : String
+    + getDescription() : String
+    + getAmount() : Decimal
+}
+
+class ProcedureCharge extends Charge {
+    - procedureCode : String
+    -- Operations --
+    + getProcedureCode() : String
+}
+
+class MedicationCharge extends Charge {
+    - medicationCode : String
+    - quantity : int
+    - unitPrice : Decimal
+    -- Operations --
+    + getMedicationCode() : String
+    + getQuantity() : int
+    + getUnitPrice() : Decimal
+}
+
+class DiagnosticTestCharge extends Charge {
+    - testCode : String
+    -- Operations --
+    + getTestCode() : String
+}
+
+class RoomOccupancyCharge extends Charge {
+    - roomNumber : String
+    - dailyRate : Decimal
+    - daysOccupied : int
+    -- Operations --
+    + getRoomNumber() : String
+    + getDailyRate() : Decimal
+    + getDaysOccupied() : int
+}
+
+' Bill Class
+class Bill {
+    - billId : String
+    - generationDate : Date
+    - totalAmount : Decimal
+    - calculatedByPolicyName : String ' Store policy name for auditing/reporting
+    -- Operations --
+    + getBillId() : String
+    + getGenerationDate() : Date
+    + getTotalAmount() : Decimal
+    + getCalculatedByPolicyName() : String
+    + printBill() : void
+}
+
+' Relationships
+HospitalStay "1" --> "1" Patient : for > patient
+HospitalStay "1" -- "1" Bill : generates >
+HospitalStay "1" o-- "0..*" Charge : includes >
+HospitalStay "1" --> "1" BillingPolicy : <<uses>> applies >
+
+' Inheritance for Billing Policies
+BillingPolicy <|-- InsuranceBillingPolicy
+BillingPolicy <|-- GovernmentBillingPolicy
+BillingPolicy <|-- SelfPayBillingPolicy
+
+' Inheritance for Charges
+Charge <|-- ProcedureCharge
+Charge <|-- MedicationCharge
+Charge <|-- DiagnosticTestCharge
+Charge <|-- RoomOccupancyCharge
+
+' Notes for clarity
+note bottom of BillingPolicy : Strategy Pattern\nAllows runtime interchangeable billing logic\nbased on patient type.
+note bottom of Charge : Base class for all billable items.\nNew charge types (e.g., supplies) extend this.
+
+@enduml

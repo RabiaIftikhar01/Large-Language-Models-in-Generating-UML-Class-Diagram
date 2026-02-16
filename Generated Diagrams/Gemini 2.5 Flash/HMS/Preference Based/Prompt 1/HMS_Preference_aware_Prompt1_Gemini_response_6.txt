@@ -1,0 +1,121 @@
+@startuml
+' Set a consistent naming convention and style for readability
+hide empty members
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 14
+skinparam monochrome true
+skinparam shadowing false
+
+' Notes to explain key design patterns and principles
+note "Strategy Pattern: Defines interchangeable billing algorithms." as StrategyNote
+note "Composition: Charges are integral parts of a HospitalStay." as CompositionNote
+note "Loose Coupling: Bill depends on an interface, not concrete policy implementations." as LooseCouplingNote
+
+' Patient and HospitalStay classes
+class Patient {
+    - patientId : String
+    - name : String
+    - dateOfBirth : Date
+    -- Accessors --
+    + getPatientId() : String
+    + getName() : String
+}
+
+class HospitalStay {
+    - stayId : String
+    - admissionDate : Date
+    - dischargeDate : Date
+    - charges : List<Charge>
+    -- Operations --
+    + addCharge(charge : Charge) : void
+    + getCharges() : List<Charge>
+    + getDurationInDays() : int
+}
+
+Patient "1" -- "1" HospitalStay : has >
+
+' Charges hierarchy - represents diverse sources of charges
+abstract class Charge {
+    - chargeId : String
+    - description : String
+    - basePrice : decimal
+    - quantity : int
+    -- Operations --
+    + {abstract} getLineItemAmount() : decimal
+}
+
+class ProcedureCharge extends Charge {
+    - procedureCode : String
+    -- Operations --
+    + getLineItemAmount() : decimal
+}
+
+class MedicationCharge extends Charge {
+    - medicationName : String
+    -- Operations --
+    + getLineItemAmount() : decimal
+}
+
+class DiagnosticTestCharge extends Charge {
+    - testName : String
+    -- Operations --
+    + getLineItemAmount() : decimal
+}
+
+class RoomCharge extends Charge {
+    - dailyRate : decimal
+    - daysOccupied : int ' Represents duration for room charge calculation
+    -- Operations --
+    + getLineItemAmount() : decimal
+}
+
+HospitalStay "1" *-- "0..*" Charge : accumulates >
+CompositionNote .d. HospitalStay
+
+' Billing Policies - Strategy Pattern for flexible billing rules
+interface IBillingPolicy <<Strategy>> {
+    + calculateTotal(stay : HospitalStay) : decimal
+}
+
+class InsuranceBillingPolicy extends IBillingPolicy {
+    - coverageRules : String
+    - reimbursementLimit : decimal
+    - coPaymentRate : decimal
+    -- Operations --
+    + calculateTotal(stay : HospitalStay) : decimal
+    - applyCoverageRules(amount : decimal) : decimal
+}
+
+class GovernmentBillingPolicy extends IBillingPolicy {
+    - subsidizedRateFactor : decimal
+    -- Operations --
+    + calculateTotal(stay : HospitalStay) : decimal
+    - applySubsidizedRates(amount : decimal) : decimal
+}
+
+class SelfPayBillingPolicy extends IBillingPolicy {
+    -- Operations --
+    + calculateTotal(stay : HospitalStay) : decimal
+}
+
+StrategyNote .u. IBillingPolicy
+
+' Bill generation - orchestrates the billing process
+class Bill {
+    - billId : String
+    - issueDate : Date
+    - totalAmount : decimal
+    -- Operations --
+    + generate(stay : HospitalStay, policy : IBillingPolicy) : Bill
+    -- Accessors --
+    + getBillId() : String
+    + getTotalAmount() : decimal
+}
+
+Bill "1" -- "1" Patient : issuedTo >
+Bill "1" -- "1" HospitalStay : generatedFor >
+Bill "1" .up.> IBillingPolicy : uses >
+LooseCouplingNote .l. Bill
+
+@enduml

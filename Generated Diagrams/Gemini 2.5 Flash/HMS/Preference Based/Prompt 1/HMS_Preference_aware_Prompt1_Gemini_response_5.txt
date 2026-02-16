@@ -1,0 +1,162 @@
+@startuml
+' Professional Software Engineer - UML Class Diagram for Hospital Discharge Billing
+
+' Design Principles Applied:
+' - Simplicity: Focuses on core billing logic, avoids unnecessary details.
+' - Clear Naming: Singular nouns, PascalCase for classes, descriptive attributes and operations.
+' - Strategy Pattern: Used for BillingPolicy to allow interchangeable billing rules at runtime.
+' - Loose Coupling: Achieved through Strategy pattern and unidirectional associations.
+' - Single Responsibility: BillingService handles bill generation and policy selection; HospitalStay manages stay details and charges.
+' - Polymorphism: ChargeItem hierarchy for uniform handling of diverse charge types.
+' - Multiplicity: Clearly defined for all relationships.
+' - Unidirectional Associations: Preferred for maintainability and reususability.
+' - No multi-level inheritance or circular dependencies.
+
+' ------------------------------------------------------------------
+' Patient and Hospital Stay Management
+' ------------------------------------------------------------------
+class Patient {
+    - id : String
+    - name : String
+    - dob : Date
+    - paymentMethod : String ' e.g., "Insurance", "Government", "SelfPay"
+    + Patient(id : String, name : String, dob : Date, paymentMethod : String)
+    + getId() : String
+    + getName() : String
+    + getPaymentMethod() : String
+}
+
+class HospitalStay {
+    - stayId : String
+    - admissionDate : Date
+    - dischargeDate : Date
+    - patient : Patient
+    - chargeItems : List<ChargeItem>
+    + HospitalStay(stayId : String, admissionDate : Date, patient : Patient)
+    + addChargeItem(item : ChargeItem) : void
+    + getChargeItems() : List<ChargeItem>
+    + calculateGrossTotal() : double
+}
+
+HospitalStay --> "1" Patient : "for"
+HospitalStay "1" o-- "0..*" ChargeItem : "includes"
+
+' ------------------------------------------------------------------
+' Charge Items (Pricing Components) - Abstract base for all billable items
+' ------------------------------------------------------------------
+abstract class ChargeItem {
+    - description : String
+    - quantity : int
+    + ChargeItem(description : String, quantity : int)
+    + getDescription() : String
+    + getQuantity() : int
+    + {abstract} getUnitPrice() : double
+    + calculateSubtotal() : double
+}
+
+class ProcedureCharge extends ChargeItem {
+    - procedureCode : String
+    - basePrice : double
+    + ProcedureCharge(desc : String, qty : int, code : String, price : double)
+    + getUnitPrice() : double
+}
+
+class MedicationCharge extends ChargeItem {
+    - medicationName : String
+    - unitCost : double
+    + MedicationCharge(desc : String, qty : int, name : String, cost : double)
+    + getUnitPrice() : double
+}
+
+class DiagnosticTestCharge extends ChargeItem {
+    - testName : String
+    - testCost : double
+    + DiagnosticTestCharge(desc : String, qty : int, name : String, cost : double)
+    + getUnitPrice() : double
+}
+
+class RoomOccupancyCharge extends ChargeItem {
+    - roomType : String
+    - dailyRate : double
+    ' quantity (inherited from ChargeItem) represents numberOfDays
+    + RoomOccupancyCharge(desc : String, numberOfDays : int, type : String, dailyRate : double)
+    + getUnitPrice() : double
+}
+
+' ------------------------------------------------------------------
+' Billing Policies (Strategy Pattern) - Defines interchangeable billing rules
+' ------------------------------------------------------------------
+interface BillingPolicy {
+    + calculatePatientResponsibility(grossTotal : double, charges : List<ChargeItem>) : double
+}
+
+class InsuranceBillingPolicy implements BillingPolicy {
+    - coverageRules : String ' Complex object in real-world, simplified for diagram
+    - reimbursementLimit : double
+    - coPaymentStructure : double
+    + InsuranceBillingPolicy(rules : String, limit : double, coPay : double)
+    + calculatePatientResponsibility(grossTotal : double, charges : List<ChargeItem>) : double
+}
+
+class GovernmentProgramBillingPolicy implements BillingPolicy {
+    - subsidizedRates : Map<String, double> ' e.g., procedureCode -> subsidizedRate
+    + GovernmentProgramBillingPolicy(rates : Map<String, double>)
+    + calculatePatientResponsibility(grossTotal : double, charges : List<ChargeItem>) : double
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    + SelfPayBillingPolicy()
+    + calculatePatientResponsibility(grossTotal : double, charges : List<ChargeItem>) : double
+}
+
+' ------------------------------------------------------------------
+' Billing Service - Orchestrates bill generation using policies
+' ------------------------------------------------------------------
+class BillingService {
+    + createBill(stay : HospitalStay) : Bill
+    - selectBillingPolicy(paymentMethod : String) : BillingPolicy
+}
+
+BillingService --> BillingPolicy : "selects and uses"
+BillingService --> HospitalStay : "processes"
+
+' ------------------------------------------------------------------
+' Bill - The final generated document
+' ------------------------------------------------------------------
+class Bill {
+    - billId : String
+    - issueDate : Date
+    - grossAmount : double
+    - patientResponsibility : double
+    - policyApplied : BillingPolicy
+    - hospitalStay : HospitalStay
+    + Bill(billId : String, issueDate : Date, gross : double, patientResp : double, policy : BillingPolicy, stay : HospitalStay)
+    + getBillId() : String
+    + getPatientResponsibility() : double
+    + getGrossAmount() : double
+    + getPolicyApplied() : BillingPolicy
+}
+
+Bill --> "1" HospitalStay : "for"
+Bill --> "1" BillingPolicy : "processed by"
+
+' Explanatory Notes
+note right of BillingService::createBill
+  This method dynamically determines the appropriate
+  BillingPolicy based on the HospitalStay's Patient's
+  payment method, then calculates and creates the Bill.
+end note
+
+note "Strategy Pattern" as N_Strategy
+  BillingPolicy and its concrete implementations
+  enable flexible, runtime-interchangeable billing rules.
+end note
+BillingPolicy <|.. N_Strategy
+
+note "Polymorphism for Charges" as N_Charges
+  The ChargeItem hierarchy allows uniform processing
+  of diverse charge types from different sources.
+end note
+ChargeItem <|-- N_Charges
+
+@enduml

@@ -1,0 +1,166 @@
+@startuml
+' Set a consistent style for the diagram
+skinparam class {
+    BorderColor #336699
+    BackgroundColor #E0E8F0
+    ArrowColor #336699
+    FontColor #333333
+}
+skinparam arrow {
+    Thickness 2
+}
+
+' -------------------- Core Entities --------------------
+
+' Represents a patient in the hospital system.
+' Holds basic demographic information and links to their hospital stays.
+class Patient {
+    - patientId : String
+    - name : String
+    - dateOfBirth : Date
+    + getPatientId() : String
+    + getName() : String
+    + getDateOfBirth() : Date
+}
+
+' Represents a single period of time a patient spends in the hospital.
+' Aggregates all charges incurred during this stay and initiates the billing process.
+class HospitalStay {
+    - stayId : String
+    - admissionDate : Date
+    - dischargeDate : Date
+    - roomNumber : String
+    + getStayId() : String
+    + getAdmissionDate() : Date
+    + getDischargeDate() : Date
+    + getRoomNumber() : String
+    + addCharge(charge : Charge)
+    + getCharges() : List<Charge>
+    + generateBill(policy : BillingPolicy) : Bill
+}
+
+' Abstract base class for all types of charges incurred during a hospital stay.
+' Each concrete charge type defines its own base pricing logic.
+abstract class Charge {
+    - chargeId : String
+    - description : String
+    - baseAmount : double
+    + {abstract} calculateBasePrice() : double
+    + getChargeId() : String
+    + getDescription() : String
+    + getBaseAmount() : double
+}
+
+' Represents a charge for a medical procedure.
+class ProcedureCharge extends Charge {
+    - procedureCode : String
+    + calculateBasePrice() : double
+    + getProcedureCode() : String
+}
+
+' Represents a charge for medication administered.
+class MedicationCharge extends Charge {
+    - medicationCode : String
+    - quantity : int
+    + calculateBasePrice() : double
+    + getMedicationCode() : String
+    + getQuantity() : int
+}
+
+' Represents a charge for a diagnostic test.
+class DiagnosticTestCharge extends Charge {
+    - testCode : String
+    + calculateBasePrice() : double
+    + getTestCode() : String
+}
+
+' Represents a charge for room occupancy.
+class RoomCharge extends Charge {
+    - dailyRate : double
+    - numberOfDays : int
+    + calculateBasePrice() : double
+    + getDailyRate() : double
+    + getNumberOfDays() : int
+}
+
+' Represents the final bill generated for a hospital stay,
+' reflecting all charges and applied billing policies.
+class Bill {
+    - billId : String
+    - issueDate : Date
+    - totalAmount : double
+    - billedLineItems : List<Charge> ' Charges after policy adjustments
+    + getBillId() : String
+    + getIssueDate() : Date
+    + getTotalAmount() : double
+    + getBilledLineItems() : List<Charge>
+}
+
+' -------------------- Billing Policies (Strategy Pattern) --------------------
+
+' Abstract base class for different billing calculation strategies.
+' This allows billing logic to be interchangeable at runtime.
+abstract class BillingPolicy {
+    + {abstract} calculateFinalBill(charges : List<Charge>, patient : Patient) : Bill
+    + {abstract} getPolicyName() : String
+}
+
+' Implements billing rules for patients covered by insurance.
+' Includes logic for coverage, co-payments, and reimbursement limits.
+class InsuranceBillingPolicy extends BillingPolicy {
+    - insuranceProvider : String
+    - coveragePercentage : double ' e.g., 0.8 for 80% coverage
+    - coPaymentAmount : double
+    + calculateFinalBill(charges : List<Charge>, patient : Patient) : Bill
+    + getPolicyName() : String
+    + getInsuranceProvider() : String
+}
+
+' Implements billing rules for patients under government health programs.
+' Uses fixed subsidized rates for services.
+class GovernmentBillingPolicy extends BillingPolicy {
+    - programName : String
+    - subsidyRate : double ' e.g., 0.5 for 50% subsidy
+    + calculateFinalBill(charges : List<Charge>, patient : Patient) : Bill
+    + getPolicyName() : String
+    + getProgramName() : String
+}
+
+' Implements billing rules for patients who pay on their own (full price).
+class SelfPayBillingPolicy extends BillingPolicy {
+    + calculateFinalBill(charges : List<Charge>, patient : Patient) : Bill
+    + getPolicyName() : String
+}
+
+' -------------------- Relationships --------------------
+
+' A Patient can have multiple HospitalStays.
+Patient "1" -- "*" HospitalStay : has >
+
+' A HospitalStay aggregates multiple Charges.
+HospitalStay "1" o-- "*" Charge : includes >
+
+' A HospitalStay generates exactly one Bill.
+HospitalStay "1" --> "1" Bill : generates >
+
+' The HospitalStay delegates the billing calculation to a specific BillingPolicy.
+' This is a dependency for the 'generateBill' method.
+HospitalStay ..> BillingPolicy : <<uses>>
+
+' The BillingPolicy depends on Patient and Charge to perform its calculation.
+BillingPolicy ..> Patient : <<accesses>>
+BillingPolicy ..> Charge : <<processes>>
+BillingPolicy ..> Bill : <<creates>>
+
+' -------------------- Explanatory Notes --------------------
+
+note "The Strategy pattern is used here to allow billing policies\nto be interchanged at runtime based on patient type.\nThis ensures extensibility for evolving regulations." as N1
+BillingPolicy .. N1
+
+note "Each Charge subclass encapsulates its own base pricing logic.\nThis promotes strong separation of concerns." as N2
+Charge .. N2
+
+note "The 'generateBill' method in HospitalStay orchestrates the billing process\nby delegating the complex calculation to the assigned BillingPolicy." as N3
+HospitalStay .. N3
+
+@enduml

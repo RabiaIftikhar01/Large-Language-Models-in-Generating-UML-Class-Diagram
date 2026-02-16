@@ -1,0 +1,154 @@
+@startuml
+' Design Practice 1, 2, 3, 4: Simplicity, singular nouns, short names, consistent casing (PascalCase).
+' Design Practice 23, 24: Descriptive and meaningful names, consistent style.
+
+' Patient Records - Core entity for whom the bill is generated.
+' Design Practice 26: Avoid redundancy, Patient class holds patient-specific data.
+class Patient {
+    - patientId : String
+    - name : String
+    - dateOfBirth : Date
+    - policyType : String ' e.g., "Insurance", "Government", "SelfPay"
+    -- Operations --
+    + getPatientId() : String
+    + getName() : String
+    + getPolicyType() : String
+}
+
+' Hospital Stay - Aggregates all treatments and services for a patient during their stay.
+' Design Practice 5: Attributes assigned carefully.
+class HospitalStay {
+    - stayId : String
+    - startDate : Date
+    - endDate : Date
+    -- Operations --
+    + getStayId() : String
+    + getStartDate() : Date
+    + getEndDate() : Date
+    + addCharge(charge : Charge)
+    + getCharges() : List<Charge>
+    + calculateGrossAmount() : double
+}
+
+' Charges - Abstract base for various types of services/items incurring costs.
+' Design Practice 5, 7, 8: Classes encapsulate information and behavior, manageable responsibilities.
+abstract class Charge {
+    - chargeId : String
+    - description : String
+    - baseAmount : double
+    -- Operations --
+    + {abstract} getNetCharge() : double
+    + getChargeId() : String
+    + getDescription() : String
+}
+
+' Concrete Charge types - Each with independent pricing rules.
+' Design Practice 13: Avoid multi-level inheritance.
+class ProcedureCharge extends Charge {
+    - procedureCode : String
+    - surgeonFee : double
+    - facilityFee : double
+    -- Operations --
+    + getNetCharge() : double
+}
+
+class MedicationCharge extends Charge {
+    - medicationName : String
+    - dosage : String
+    - unitPrice : double
+    - quantity : int
+    -- Operations --
+    + getNetCharge() : double
+}
+
+class DiagnosticTestCharge extends Charge {
+    - testName : String
+    - labFee : double
+    - interpretationFee : double
+    -- Operations --
+    + getNetCharge() : double
+}
+
+class RoomCharge extends Charge {
+    - roomType : String
+    - dailyRate : double
+    - daysOccupied : int
+    -- Operations --
+    + getNetCharge() : double
+}
+
+' Billing Policies - Strategy Pattern for interchangeable billing rules.
+' Design Practice 11, 12, 27: Reduced relationships, unidirectional, loose coupling.
+' Design Practice 8: Manageable set of responsibilities (each policy handles its specific calculation).
+interface IBillingPolicy {
+    -- Operations --
+    + {abstract} calculateFinalAmount(stay : HospitalStay) : double
+}
+
+' Concrete Billing Policies - Implement specific rule sets.
+class InsuranceBillingPolicy implements IBillingPolicy {
+    - coverageRules : Map<String, Double>
+    - reimbursementLimits : Map<String, Double>
+    - coPaymentStructure : Map<String, Double>
+    -- Operations --
+    + calculateFinalAmount(stay : HospitalStay) : double
+}
+
+class GovernmentBillingPolicy implements IBillingPolicy {
+    - subsidizedRates : Map<String, Double>
+    -- Operations --
+    + calculateFinalAmount(stay : HospitalStay) : double
+}
+
+class SelfPayBillingPolicy implements IBillingPolicy {
+    -- Operations --
+    + calculateFinalAmount(stay : HospitalStay) : double
+}
+
+' Bill - Represents the final generated document.
+class Bill {
+    - billId : String
+    - issueDate : Date
+    - totalAmount : double
+    - status : String ' e.g., "Pending", "Paid", "Adjusted"
+    -- Operations --
+    + getBillId() : String
+    + getTotalAmount() : double
+    + getStatus() : String
+}
+
+' Billing Service - Orchestrates the bill generation process.
+' Design Practice 8: Centralized logic, manageable responsibilities.
+class BillingService {
+    -- Operations --
+    ' Design Practice 10: Manager/Implementor operation.
+    + generateBill(patient : Patient, stay : HospitalStay, policy : IBillingPolicy) : Bill
+    ' Design Practice 10: Helper operation (private to class).
+    - resolveBillingPolicy(patientType : String) : IBillingPolicy
+}
+
+' Relationships
+' Design Practice 15, 16, 17, 18, 19: Multiplicity, relationship names.
+
+Patient "1" -- "*" HospitalStay : has >
+' A Patient can have multiple HospitalStays.
+
+HospitalStay "1" *-- "*" Charge : includes >
+' A HospitalStay includes multiple Charges (composition: charges are part of a specific stay).
+
+Bill "1" -- "1" HospitalStay : for >
+' A Bill is generated for exactly one HospitalStay.
+
+BillingService .> IBillingPolicy : uses
+' BillingService depends on the IBillingPolicy interface to apply billing rules.
+
+BillingService .> Patient : uses
+' BillingService requires Patient information (e.g., policy type) to generate the bill.
+
+BillingService .> HospitalStay : processes
+' BillingService processes a HospitalStay's aggregated charges.
+
+BillingService .> Bill : creates
+' BillingService creates the final Bill object.
+
+@enduml

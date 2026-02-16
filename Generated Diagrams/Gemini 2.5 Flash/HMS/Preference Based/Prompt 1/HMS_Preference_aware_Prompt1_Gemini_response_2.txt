@@ -1,0 +1,206 @@
+@startuml
+' Style and Naming Conventions
+skinparam classAttributeIconSize 0
+skinparam classFontStyle Bold
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 14
+
+' Notes for clarity and design patterns
+note "Strategy Pattern for flexible billing rules,\nallowing runtime interchangeability." as N1
+note "Factory Pattern for dynamic selection\nand creation of billing policies." as N2
+note "Strategy Pattern for independent pricing rules\nfor different charge types." as N3
+note "Separation of concerns: Patient data, Charge pricing, Billing logic." as N4
+
+' Core Entities
+class Patient {
+    - patientId : String
+    - name : String
+    - dateOfBirth : Date
+    + getPatientId() : String
+    + getName() : String
+    + getBillingContext() : BillingContext
+}
+
+class HospitalStay {
+    - stayId : String
+    - admissionDate : Date
+    - dischargeDate : Date
+    + getStayId() : String
+    + getAdmissionDate() : Date
+    + getDischargeDate() : Date
+    + addCharge(charge : Charge)
+    + getCharges() : List<Charge>
+}
+
+abstract class Charge {
+    - chargeId : String
+    - description : String
+    - quantity : int
+    + {abstract} getChargeType() : String
+    + getChargeId() : String
+    + getDescription() : String
+    + getQuantity() : int
+}
+
+class ProcedureCharge extends Charge {
+    - procedureCode : String
+    + getChargeType() : String
+}
+
+class MedicationCharge extends Charge {
+    - drugCode : String
+    + getChargeType() : String
+}
+
+class DiagnosticTestCharge extends Charge {
+    - testCode : String
+    + getChargeType() : String
+}
+
+class RoomOccupancyCharge extends Charge {
+    - roomNumber : String
+    - numberOfDays : int
+    + getChargeType() : String
+}
+
+class Bill {
+    - billId : String
+    - issueDate : Date
+    - totalAmount : decimal
+    - status : String
+    + getBillId() : String
+    + getIssueDate() : Date
+    + getTotalAmount() : decimal
+    + addBillItem(item : BillItem)
+    + getBillItems() : List<BillItem>
+    + setTotalAmount(amount : decimal)
+}
+
+class BillItem {
+    - itemDescription : String
+    - originalAmount : decimal
+    - adjustedAmount : decimal
+    - policyAdjustmentReason : String
+    + getItemDescription() : String
+    + getOriginalAmount() : decimal
+    + getAdjustedAmount() : decimal
+    + setAdjustedAmount(amount : decimal)
+    + setPolicyAdjustmentReason(reason : String)
+}
+
+' Pricing Strategy Pattern
+interface PricingRule {
+    + calculatePrice(charge : Charge) : decimal
+}
+N3 .. PricingRule
+
+class ProcedurePricingRule implements PricingRule {
+    - basePriceMap : Map<String, decimal>
+    + calculatePrice(charge : Charge) : decimal
+}
+
+class MedicationPricingRule implements PricingRule {
+    - drugPriceList : Map<String, decimal>
+    + calculatePrice(charge : Charge) : decimal
+}
+
+class DiagnosticTestPricingRule implements PricingRule {
+    - testPriceMap : Map<String, decimal>
+    + calculatePrice(charge : Charge) : decimal
+}
+
+class RoomPricingRule implements PricingRule {
+    - dailyRateMap : Map<String, decimal>
+    + calculatePrice(charge : Charge) : decimal
+}
+
+class PricingService {
+    - rules : Map<String, PricingRule>
+    + getPricingRule(chargeType : String) : PricingRule
+    + registerPricingRule(type : String, rule : PricingRule)
+    + calculateChargeAmount(charge : Charge) : decimal
+}
+
+' Billing Strategy Pattern
+interface BillingPolicy {
+    + applyPolicy(bill : Bill, patientContext : BillingContext) : Bill
+}
+N1 .. BillingPolicy
+
+class InsuranceBillingPolicy implements BillingPolicy {
+    - coverageRules : String
+    - reimbursementLimits : decimal
+    - coPaymentStructure : decimal
+    + applyPolicy(bill : Bill, patientContext : BillingContext) : Bill
+}
+
+class GovernmentProgramBillingPolicy implements BillingPolicy {
+    - programName : String
+    - subsidizedRates : String
+    + applyPolicy(bill : Bill, patientContext : BillingContext) : Bill
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    + applyPolicy(bill : Bill, patientContext : BillingContext) : Bill
+}
+
+' Billing Context and Factory
+class BillingContext {
+    - patientType : String
+    - insuranceDetails : String
+    - programDetails : String
+    + getPatientType() : String
+    + getInsuranceDetails() : String
+    + getProgramDetails() : String
+}
+
+interface BillingPolicyFactory {
+    + createPolicy(patientContext : BillingContext) : BillingPolicy
+}
+N2 .. BillingPolicyFactory
+
+class DefaultBillingPolicyFactory implements BillingPolicyFactory {
+    + createPolicy(patientContext : BillingContext) : BillingPolicy
+}
+
+' Main Processor
+class DischargeBillingProcessor {
+    - billingPolicyFactory : BillingPolicyFactory
+    - pricingService : PricingService
+    + processDischarge(stay : HospitalStay, patient : Patient) : Bill
+    + setBillingPolicyFactory(factory : BillingPolicyFactory)
+    + setPricingService(service : PricingService)
+}
+N4 .. DischargeBillingProcessor
+
+' Relationships
+Patient "1" -- "0..*" HospitalStay : has
+HospitalStay "1" -- "1..*" Charge : incurs
+HospitalStay "1" -- "1" Bill : generates
+
+Bill "1" -- "1..*" BillItem : contains
+
+Charge <|-- ProcedureCharge
+Charge <|-- MedicationCharge
+Charge <|-- DiagnosticTestCharge
+Charge <|-- RoomOccupancyCharge
+
+PricingRule <|.. ProcedurePricingRule
+PricingRule <|.. MedicationPricingRule
+PricingRule <|.. DiagnosticTestPricingRule
+PricingRule <|.. RoomPricingRule
+
+PricingService "1" o-- "1..*" PricingRule : manages
+
+BillingPolicy <|.. InsuranceBillingPolicy
+BillingPolicy <|.. GovernmentProgramBillingPolicy
+BillingPolicy <|.. SelfPayBillingPolicy
+
+BillingPolicyFactory <|.. DefaultBillingPolicyFactory
+
+Patient "1" --> "1" BillingContext : provides context for
+
+DischargeBillingProcessor "1" -- "1" BillingPolicyFactory : uses
+DischargeBillingProcessor "1" -- "1" PricingService : uses
+DischargeBillingProcessor "1" --> "1" BillingPolicy : <<creates & uses>>
+@enduml

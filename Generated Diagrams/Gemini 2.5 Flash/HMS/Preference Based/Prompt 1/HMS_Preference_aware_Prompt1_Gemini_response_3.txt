@@ -1,0 +1,173 @@
+@startuml
+' Set a consistent style for the diagram
+skinparam class {
+  ArrowColor #222222
+  BorderColor #222222
+  BackgroundColor #EEEEEE
+  FontColor #222222
+}
+skinparam interface {
+  ArrowColor #222222
+  BorderColor #222222
+  BackgroundColor #DDDDDD
+  FontColor #222222
+}
+skinparam abstract {
+  ArrowColor #222222
+  BorderColor #222222
+  BackgroundColor #CCCCCC
+  FontColor #222222
+}
+
+' Classes for Patient and Hospital Stay
+class Patient {
+    - patientId : String
+    - name : String
+    - dateOfBirth : Date
+    - billingType : BillingType <<enum>>
+    --
+    + getPatientId() : String
+    + getName() : String
+    + getBillingType() : BillingType
+}
+
+class HospitalStay {
+    - stayId : String
+    - admissionDate : Date
+    - dischargeDate : Date
+    --
+    + getStayId() : String
+    + getAdmissionDate() : Date
+    + getDischargeDate() : Date
+    + getCharges() : List<Charge>
+}
+
+enum BillingType {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+' Abstract Charge and its concrete implementations (Pricing Components)
+abstract class Charge {
+    - chargeId : String
+    - description : String
+    - originalAmount : double
+    - chargeDate : Date
+    --
+    + getChargeId() : String
+    + getDescription() : String
+    + getOriginalAmount() : double
+    + getChargeDate() : Date
+}
+
+class ProcedureCharge extends Charge {
+    - procedureCode : String
+    - procedureName : String
+    --
+    + getProcedureCode() : String
+}
+
+class MedicationCharge extends Charge {
+    - medicationName : String
+    - dosage : String
+    --
+    + getMedicationName() : String
+}
+
+class DiagnosticTestCharge extends Charge {
+    - testType : String
+    - result : String
+    --
+    + getTestType() : String
+}
+
+class RoomCharge extends Charge {
+    - roomNumber : String
+    - dailyRate : double
+    - numDays : int
+    --
+    + getRoomNumber() : String
+}
+
+' Billing Policy (Strategy Pattern for interchangeable billing rules)
+interface IBillingPolicy {
+    + calculateBill(stay : HospitalStay, patient : Patient) : Bill
+}
+
+class InsurancePolicy implements IBillingPolicy {
+    - coverageRules : String
+    - reimbursementLimits : double
+    - coPaymentStructure : String
+    --
+    + calculateBill(stay : HospitalStay, patient : Patient) : Bill
+}
+
+class GovernmentPolicy implements IBillingPolicy {
+    - subsidizedRates : Map<String, Double>
+    --
+    + calculateBill(stay : HospitalStay, patient : Patient) : Bill
+}
+
+class SelfPayPolicy implements IBillingPolicy {
+    - discountRate : double
+    --
+    + calculateBill(stay : HospitalStay, patient : Patient) : Bill
+}
+
+' Bill and BillEntry (Association Class for adjusted amounts and auditing)
+class Bill {
+    - billId : String
+    - issueDate : Date
+    - totalAmount : double
+    --
+    + getBillId() : String
+    + getIssueDate() : Date
+    + getTotalAmount() : double
+    + addBillEntry(entry : BillEntry) : void
+}
+
+class BillEntry {
+    - entryId : String
+    - adjustedAmount : double
+    - policyNotes : String
+    --
+    + getEntryId() : String
+    + getAdjustedAmount() : double
+    + getPolicyNotes() : String
+}
+
+' Billing Service (Context for the Strategy)
+class BillingService {
+    --
+    + generateBill(patient : Patient, stay : HospitalStay) : Bill
+    - getPolicyForPatient(patient : Patient) : IBillingPolicy
+}
+
+' Relationships
+Patient "1" -- "0..*" HospitalStay : has
+
+HospitalStay "1" -- "0..*" Charge : contains
+
+Bill "1" o-- "1..*" BillEntry : includes
+
+BillEntry "1" -- "1" Charge : references
+
+BillingService "1" --> "1" IBillingPolicy : uses >
+BillingService "1" --> "1" Patient : processes
+BillingService "1" --> "1" HospitalStay : for
+BillingService "1" --> "1" Bill : generates
+
+Patient --> BillingType : has
+
+' Explanatory notes
+note "Strategy Pattern for flexible billing rules\ninterchangeable at runtime." as N1
+IBillingPolicy .. N1
+
+note "BillEntry acts as an association class\nlinking a Bill to a specific Charge,\nwhile storing the policy-adjusted amount\nand notes for auditing." as N2
+BillEntry .. N2
+
+note "Charge hierarchy represents diverse\npricing components." as N3
+Charge <|-- N3
+
+@enduml
