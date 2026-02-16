@@ -1,0 +1,121 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+interface BillingStrategy {
+  + calculateBill(treatmentCost: double): double
+}
+
+class InsuredBillingStrategy {
+  - coveragePercentage: double
+  - copayAmount: double
+  - reimbursementThreshold: double
+  + calculateBill(treatmentCost: double): double
+}
+
+class GovernmentSubsidyStrategy {
+  - subsidyAmount: double
+  - fixedRate: double
+  + calculateBill(treatmentCost: double): double
+}
+
+class SelfPayStrategy {
+  + calculateBill(treatmentCost: double): double
+}
+
+abstract class CostComponent {
+  # description: string
+  # unitPrice: double
+  + {abstract} calculateCost(): double
+  + getDescription(): string
+  + getUnitPrice(): double
+}
+
+class MedicalProcedure {
+  - procedureCode: string
+  - quantity: int
+  + calculateCost(): double
+  + getProcedureCode(): string
+  + setQuantity(quantity: int): void
+}
+
+class Medication {
+  - medicationName: string
+  - dosage: int
+  - quantity: int
+  + calculateCost(): double
+  + getMedicationName(): string
+  + setQuantity(quantity: int): void
+}
+
+class DiagnosticService {
+  - serviceType: string
+  - quantity: int
+  + calculateCost(): double
+  + getServiceType(): string
+  + setQuantity(quantity: int): void
+}
+
+class AccommodationCharge {
+  - roomType: string
+  - numberOfDays: int
+  + calculateCost(): double
+  + getRoomType(): string
+  + setNumberOfDays(days: int): void
+}
+
+class Patient {
+  - patientId: string
+  - name: string
+  - category: string
+  + getPatientId(): string
+  + getName(): string
+  + getCategory(): string
+  + setCategory(category: string): void
+}
+
+class TreatmentRecord {
+  - recordId: string
+  - treatmentDate: date
+  + addCostComponent(component: CostComponent): void
+  + removeCostComponent(component: CostComponent): void
+  + getTotalCost(): double
+  + getRecordId(): string
+}
+
+class Invoice {
+  - invoiceId: string
+  - issueDate: date
+  - totalAmount: double
+  - status: string
+  + generateInvoice(): void
+  + getInvoiceId(): string
+  + getTotalAmount(): double
+  + setStatus(status: string): void
+}
+
+class BillingEngine {
+  - billingStrategy: BillingStrategy
+  + setBillingStrategy(strategy: BillingStrategy): void
+  + computeDischargeInvoice(patient: Patient, record: TreatmentRecord): Invoice
+  - aggregateCosts(record: TreatmentRecord): double
+}
+
+BillingStrategy <|.. InsuredBillingStrategy
+BillingStrategy <|.. GovernmentSubsidyStrategy
+BillingStrategy <|.. SelfPayStrategy
+
+CostComponent <|-- MedicalProcedure
+CostComponent <|-- Medication
+CostComponent <|-- DiagnosticService
+CostComponent <|-- AccommodationCharge
+
+BillingEngine --> BillingStrategy
+BillingEngine ..> Patient
+BillingEngine ..> TreatmentRecord
+BillingEngine ..> Invoice
+
+TreatmentRecord "1" o-- "0..*" CostComponent
+Invoice --> Patient
+Invoice --> TreatmentRecord
+
+@enduml
