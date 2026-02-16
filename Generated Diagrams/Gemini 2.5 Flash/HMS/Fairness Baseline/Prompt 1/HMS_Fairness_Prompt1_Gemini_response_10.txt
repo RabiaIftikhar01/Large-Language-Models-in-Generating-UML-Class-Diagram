@@ -1,0 +1,216 @@
+@startuml
+!pragma layout smetana
+
+' Define common styles for improved readability and conformity (Instruction 24)
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+    ArrowFontColor Black
+    AttributeFontColor Black
+    MethodFontColor Black
+}
+skinparam abstract {
+    BackgroundColor LightGray
+    BorderColor Gray
+}
+skinparam interface {
+    BackgroundColor LightBlue
+    BorderColor Blue
+}
+skinparam package {
+    BackgroundColor LightYellow
+    BorderColor DarkGoldenRod
+    FontColor DarkGoldenRod
+}
+
+' -------------------------------------------------------------------
+' Package: Patient Management - Encapsulates patient demographic and hospital stay information.
+' This package focuses on patient records, adhering to separation of concerns (Instruction 27).
+' -------------------------------------------------------------------
+package "Patient Management" {
+    class Patient {
+        - patientId: String
+        - name: String
+        - dateOfBirth: Date
+        - contactInfo: String
+        --
+        + getPatientDetails(): Patient
+        + updateContactInfo(info: String): void
+    }
+
+    class HospitalStay {
+        - stayId: String
+        - admissionDate: Date
+        - dischargeDate: Date
+        --
+        + calculateStayDuration(): int
+        + getCharges(): List<Charge>
+    }
+}
+
+' -------------------------------------------------------------------
+' Package: Billing System - Manages the generation of bills and application of billing policies.
+' This package handles billing policies, ensuring strong separation (Instruction 27).
+' -------------------------------------------------------------------
+package "Billing System" {
+    class Bill {
+        - billId: String
+        - billDate: Date
+        - totalHospitalCharges: double
+        - patientPortion: double
+        - status: String
+        --
+        + generateBill(): void
+        + calculateTotalHospitalCharges(): double
+        + calculatePatientPortion(): double
+        + getBillDetails(): Bill
+    }
+
+    interface BillingPolicy <<Strategy>> {
+        + calculatePatientPortion(totalCharges: double): double
+    }
+
+    class InsuranceBillingPolicy implements BillingPolicy {
+        - policyNumber: String
+        - coverageDetails: String
+        - reimbursementLimit: double
+        - coPaymentStructure: double
+        --
+        + calculatePatientPortion(totalCharges: double): double
+        + getPolicyDetails(): String
+    }
+
+    class GovernmentProgramBillingPolicy implements BillingPolicy {
+        - programName: String
+        - subsidizedRate: double
+        --
+        + calculatePatientPortion(totalCharges: double): double
+        + getProgramDetails(): String
+    }
+
+    class SelfPayBillingPolicy implements BillingPolicy {
+        --
+        + calculatePatientPortion(totalCharges: double): double
+    }
+}
+
+' -------------------------------------------------------------------
+' Package: Charge & Pricing - Defines various types of charges and their independent pricing rules.
+' This package encapsulates pricing components, maintaining separation (Instruction 27).
+' -------------------------------------------------------------------
+package "Charge & Pricing" {
+    abstract class Charge {
+        - chargeId: String
+        - description: String
+        - baseAmount: double
+        --
+        + calculateFinalAmount(): double
+        + getChargeDetails(): Charge
+    }
+
+    class ProcedureCharge extends Charge {
+        - procedureCode: String
+        - procedureName: String
+    }
+
+    class MedicationCharge extends Charge {
+        - medicationCode: String
+        - medicationName: String
+        - dosage: String
+    }
+
+    class DiagnosticTestCharge extends Charge {
+        - testCode: String
+        - testName: String
+    }
+
+    class RoomCharge extends Charge {
+        - roomNumber: String
+        - roomType: String
+        - durationDays: int
+    }
+
+    abstract class PricingRule <<Strategy>> {
+        - ruleId: String
+        - effectiveDate: Date
+        - endDate: Date
+        --
+        + applyPricing(baseAmount: double): double
+        + getRuleDetails(): String
+    }
+
+    class ProcedurePricingRule extends PricingRule {
+        - procedureSpecificFactor: double
+    }
+
+    class MedicationPricingRule extends PricingRule {
+        - medicationMarkupPercentage: double
+    }
+
+    class DiagnosticTestPricingRule extends PricingRule {
+        - testFlatFee: double
+    }
+
+    class RoomPricingRule extends PricingRule {
+        - roomTypeFactor: double
+    }
+}
+
+' -------------------------------------------------------------------
+' Relationships between classes and packages (Instructions 11, 12, 15, 16, 21)
+' Unidirectional associations are preferred for loose coupling and maintainability.
+' -------------------------------------------------------------------
+
+' Patient Management -> Billing System
+Patient "1" --> "1" BillingPolicy : hasCurrentPolicy >
+' A Patient is associated with one active BillingPolicy instance, reflecting their current billing preference.
+
+' Patient Management -> Charge & Pricing (indirectly via HospitalStay)
+HospitalStay "1" *-- "0..*" Charge : includes >
+' A HospitalStay is composed of multiple Charges incurred during the patient's stay.
+' Composition indicates that Charges are integral to a HospitalStay's existence.
+
+' HospitalStay -> Bill
+HospitalStay "1" --> "1" Bill : generates >
+' Each HospitalStay results in the generation of a single Bill.
+
+' Bill -> BillingPolicy
+Bill "1" --> "1" BillingPolicy : applies >
+' A Bill applies a specific BillingPolicy instance to calculate the patient's financial responsibility.
+
+' Charge -> PricingRule
+Charge "1" --> "1" PricingRule : uses >
+' Each Charge utilizes a specific PricingRule instance to determine its final calculated cost.
+
+' Inheritance/Implementation relationships (Instruction 13: Avoid multi-level inheritance)
+BillingPolicy <|.. InsuranceBillingPolicy
+BillingPolicy <|.. GovernmentProgramBillingPolicy
+BillingPolicy <|.. SelfPayBillingPolicy
+
+Charge <|-- ProcedureCharge
+Charge <|-- MedicationCharge
+Charge <|-- DiagnosticTestCharge
+Charge <|-- RoomCharge
+
+PricingRule <|-- ProcedurePricingRule
+PricingRule <|-- MedicationPricingRule
+PricingRule <|-- DiagnosticTestPricingRule
+PricingRule <|-- RoomPricingRule
+
+' -------------------------------------------------------------------
+' Explanatory Notes (Instruction 25)
+' Provide additional context for complex sections or design patterns.
+' -------------------------------------------------------------------
+note "The BillingPolicy interface (Strategy pattern) allows different billing logics\n(Insurance, Government, Self-Pay) to be interchanged at runtime\nwithout modifying the core Bill generation process. This addresses\nthe requirement for configurable and interchangeable policies." as N_BillingPolicyStrategy
+BillingPolicy .. N_BillingPolicyStrategy
+
+note "The PricingRule interface (Strategy pattern) enables independent pricing\nmechanisms for various charge types (procedures, medications, etc.),\nfacilitating updates due to regulatory or contractual changes without\nrequiring structural redesign of the Charge classes." as N_PricingRuleStrategy
+PricingRule .. N_PricingRuleStrategy
+
+note "Packages are used to enforce strong separation between patient records,\npricing components, and billing policies, enhancing modularity,\nmaintainability, and extensibility as per design requirements." as N_SeparationOfConcerns
+Patient .. N_SeparationOfConcerns
+Bill .. N_SeparationOfConcerns
+Charge .. N_SeparationOfConcerns
+
+@enduml

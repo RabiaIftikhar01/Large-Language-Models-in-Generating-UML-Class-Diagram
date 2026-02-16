@@ -1,0 +1,187 @@
+@startuml
+!pragma layout smetana
+
+hide circle
+skinparam classAttributeFontColor #111
+skinparam classAttributeFontSize 12
+skinparam classMethodFontColor #111
+skinparam classMethodFontSize 12
+skinparam classArrowColor #444
+skinparam classBorderColor #444
+skinparam classBackgroundColor White
+skinparam classStereotypeFontSize 10
+skinparam defaultFontName "Arial"
+
+title Hospital Discharge Billing System - Class Diagram
+
+' Value Objects / Primitives for better domain modeling
+class Money {
+    - amount: BigDecimal
+    - currency: String
+    + getAmount(): BigDecimal
+    + add(other: Money): Money
+    + subtract(other: Money): Money
+}
+
+class Date {
+    - value: java.util.Date
+}
+
+' Core Entities
+class Patient {
+    - patientId: String
+    - name: String
+    - dateOfBirth: Date
+    - contactInfo: String
+    --
+    + getPatientInfo(): String
+}
+
+class HospitalStay {
+    - stayId: String
+    - admissionDate: Date
+    - dischargeDate: Date
+    - charges: List<Charge>
+    --
+    + addCharge(charge: Charge): void
+    + getCharges(): List<Charge>
+    + calculateTotalCharges(): Money
+}
+
+class Bill {
+    - billId: String
+    - issueDate: Date
+    - totalGrossAmount: Money
+    - patientPayableAmount: Money
+    - status: String
+    --
+    + generate(hospitalStay: HospitalStay, policy: BillingPolicy): Bill
+    + getBillDetails(): String
+}
+
+' Billing Policy Strategy Pattern - for interchangeable billing rules
+interface BillingPolicy <<Strategy>> {
+    + calculatePayableAmount(hospitalStay: HospitalStay): Money
+}
+
+class InsuranceBillingPolicy implements BillingPolicy {
+    - insuranceProvider: String
+    - coverageRules: String
+    - coPayment: Money
+    --
+    + calculatePayableAmount(hospitalStay: HospitalStay): Money
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - programName: String
+    - subsidizedRates: String
+    --
+    + calculatePayableAmount(hospitalStay: HospitalStay): Money
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    --
+    + calculatePayableAmount(hospitalStay: HospitalStay): Money
+}
+
+' Charge Hierarchy - represents different sources of charges
+abstract class Charge {
+    - chargeId: String
+    - description: String
+    --
+    + getAmount(): Money
+}
+
+class ProcedureCharge extends Charge {
+    - procedureCode: String
+    - quantity: int
+    - pricingRule: ProcedurePricingRule
+    --
+    + getAmount(): Money
+}
+
+class MedicationCharge extends Charge {
+    - medicationId: String
+    - dosage: String
+    - units: int
+    - pricingRule: MedicationPricingRule
+    --
+    + getAmount(): Money
+}
+
+class DiagnosticTestCharge extends Charge {
+    - testCode: String
+    - testResult: String
+    - pricingRule: DiagnosticTestPricingRule
+    --
+    + getAmount(): Money
+}
+
+class RoomOccupancyCharge extends Charge {
+    - roomNumber: String
+    - dailyRate: Money
+    - numberOfDays: int
+    - pricingRule: RoomOccupancyPricingRule
+    --
+    + getAmount(): Money
+}
+
+' Pricing Rule Strategy Pattern - for independent pricing logic per charge type
+interface ProcedurePricingRule <<Strategy>> {
+    + calculatePrice(charge: ProcedureCharge): Money
+}
+
+interface MedicationPricingRule <<Strategy>> {
+    + calculatePrice(charge: MedicationCharge): Money
+}
+
+interface DiagnosticTestPricingRule <<Strategy>> {
+    + calculatePrice(charge: DiagnosticTestCharge): Money
+}
+
+interface RoomOccupancyPricingRule <<Strategy>> {
+    + calculatePrice(charge: RoomOccupancyCharge): Money
+}
+
+' Relationships
+
+' Patient to HospitalStay: A patient can have multiple hospital stays.
+Patient "1" -- "0..*" HospitalStay : has
+
+' HospitalStay to Charge: A hospital stay accumulates multiple charges. Composition implies charges are part of the stay's lifecycle.
+HospitalStay "1" *-- "0..*" Charge : accumulates
+
+' HospitalStay to BillingPolicy: HospitalStay uses a BillingPolicy to determine the patient's financial responsibility.
+' This is a dependency as the policy is typically passed to a method.
+HospitalStay "1" ..> "1" BillingPolicy : usesPolicy
+note on link: HospitalStay depends on a BillingPolicy\nto calculate payable amounts.
+
+' Bill to HospitalStay: A bill is generated for a specific hospital stay.
+Bill "1" -- "1" HospitalStay : generatedFor
+
+' Bill to BillingPolicy: Bill generation process depends on a specific BillingPolicy.
+Bill "1" ..> "1" BillingPolicy : calculatedWith
+note on link: Bill generation depends on a specific\nBillingPolicy for final amount calculation.
+
+' Charge to PricingRule: Each specific charge type has its own pricing rule strategy.
+ProcedureCharge "1" --> "1" ProcedurePricingRule : pricesWith
+MedicationCharge "1" --> "1" MedicationPricingRule : pricesWith
+DiagnosticTestCharge "1" --> "1" DiagnosticTestPricingRule : pricesWith
+RoomOccupancyCharge "1" --> "1" RoomOccupancyPricingRule : pricesWith
+
+' Notes for clarity and design justification
+note "Strategy Pattern: \nAllows interchangeable billing logic\n(e.g., Insurance, Government, Self-Pay)\nwithout modifying core classes." as N1
+BillingPolicy .. N1
+
+note "Strategy Pattern: \nAllows independent and configurable\npricing rules for diverse charge sources\n(e.g., Procedures, Medications)." as N2
+ProcedurePricingRule .. N2
+MedicationPricingRule .. N2
+DiagnosticTestPricingRule .. N2
+RoomOccupancyPricingRule .. N2
+
+note "Strong separation between:\n- Patient records (Patient, HospitalStay)\n- Pricing components (Charge, PricingRule)\n- Billing policies (BillingPolicy hierarchy)" as N3
+Patient .. N3
+Charge .. N3
+BillingPolicy .. N3
+
+@enduml

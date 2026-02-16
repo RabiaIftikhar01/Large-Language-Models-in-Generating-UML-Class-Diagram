@@ -1,0 +1,180 @@
+@startuml
+!pragma layout smetana
+
+' --- Interfaces (Strategy Pattern for extensibility) ---
+interface PricingRule << (I,orchid) >> {
+    + calculatePrice(charge: Charge): Money
+}
+
+interface BillingPolicy << (I,orchid) >> {
+    + calculatePatientLiability(bill: Bill): Money
+}
+
+' --- Core Entities ---
+class Patient {
+    patientId: String
+    name: String
+    dateOfBirth: Date
+    contactInfo: String
+    --
+    + getPatientInfo(): String
+    + setBillingPolicy(policy: BillingPolicy)
+}
+
+class HospitalStay {
+    stayId: String
+    admissionDate: Date
+    dischargeDate: Date
+    --
+    + calculateDuration(): int
+    + addCharge(charge: Charge)
+    + getCharges(): List<Charge>
+}
+
+abstract class Charge {
+    chargeId: String
+    description: String
+    date: Date
+    quantity: int
+    --
+    + getBaseAmount(): Money
+}
+
+class Bill {
+    billId: String
+    issueDate: Date
+    totalGrossAmount: Money
+    patientLiability: Money
+    status: BillStatus
+    --
+    + generateBill(hospitalStay: HospitalStay, patientPolicy: BillingPolicy)
+    + calculateGrossAmount(): Money
+    + applyBillingPolicy(policy: BillingPolicy)
+}
+
+' --- Concrete Charge Types ---
+class ProcedureCharge {
+    procedureCode: String
+}
+class MedicationCharge {
+    medicationCode: String
+    dosage: String
+}
+class DiagnosticTestCharge {
+    testCode: String
+}
+class RoomOccupancyCharge {
+    roomNumber: String
+    dailyRate: Money
+    days: int
+}
+
+' --- Concrete Pricing Rules ---
+class ProcedurePricingRule {
+    + calculatePrice(charge: Charge): Money
+}
+class MedicationPricingRule {
+    + calculatePrice(charge: Charge): Money
+}
+class DiagnosticTestPricingRule {
+    + calculatePrice(charge: Charge): Money
+}
+class RoomPricingRule {
+    + calculatePrice(charge: Charge): Money
+}
+
+' --- Concrete Billing Policies ---
+class InsuranceBillingPolicy {
+    insuranceProvider: String
+    policyNumber: String
+    --
+    + calculatePatientLiability(bill: Bill): Money
+}
+
+class GovernmentProgramBillingPolicy {
+    programName: String
+    --
+    + calculatePatientLiability(bill: Bill): Money
+}
+
+class SelfPayBillingPolicy {
+    + calculatePatientLiability(bill: Bill): Money
+}
+
+' --- Policy-Specific Components ---
+class InsuranceCoverageRule {
+    ruleId: String
+    coveragePercentage: double
+    deductible: Money
+    coPayment: Money
+    --
+    + applyRule(chargeAmount: Money): Money
+}
+
+class SubsidizedRate {
+    rateId: String
+    fixedRateAmount: Money
+    --
+    + getRate(): Money
+}
+
+' --- Value Objects & Enums ---
+class Money << (V,yellow) Value Object >> {
+    amount: double
+    currency: String
+}
+
+enum BillStatus << (E,lightgrey) Enum >> {
+    PENDING
+    ISSUED
+    PARTIALLY_PAID
+    PAID
+    CANCELLED
+}
+
+' --- Generalization (Inheritance) ---
+Charge <|-- ProcedureCharge
+Charge <|-- MedicationCharge
+Charge <|-- DiagnosticTestCharge
+Charge <|-- RoomOccupancyCharge
+
+PricingRule <|.. ProcedurePricingRule
+PricingRule <|.. MedicationPricingRule
+PricingRule <|.. DiagnosticTestPricingRule
+PricingRule <|.. RoomPricingRule
+
+BillingPolicy <|.. InsuranceBillingPolicy
+BillingPolicy <|.. GovernmentProgramBillingPolicy
+BillingPolicy <|.. SelfPayBillingPolicy
+
+' --- Associations ---
+Patient "1" -- "0..*" HospitalStay : has >
+HospitalStay "1" -- "0..*" Charge : includes >
+HospitalStay "1" -- "1" Bill : generates >
+Bill "1" -- "1" Patient : for >
+
+' Each Charge is priced by a specific PricingRule instance
+Charge "1" *-- "1" PricingRule : isPricedBy >
+
+' A Patient applies a specific BillingPolicy
+Patient "1" *-- "1" BillingPolicy : applies >
+
+' Insurance Policy includes multiple coverage rules
+InsuranceBillingPolicy "1" -- "0..*" InsuranceCoverageRule : applies >
+
+' Government Program Policy uses multiple subsidized rates
+GovernmentProgramBillingPolicy "1" -- "0..*" SubsidizedRate : uses >
+
+' --- Notes for Clarity ---
+note "Strategy Pattern: Allows billing logic to be interchangeable at runtime\nwithout modifying core Bill class." as N_BillingPolicy
+BillingPolicy .. N_BillingPolicy
+
+note "Strategy Pattern: Allows different charge types to have independent\npricing calculations, easily extensible for new charge types." as N_PricingRule
+PricingRule .. N_PricingRule
+
+note "Ensures strong separation between patient records, pricing components,\nand billing policies for maintainability and extensibility." as N_Separation
+Patient .. N_Separation
+Charge .. N_Separation
+BillingPolicy .. N_Separation
+
+@enduml

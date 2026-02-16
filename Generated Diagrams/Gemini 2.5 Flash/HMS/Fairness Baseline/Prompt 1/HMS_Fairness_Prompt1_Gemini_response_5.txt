@@ -1,0 +1,207 @@
+@startuml
+!pragma layout smetana
+
+title Hospital Discharge Billing Platform - Class Diagram
+
+' Enums for status and types
+enum BillStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+' --------------------------------------------------------------------------------
+' Core Entities: Patient, Bill, and Charge
+' --------------------------------------------------------------------------------
+class Patient {
+  + patientId: String
+  + name: String
+  + dateOfBirth: Date
+  + admissionDate: Date
+  + dischargeDate: Date
+  + contactInfo: String
+  --
+  + getPatientInfo(): Map<String, String>
+  + updatePatientInfo(Map<String, String>)
+  + assignBillingPolicy(BillingPolicy)
+  + createBill(): Bill
+}
+
+class Bill {
+  + billId: String
+  + issueDate: Date
+  + dueDate: Date
+  + totalAmount: decimal
+  + status: BillStatus
+  + patientId: String  ' Foreign key / reference to Patient
+  --
+  + getBillDetails(): Map<String, String>
+  + addCharge(Charge)
+  + calculateTotalAmount(): void
+  + updateStatus(BillStatus)
+  + generateInvoice(): Document
+}
+
+class Charge {
+  + chargeId: String
+  + description: String
+  + quantity: int
+  + unitPrice: decimal ' Base price of the service item at time of charge
+  + chargedAmount: decimal ' Final amount after PricingRule application
+  + chargeDate: Date
+  + serviceItemId: String ' Foreign key / reference to ServiceItem
+  + pricingRuleId: String ' Foreign key / reference to PricingRule applied
+  --
+  + getChargeDetails(): Map<String, String>
+  + setChargedAmount(decimal)
+}
+
+' --------------------------------------------------------------------------------
+' Billing Policy Strategy: Governs how a patient's overall bill is calculated
+' --------------------------------------------------------------------------------
+abstract class BillingPolicy {
+  # policyId: String
+  # name: String
+  --
+  + calculateBill(Bill bill): decimal
+}
+
+class InsuranceBillingPolicy {
+  + insuranceProvider: String
+  + coverageDetails: String
+  + coPayAmount: decimal
+  + reimbursementLimit: decimal
+  --
+  + calculateBill(Bill bill): decimal
+}
+
+class GovernmentBillingPolicy {
+  + programName: String
+  + subsidizedRate: decimal
+  --
+  + calculateBill(Bill bill): decimal
+}
+
+class SelfPayBillingPolicy {
+  + discountRate: decimal
+  --
+  + calculateBill(Bill bill): decimal
+}
+
+' --------------------------------------------------------------------------------
+' Service Items: Represents the diverse sources of charges
+' --------------------------------------------------------------------------------
+abstract class ServiceItem {
+  # serviceItemId: String
+  # name: String
+  # basePrice: decimal
+  --
+  + getServiceDetails(): Map<String, String>
+}
+
+class Procedure {
+  + procedureCode: String
+  + description: String
+}
+
+class Medication {
+  + drugName: String
+  + dosage: String
+  + manufacturer: String
+}
+
+class DiagnosticTest {
+  + testCode: String
+  + resultType: String
+  + labName: String
+}
+
+class RoomStay {
+  + roomNumber: String
+  + dailyRate: decimal
+  + roomType: String
+}
+
+' --------------------------------------------------------------------------------
+' Pricing Rule Strategy: Governs pricing for individual service items
+' --------------------------------------------------------------------------------
+abstract class PricingRule {
+  # ruleId: String
+  # name: String
+  --
+  + applyRule(ServiceItem item, int quantity): decimal
+}
+
+class ProcedurePricingRule {
+  + calculatePrice(ServiceItem item, int quantity): decimal
+}
+
+class MedicationPricingRule {
+  + calculatePrice(ServiceItem item, int quantity): decimal
+}
+
+class DiagnosticTestPricingRule {
+  + calculatePrice(ServiceItem item, int quantity): decimal
+}
+
+class RoomPricingRule {
+  + calculatePrice(ServiceItem item, int quantity): decimal
+}
+
+
+' --------------------------------------------------------------------------------
+' Relationships
+' --------------------------------------------------------------------------------
+
+' Patient-Bill Relationship: A Patient generates multiple Bills.
+Patient "1" o-- "0..*" Bill : generates
+
+' Bill-Charge Relationship: A Bill is composed of one or more Charges.
+Bill "1" *-- "1..*" Charge : includes
+
+' Patient-BillingPolicy Relationship: A Patient uses one BillingPolicy.
+Patient "1" --> "1" BillingPolicy : uses >
+
+' Charge-ServiceItem Relationship: A Charge refers to a specific ServiceItem.
+Charge "1" --> "1" ServiceItem : refersTo >
+
+' Charge-PricingRule Relationship: A Charge records the PricingRule applied to it.
+Charge "1" --> "1" PricingRule : appliedRule >
+
+' Inheritance for Billing Policies (Strategy Pattern)
+BillingPolicy <|-- InsuranceBillingPolicy
+BillingPolicy <|-- GovernmentBillingPolicy
+BillingPolicy <|-- SelfPayBillingPolicy
+
+' Inheritance for Service Items (Charge Sources)
+ServiceItem <|-- Procedure
+ServiceItem <|-- Medication
+ServiceItem <|-- DiagnosticTest
+ServiceItem <|-- RoomStay
+
+' Inheritance for Pricing Rules (Strategy Pattern)
+PricingRule <|-- ProcedurePricingRule
+PricingRule <|-- MedicationPricingRule
+PricingRule <|-- DiagnosticTestPricingRule
+PricingRule <|-- RoomPricingRule
+
+
+' --------------------------------------------------------------------------------
+' Explanatory Notes
+' --------------------------------------------------------------------------------
+note "Strategy Pattern: Allows billing logic to be\ninterchanged at runtime based on patient type.\nEnsures extensibility for new regulatory requirements." as N1
+BillingPolicy .. N1
+
+note "Strategy Pattern: Allows different pricing rules\nto be applied to various service items.\nEnsures extensibility for new pricing models." as N2
+PricingRule .. N2
+
+note "Strong separation of concerns:\n- Patient records (Patient)\n- Pricing components (ServiceItem, PricingRule)\n- Billing policies (BillingPolicy)\nThis design promotes loose coupling and maintainability." as N3
+Patient .. N3
+ServiceItem .. N3
+BillingPolicy .. N3
+
+note "The 'chargedAmount' in Charge reflects the price\nafter the specific PricingRule has been applied.\nThe BillingPolicy then uses these charged amounts\nto calculate the final bill total, considering\ncoverage, subsidies, or discounts." as N4
+Charge .. N4
+
+@enduml

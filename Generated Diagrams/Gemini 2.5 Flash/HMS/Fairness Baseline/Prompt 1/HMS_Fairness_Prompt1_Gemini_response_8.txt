@@ -1,0 +1,161 @@
+@startuml
+!pragma layout smetana
+
+hide empty members
+
+' --- Interfaces for Strategy Pattern ---
+interface PricingStrategy {
+    + calculatePrice(chargeType: ChargeType, patient: Patient, quantity: int): decimal
+}
+
+interface BillingPolicy {
+    + calculateFinalBill(bill: Bill, patient: Patient): decimal
+}
+
+' --- Core Entities ---
+class Patient {
+    - patientId: String
+    - name: String
+    - dateOfBirth: Date
+    - contactInfo: String
+    --
+    + assignBillingPolicy(policy: BillingPolicy)
+    + getBillingPolicy(): BillingPolicy
+    + getInsuranceCoverage(): InsuranceCoverage
+    + getGovernmentProgram(): GovernmentProgram
+}
+
+class HospitalStay {
+    - stayId: String
+    - admissionDateTime: DateTime
+    - dischargeDateTime: DateTime
+    --
+    + addChargeItem(item: ChargeItem)
+    + getChargeItems(): List<ChargeItem>
+}
+
+abstract class ChargeType {
+    - typeId: String
+    - name: String
+    - description: String
+    - basePrice: decimal
+    --
+    + getPricingStrategy(): PricingStrategy
+}
+
+class ProcedureType extends ChargeType {}
+class MedicationType extends ChargeType {}
+class DiagnosticTestType extends ChargeType {}
+class RoomType extends ChargeType {}
+
+class ChargeItem {
+    - chargeItemId: String
+    - quantity: int
+    - chargeDateTime: DateTime
+    - calculatedAmount: decimal
+    --
+    + calculateAmount(patient: Patient): decimal
+}
+
+class Bill {
+    - billId: String
+    - billDate: Date
+    - totalAmount: decimal
+    - status: String ' e.g., Draft, Final, Paid
+    --
+    + generateBill(stay: HospitalStay, billingPolicy: BillingPolicy)
+    + addBillLineItem(item: BillLineItem)
+    + getBillLineItems(): List<BillLineItem>
+}
+
+class BillLineItem {
+    - lineItemId: String
+    - description: String
+    - quantity: int
+    - unitPrice: decimal
+    - lineAmount: decimal
+}
+
+' --- Concrete Pricing Strategy Implementations ---
+class StandardPricingStrategy implements PricingStrategy {
+    + calculatePrice(chargeType: ChargeType, patient: Patient, quantity: int): decimal
+}
+
+class TieredPricingStrategy implements PricingStrategy {
+    + calculatePrice(chargeType: ChargeType, patient: Patient, quantity: int): decimal
+}
+
+class FixedRatePricingStrategy implements PricingStrategy {
+    + calculatePrice(chargeType: ChargeType, patient: Patient, quantity: int): decimal
+}
+
+' --- Concrete Billing Policy Implementations ---
+class InsuranceBillingPolicy implements BillingPolicy {
+    + calculateFinalBill(bill: Bill, patient: Patient): decimal
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    + calculateFinalBill(bill: Bill, patient: Patient): decimal
+}
+
+class SelfPayBillingPolicy implements BillingPolicy {
+    + calculateFinalBill(bill: Bill, patient: Patient): decimal
+}
+
+' --- Policy-Related Data Structures ---
+class InsuranceCoverage {
+    - providerName: String
+    - policyNumber: String
+    - reimbursementLimit: decimal
+    - coPaymentStructure: String ' e.g., JSON or specific class
+    --
+    + getRemainingCoverage(amount: decimal): decimal
+}
+
+class GovernmentProgram {
+    - programName: String
+    - subsidizedRate: decimal
+    --
+    + getSubsidizedAmount(amount: decimal): decimal
+}
+
+' --- Relationships ---
+
+' Patient and HospitalStay: A patient has one or more hospital stays.
+Patient "1" -- "1..*" HospitalStay : has >
+
+' HospitalStay and ChargeItem: A hospital stay includes multiple charge items.
+HospitalStay "1" -- "0..*" ChargeItem : includes >
+
+' ChargeItem and ChargeType: A charge item refers to a specific type of charge.
+ChargeItem "1" -- "1" ChargeType : refersTo >
+
+' ChargeType and PricingStrategy: Each charge type uses a specific pricing strategy.
+ChargeType "1" -- "1" PricingStrategy : uses >
+
+' Bill Generation: A hospital stay generates one bill (or none if not yet discharged/billed).
+HospitalStay "1" -- "0..1" Bill : generates >
+' Bill and BillLineItem: A bill contains one or more line items.
+Bill "1" -- "1..*" BillLineItem : contains >
+' BillLineItem and ChargeItem: A bill line item details a specific charge item.
+BillLineItem "1" -- "1" ChargeItem : details >
+
+' Patient and BillingPolicy: A patient is assigned a specific billing policy.
+Patient "1" -- "1" BillingPolicy : applies >
+
+' Patient and Coverage/Program details: A patient may have insurance or be enrolled in a government program.
+Patient "0..1" -- "1" InsuranceCoverage : has >
+Patient "0..1" -- "1" GovernmentProgram : enrolledIn >
+
+' --- Explanatory Notes ---
+note top of Patient : Represents the individual receiving care.\nLinked to their specific billing policy and coverage details.
+note top of HospitalStay : Aggregates all services/items provided during a patient's visit.
+note top of ChargeType : Defines a billable service or item (e.g., specific procedure, medication).\nSeparates definition from actual instance (ChargeItem).
+note top of ChargeItem : An instance of a service or item provided to a patient during a stay.
+note top of PricingStrategy : Strategy pattern interface for flexible pricing rules.\nAllows independent pricing logic for each charge type.
+note top of BillingPolicy : Strategy pattern interface for flexible billing rules.\nInterchangeable at runtime based on patient type.
+note top of Bill : The final financial document summarizing all charges and adjustments for a hospital stay.
+note top of InsuranceCoverage : Stores details specific to a patient's insurance plan.\nUsed by InsuranceBillingPolicy.
+note top of GovernmentProgram : Stores details about a government health program.\nUsed by GovernmentBillingPolicy.
+
+@enduml

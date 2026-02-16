@@ -1,0 +1,205 @@
+@startuml
+' Styling and general setup for clarity and adherence to design practices
+hide empty members
+skinparam classAttributeIconSize 0
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam class {
+    BorderColor #A3BFE6
+    BackgroundColor #E0EBF9
+    ArrowColor #3F6FBF
+    HeaderBackgroundColor #A3BFE6
+}
+skinparam interface {
+    BorderColor #8BC34A
+    BackgroundColor #DCEDC8
+    ArrowColor #8BC34A
+}
+skinparam abstract {
+    BorderColor #FF9800
+    BackgroundColor #FFECB3
+    ArrowColor #FF9800
+}
+
+' Value Object (implied for Money, but can be explicitly defined if needed)
+' class Money << (V, #FF7700) Value Object >> {
+'   - amount: BigDecimal
+'   - currency: Currency
+' }
+
+' 1. Patient and Hospital Stay Management
+class Patient {
+    - patientId: String
+    - firstName: String
+    - lastName: String
+    - dateOfBirth: Date
+    + getPatientInfo(): PatientDetails
+}
+
+class HospitalStay {
+    - stayId: String
+    - admissionDate: Date
+    - dischargeDate: Date
+    + addCharge(charge: Charge)
+    + getCharges(): List<Charge>
+}
+
+Patient "1" -- "0..*" HospitalStay : has >
+
+' 2. Billing Core
+class Bill {
+    - billId: String
+    - billDate: Date
+    - totalAmount: Money
+    - status: BillStatus
+    + addLineItem(item: BillLineItem)
+    + calculateTotalAmount(): Money
+    + getBillDetails(): BillDetails
+}
+
+class BillLineItem {
+    - lineItemId: String
+    - description: String
+    - quantity: int
+    - unitPrice: Money
+    - calculatedAmount: Money
+}
+
+HospitalStay "1" -- "0..1" Bill : generates >
+Bill "1" -- "0..*" BillLineItem : contains >
+
+' 3. Charges and Hospital Services Catalog
+abstract class Charge {
+    - chargeId: String
+    - description: String
+    - chargeDate: Date
+    - quantity: int
+    + {abstract} getAmount(): Money
+}
+
+class HospitalService {
+    - serviceCode: String
+    - name: String
+    - basePrice: Money
+    + getBasePrice(): Money
+}
+
+HospitalStay "1" -- "0..*" Charge : incurs >
+Charge "1" -- "1" HospitalService : basedOn >
+BillLineItem "1" -- "1" Charge : derivedFrom >
+
+' Concrete Charge Types (inheriting from Charge)
+class ProcedureCharge {
+    - procedureCode: String
+    + getAmount(): Money
+}
+class MedicationCharge {
+    - medicationCode: String
+    - dosage: String
+    + getAmount(): Money
+}
+class DiagnosticTestCharge {
+    - testCode: String
+    + getAmount(): Money
+}
+class RoomOccupancyCharge {
+    - roomNumber: String
+    - numberOfDays: int
+    + getAmount(): Money
+}
+
+Charge <|-- ProcedureCharge
+Charge <|-- MedicationCharge
+Charge <|-- DiagnosticTestCharge
+Charge <|-- RoomOccupancyCharge
+
+' 4. Pricing Policies (Strategy Pattern for Charges)
+interface PricingPolicy {
+    + calculatePrice(charge: Charge, service: HospitalService): Money
+}
+
+class ProcedurePricingPolicy {
+    + calculatePrice(charge: Charge, service: HospitalService): Money
+}
+class MedicationPricingPolicy {
+    + calculatePrice(charge: Charge, service: HospitalService): Money
+}
+class DiagnosticTestPricingPolicy {
+    + calculatePrice(charge: Charge, service: HospitalService): Money
+}
+class RoomPricingPolicy {
+    + calculatePrice(charge: Charge, service: HospitalService): Money
+}
+
+PricingPolicy <|.. ProcedurePricingPolicy
+PricingPolicy <|.. MedicationPricingPolicy
+PricingPolicy <|.. DiagnosticTestPricingPolicy
+PricingPolicy <|.. RoomPricingPolicy
+
+' Each concrete Charge type uses an instance of its specific PricingPolicy
+ProcedureCharge ..> PricingPolicy : uses >
+MedicationCharge ..> PricingPolicy : uses >
+DiagnosticTestCharge ..> PricingPolicy : uses >
+RoomOccupancyCharge ..> PricingPolicy : uses >
+
+' 5. Billing Strategies (Strategy Pattern for Bill calculation)
+interface BillingStrategy {
+    + applyPolicy(bill: Bill, patient: Patient): void
+}
+
+class InsuranceBillingStrategy {
+    + applyPolicy(bill: Bill, patient: Patient): void
+}
+class GovernmentBillingStrategy {
+    + applyPolicy(bill: Bill, patient: Patient): void
+}
+class SelfPayStrategy {
+    + applyPolicy(bill: Bill, patient: Patient): void
+}
+
+BillingStrategy <|.. InsuranceBillingStrategy
+BillingStrategy <|.. GovernmentBillingStrategy
+BillingStrategy <|.. SelfPayStrategy
+
+Bill "1" -- "1" BillingStrategy : applies >
+
+' 6. Insurance and Government Programs (Context for Billing Strategies)
+class InsurancePlan {
+    - planId: String
+    - name: String
+    - coverageDetails: String
+    - reimbursementLimits: Map<String, Money>
+    - coPaymentStructure: Map<String, Money>
+    + getCoverage(serviceCode: String): CoverageDetails
+    + getCoPayment(serviceCode: String): Money
+}
+
+class GovernmentProgram {
+    - programId: String
+    - name: String
+    - subsidizedRates: Map<String, Money>
+    + getSubsidizedRate(serviceCode: String): Money
+}
+
+Patient "1" -- "0..1" InsurancePlan : has >
+Patient "1" -- "0..1" GovernmentProgram : enrolledIn >
+
+InsuranceBillingStrategy "1" -- "1" InsurancePlan : consults >
+GovernmentBillingStrategy "1" -- "1" GovernmentProgram : consults >
+
+' Explanatory Notes for key design decisions
+note "Billing logic is governed by configurable policies that must remain interchangeable at runtime." as N1
+BillingStrategy .. N1
+
+note "Charges originate from diverse sources, each governed by independent pricing rules." as N2
+PricingPolicy .. N2
+
+note "Strong separation between patient records, pricing components, and billing policies." as N3
+Patient .. N3
+PricingPolicy .. N3
+BillingStrategy .. N3
+
+note "This model emphasizes loose coupling and extensibility, allowing new rules and charge types to be added without structural redesign." as N4
+N4 .. (Patient, Bill, Charge, BillingStrategy, PricingPolicy)
+
+@enduml

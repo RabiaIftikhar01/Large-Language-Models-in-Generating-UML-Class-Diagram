@@ -1,0 +1,147 @@
+@startuml
+!pragma layout smetana
+
+' Abstract classes and Interfaces
+abstract class ChargeItem {
+    - chargeItemID: String
+    - description: String
+    - dateOfService: Date
+    + getAmount(): double
+}
+
+interface BillingPolicy {
+    + calculatePatientResponsibility(bill: Bill): double
+}
+
+' Concrete ChargeItem classes representing diverse charge sources
+class ProcedureCharge {
+    - procedureCode: String
+    - procedureName: String
+    + getAmount(): double
+}
+
+class MedicationCharge {
+    - medicationName: String
+    - dosage: String
+    - unitPrice: double
+    - quantity: int
+    + getAmount(): double
+}
+
+class DiagnosticTestCharge {
+    - testName: String
+    - testCode: String
+    + getAmount(): double
+}
+
+class RoomOccupancyCharge {
+    - roomNumber: String
+    - roomType: String
+    - dailyRate: double
+    - numberOfDays: int
+    + getAmount(): double
+}
+
+' Concrete BillingPolicy classes implementing different billing rules
+class InsuranceBillingPolicy {
+    - coverageRules: String
+    - reimbursementLimits: double
+    - coPaymentStructure: double
+    + calculatePatientResponsibility(bill: Bill): double
+}
+
+class GovernmentProgramBillingPolicy {
+    - subsidizedRates: double
+    + calculatePatientResponsibility(bill: Bill): double
+}
+
+class SelfPayBillingPolicy {
+    + calculatePatientResponsibility(bill: Bill): double
+}
+
+' Core domain classes
+class Patient {
+    - patientID: String
+    - name: String
+    - dateOfBirth: Date
+    - contactInfo: String
+    + getPatientDetails(): String
+    + updateContactInfo(info: String): void
+}
+
+class HospitalStay {
+    - stayID: String
+    - admissionDate: Date
+    - dischargeDate: Date
+    - reasonForAdmission: String
+    + calculateDuration(): int
+}
+
+class Bill {
+    - billID: String
+    - billDate: Date
+    - totalAmount: double
+    - patientResponsibility: double
+    - status: String
+    + generateBill(): void
+    + addCharge(charge: ChargeItem): void
+    + calculateTotalAmount(): double
+    + applyBillingPolicy(): void
+}
+
+' Classes representing patient coverage details
+class Insurance {
+    - policyNumber: String
+    - providerName: String
+    - groupNumber: String
+    - effectiveDate: Date
+    - expirationDate: Date
+    + getPolicyDetails(): String
+}
+
+class GovernmentProgram {
+    - programName: String
+    - programID: String
+    - eligibilityCriteria: String
+    + getProgramDetails(): String
+}
+
+' Inheritance relationships
+ChargeItem <|-- ProcedureCharge
+ChargeItem <|-- MedicationCharge
+ChargeItem <|-- DiagnosticTestCharge
+ChargeItem <|-- RoomOccupancyCharge
+
+BillingPolicy <|.. InsuranceBillingPolicy
+BillingPolicy <|.. GovernmentProgramBillingPolicy
+BillingPolicy <|.. SelfPayBillingPolicy
+
+' Associations
+Patient "1" -- "0..*" HospitalStay : has >
+HospitalStay "1" -- "1" Bill : results in >
+HospitalStay "1" -- "0..*" ChargeItem : includes >
+
+Bill "1" *-- "1..*" ChargeItem : aggregates >
+Bill "1" o-- "1" BillingPolicy : calculates using >
+
+Patient "1" -- "0..1" Insurance : covered by >
+Patient "1" -- "0..1" GovernmentProgram : enrolled in >
+
+' Notes for clarity
+note left of Bill::applyBillingPolicy
+  Determines and applies the
+  appropriate BillingPolicy
+  based on patient's coverage.
+end note
+
+note right of BillingPolicy
+  Strategy for calculating
+  patient's financial
+  responsibility.
+  Interchangeable at runtime.
+end note
+
+note "Configurable pricing logic for each\ncharge type is encapsulated within\neach ChargeItem's getAmount() method.\n(e.g., using a PricingCatalog for rates)" as N1
+ChargeItem .. N1
+
+@enduml

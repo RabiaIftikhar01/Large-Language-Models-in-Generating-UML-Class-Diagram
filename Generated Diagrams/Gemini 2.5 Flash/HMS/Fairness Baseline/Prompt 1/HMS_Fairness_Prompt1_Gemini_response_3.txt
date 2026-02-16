@@ -1,0 +1,189 @@
+@startuml
+' Design Practice 25: Add explanatory notes
+' This diagram models the core components of a hospital discharge billing system,
+' focusing on patient billing, charge management, and flexible policy application.
+' It emphasizes strong separation of concerns and extensibility.
+
+' Design Practice 4: Consistent Naming Convention (PascalCase for classes, camelCase for members)
+' Design Practice 23: Descriptive and meaningful names
+
+' --- Charge Sources and Pricing ---
+' Design Practice 21: Identify relationships (inheritance, association)
+' Design Practice 1: Aim for simplicity, break down complex parts logically
+
+abstract class ChargeSource {
+  - sourceId: String
+  - name: String
+  ' Design Practice 9 & 10: Industry standard to create access methods (getters)
+  + getSourceId(): String
+  + getName(): String
+  ' Design Practice 7: A class with no operation at all might be better modelled as an attribute.
+  ' ChargeSource has operations (getters) and an abstract method, so it's a valid class.
+  + {abstract} getUnitPrice(): double
+}
+
+class Procedure {
+  - procedureCode: String
+  - basePrice: double
+  + getProcedureCode(): String
+  + getBasePrice(): double
+  + getUnitPrice(): double
+}
+
+class Medication {
+  - drugName: String
+  - dosage: String
+  - basePrice: double
+  + getDrugName(): String
+  + getDosage(): String
+  + getBasePrice(): double
+  + getUnitPrice(): double
+}
+
+class DiagnosticTest {
+  - testCode: String
+  - basePrice: double
+  + getTestCode(): String
+  + getBasePrice(): double
+  + getUnitPrice(): double
+}
+
+class RoomOccupancy {
+  - roomNumber: String
+  - dailyRate: double
+  + getRoomNumber(): String
+  + getDailyRate(): double
+  ' For room occupancy, unitPrice is the dailyRate, quantity in Charge represents days.
+  + getUnitPrice(): double
+}
+
+ChargeSource <|-- Procedure
+ChargeSource <|-- Medication
+ChargeSource <|-- DiagnosticTest
+ChargeSource <|-- RoomOccupancy
+
+' --- Charge Item ---
+class Charge {
+  - chargeId: String
+  - description: String
+  - quantity: int
+  - unitPrice: double
+  - amount: double
+  ' Design Practice 9: Access methods
+  + getChargeId(): String
+  + getDescription(): String
+  + getQuantity(): int
+  + getUnitPrice(): double
+  + getAmount(): double
+  ' Design Practice 10: Implementor operation (core business logic)
+  + calculateAmount(): void
+}
+
+' Design Practice 15: Multiplicity (1 Charge originates from exactly 1 ChargeSource)
+' Design Practice 16, 18: Relationship name (verb phrase) and direction
+Charge "1" -- "1" ChargeSource : originatesFrom >
+
+' --- Billing Core ---
+class Bill {
+  - billId: String
+  - billDate: Date
+  - totalAmount: double
+  - status: String
+  ' Design Practice 9: Access methods
+  + getBillId(): String
+  + getBillDate(): Date
+  + getTotalAmount(): double
+  + getStatus(): String
+  ' Design Practice 10: Manager/Implementor operations
+  + addCharge(charge: Charge): void
+  + getCharges(): List<Charge>
+  ' Orchestrates the billing process, applying policies
+  + calculateFinalAmount(patient: Patient): void
+}
+
+' Design Practice 15: Multiplicity (1 Bill includes many Charges)
+' Design Practice 11, 12: Reduced relationships, unidirectional
+Bill "1" -- "*" Charge : includes >
+
+' --- Billing Policies (Strategy Pattern) ---
+' Design Practice 27: Classes should be loosely coupled.
+' The use of an interface for BillingPolicy ensures loose coupling and extensibility.
+interface BillingPolicy {
+  ' Design Practice 10: Implementor operation
+  + applyPolicy(bill: Bill, patient: Patient): void
+}
+
+class InsuranceBillingPolicy {
+  - coverageRules: String
+  - reimbursementLimits: double
+  - coPaymentStructure: String
+  + getCoverageRules(): String
+  + getReimbursementLimits(): double
+  + getCoPaymentStructure(): String
+  + applyPolicy(bill: Bill, patient: Patient): void
+}
+
+class GovernmentProgramBillingPolicy {
+  - subsidizedRates: Map<String, Double> ' Example: Map of service codes to subsidized rates
+  + getSubsidizedRates(): Map<String, Double>
+  + applyPolicy(bill: Bill, patient: Patient): void
+}
+
+class SelfPayBillingPolicy {
+  + applyPolicy(bill: Bill, patient: Patient): void
+}
+
+BillingPolicy <|.. InsuranceBillingPolicy
+BillingPolicy <|.. GovernmentProgramBillingPolicy
+BillingPolicy <|.. SelfPayBillingPolicy
+
+' --- Patient and Insurance Details ---
+class InsuranceCoverage {
+  - providerName: String
+  - policyNumber: String
+  - coverageDetails: String ' Can be a complex object or consolidated string
+  + getProviderName(): String
+  + getPolicyNumber(): String
+  + getCoverageDetails(): String
+}
+
+class Patient {
+  - patientId: String
+  - name: String
+  - dateOfBirth: Date
+  - contactInfo: String
+  ' Design Practice 9: Access methods
+  + getPatientId(): String
+  + getName(): String
+  + getDateOfBirth(): Date
+  + getContactInfo(): String
+  ' Design Practice 10: Helper/Factory operation to determine the appropriate policy
+  + getBillingPolicy(): BillingPolicy
+  + getInsuranceCoverage(): InsuranceCoverage
+}
+
+' Design Practice 15: Multiplicity (1 Patient generates 0 or more Bills)
+' Design Practice 12: Unidirectional association (Bill refers to Patient for policy context)
+Patient "1" -- "0..*" Bill : generates >
+
+' Design Practice 15: Multiplicity (1 Patient may have 0 or 1 InsuranceCoverage)
+' Design Practice 17: Role name (has)
+Patient "1" -- "0..1" InsuranceCoverage : has >
+
+' --- Explanatory Notes (Design Practice 25) ---
+note "Billing logic is interchangeable at runtime.\nThis is achieved using the Strategy pattern with the BillingPolicy interface." as N1
+BillingPolicy .. N1
+
+note "Charges originate from diverse sources, each with independent pricing rules.\nChargeSource abstract class and its specializations encapsulate this." as N2
+ChargeSource .. N2
+
+note "The design ensures strong separation between Patient records, Pricing components (ChargeSource), and Billing Policies." as N3
+Patient .. N3
+ChargeSource .. N3
+BillingPolicy .. N3
+
+note "The system is extensible: new ChargeSource types or BillingPolicy implementations can be added without structural redesign." as N4
+ChargeSource .. N4
+BillingPolicy .. N4
+
+@enduml

@@ -1,0 +1,168 @@
+@startuml
+!pragma layout smetana
+
+title Hospital Discharge Billing System Class Diagram
+
+' Interface for Billing Policies (Strategy Pattern)
+interface IBillingPolicy {
+    + calculate(patient: Patient, billItems: List<BillItem>): double
+}
+
+' Abstract base class for all types of charges
+abstract class Charge {
+    - chargeId: String
+    - description: String
+    - baseAmount: double
+    --
+    + getBaseAmount(): double
+    + calculateFinalAmount(): double
+}
+
+' Class for defining pricing rules
+class PricingRule {
+    - ruleId: String
+    - name: String
+    - ruleLogic: String ' e.g., "fixed rate", "percentage markup", "tiered pricing"
+    --
+    + apply(baseAmount: double): double
+}
+
+' Class representing a patient
+class Patient {
+    - patientId: String
+    - name: String
+    - dateOfBirth: Date
+    - admissionDate: Date
+    - dischargeDate: Date
+    - billingPolicyIdentifier: String ' e.g., "Insurance", "Government", "SelfPay"
+    --
+    + getPatientDetails(): Map<String, String>
+    + updatePatientInfo(details: Map<String, String>): void
+    + getBillingPolicyIdentifier(): String
+}
+
+' Class representing a patient's bill
+class Bill {
+    - billId: String
+    - billDate: Date
+    - totalAmount: double
+    - status: String ' e.g., "Pending", "Issued", "Paid"
+    --
+    + calculateTotal(policy: IBillingPolicy, billItems: List<BillItem>): void
+    + generateInvoice(): Document
+    + applyPayment(amount: double): void
+}
+
+' Class representing an item within a bill
+class BillItem {
+    - billItemId: String
+    - quantity: int
+    - billedAmount: double
+    - chargeDate: Date
+    --
+    + getBilledAmount(): double
+}
+
+' Concrete implementations of IBillingPolicy
+class InsuranceBillingPolicy {
+    - policyName: String
+    - reimbursementLimit: double
+    - coPaymentStructure: Map<String, Double> ' e.g., {"DoctorVisit": 20.0, "Emergency": 50.0}
+    --
+    + calculate(patient: Patient, billItems: List<BillItem>): double
+}
+
+class GovernmentBillingPolicy {
+    - policyName: String
+    - subsidizedRate: double ' e.g., 0.8 for 80% subsidy
+    --
+    + calculate(patient: Patient, billItems: List<BillItem>): double
+}
+
+class SelfPayBillingPolicy {
+    - policyName: String ' e.g., "Standard Self-Pay"
+    --
+    + calculate(patient: Patient, billItems: List<BillItem>): double
+}
+
+' Concrete implementations of Charge
+class ProcedureCharge {
+    - procedureCode: String
+    --
+    + calculateFinalAmount(): double
+}
+
+class MedicationCharge {
+    - medicationName: String
+    - dosage: String
+    --
+    + calculateFinalAmount(): double
+}
+
+class DiagnosticTestCharge {
+    - testName: String
+    - result: String
+    --
+    + calculateFinalAmount(): double
+}
+
+class RoomOccupancyCharge {
+    - roomNumber: String
+    - dailyRate: double
+    - numDays: int
+    --
+    + calculateFinalAmount(): double
+}
+
+
+'----------------------------------------------------------------------
+' Relationships
+'----------------------------------------------------------------------
+
+' Patient generates multiple Bills
+Patient "1" -- "0..*" Bill : generates
+
+' Bill is composed of BillItems (composition: BillItems cannot exist without a Bill)
+Bill "1" *-- "0..*" BillItem : contains
+
+' BillItem refers to a specific Charge type
+BillItem "0..*" --> "1" Charge : refersTo
+
+' Each Charge applies a PricingRule to determine its final cost
+Charge "1" --> "1" PricingRule : applies
+
+' IBillingPolicy is implemented by concrete policy classes (Realization)
+IBillingPolicy <|.. InsuranceBillingPolicy
+IBillingPolicy <|.. GovernmentBillingPolicy
+IBillingPolicy <|.. SelfPayBillingPolicy
+
+' Bill uses an IBillingPolicy for its calculation logic (Dependency)
+Bill .down.> IBillingPolicy : <<uses>>
+
+' Charge is specialized into various types (Inheritance)
+Charge <|-- ProcedureCharge
+Charge <|-- MedicationCharge
+Charge <|-- DiagnosticTestCharge
+Charge <|-- RoomOccupancyCharge
+
+
+'----------------------------------------------------------------------
+' Notes for clarity and design justification
+'----------------------------------------------------------------------
+
+note right of BillItem : Represents a specific instance of a Charge\nincluded in a Bill, with its billed amount and quantity.
+
+note top of IBillingPolicy : Strategy Pattern: Allows interchangeable\nbilling logic at runtime based on patient type.
+
+note right of PricingRule : Defines how a base charge amount is\nadjusted to a final amount, supporting varied pricing rules.
+
+note left of Patient : Manages patient demographic and admission details.\n`billingPolicyIdentifier` determines which `IBillingPolicy` is applied.
+
+note top of Charge : Abstract base for all billable items (procedures,\nmedications, tests, room), ensuring extensibility.
+
+note "Strong separation of concerns achieved:\n- Patient: Patient records\n- Charge/PricingRule: Pricing components\n- IBillingPolicy & implementations: Billing policies" as N1
+N1 .. Patient
+N1 .. Charge
+N1 .. IBillingPolicy
+
+@enduml

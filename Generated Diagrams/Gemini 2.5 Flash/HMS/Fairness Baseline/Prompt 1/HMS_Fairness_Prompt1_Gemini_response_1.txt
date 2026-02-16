@@ -1,0 +1,171 @@
+@startuml
+' UML Class Diagram for Hospital Discharge Billing Platform
+
+' Styling and Configuration
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam class {
+    BorderColor #34495E
+    BackgroundColor #ECF0F1
+    ArrowColor #2C3E50
+    HeaderBackgroundColor #BDC3C7
+}
+skinparam interface {
+    BorderColor #27AE60
+    BackgroundColor #E8F8F5
+    HeaderBackgroundColor #D1F2EB
+}
+skinparam enum {
+    BorderColor #F39C12
+    BackgroundColor #FCF3CF
+    HeaderBackgroundColor #FAD7A0
+}
+
+' --- Patient Management ---
+class Patient {
+    - String patientId
+    - String name
+    - Date admissionDate
+    - Date dischargeDate
+    - PatientType patientType
+    -- Operations --
+    + Patient(String patientId, String name, Date admissionDate, PatientType patientType)
+    + getPatientInfo(): String
+    + getPatientType(): PatientType
+    + getPatientId(): String
+}
+
+enum PatientType {
+    INSURANCE
+    GOVERNMENT
+    SELF_PAY
+}
+
+' --- Billing Core ---
+class Bill {
+    - String billId
+    - Date issueDate
+    - double totalAmount
+    - String status
+    - List<Charge> charges
+    - IBillingPolicy billingPolicy
+    - Patient patient ' Reference to the patient this bill is for
+    -- Operations --
+    + Bill(String billId, Date issueDate, Patient patient, IBillingPolicy policy)
+    + addCharge(Charge charge)
+    + calculateTotalAmount(): double ' Calculates total using the assigned policy, patient, and charges
+    + getCharges(): List<Charge>
+    + getTotalAmount(): double
+    + setStatus(String status)
+    + getPatient(): Patient
+    + getBillingPolicy(): IBillingPolicy
+}
+
+class Charge {
+    - String chargeId
+    - String description
+    - double amount
+    - Date chargeDate
+    - ChargeableItem chargeableItem
+    -- Operations --
+    + Charge(String chargeId, ChargeableItem item, Date chargeDate, double actualAmount)
+    + getAmount(): double
+    + getDescription(): String
+    + getChargeableItem(): ChargeableItem
+}
+
+' --- Chargeable Items (Pricing Components) ---
+abstract class ChargeableItem {
+    - String itemId
+    - String name
+    - double basePrice
+    -- Operations --
+    + ChargeableItem(String itemId, String name, double basePrice)
+    + calculatePrice(): double <<abstract>>
+    + getItemId(): String
+    + getName(): String
+    + getBasePrice(): double
+}
+
+class Procedure extends ChargeableItem {
+    - String procedureCode
+    -- Operations --
+    + Procedure(String itemId, String name, double basePrice, String procedureCode)
+    + calculatePrice(): double
+}
+
+class Medication extends ChargeableItem {
+    - String drugCode
+    - double dosage
+    -- Operations --
+    + Medication(String itemId, String name, double basePrice, String drugCode, double dosage)
+    + calculatePrice(): double
+}
+
+class DiagnosticTest extends ChargeableItem {
+    - String testCode
+    -- Operations --
+    + DiagnosticTest(String itemId, String name, double basePrice, String testCode)
+    + calculatePrice(): double
+}
+
+class RoomOccupancy extends ChargeableItem {
+    - String roomNumber
+    - int numberOfNights
+    -- Operations --
+    + RoomOccupancy(String itemId, String name, double basePrice, String roomNumber, int numberOfNights)
+    + calculatePrice(): double
+}
+
+' --- Billing Policies (Strategy Pattern) ---
+interface IBillingPolicy {
+    + calculateBillAmount(Bill bill, Patient patient, List<Charge> charges): double
+}
+
+class InsuranceBillingPolicy implements IBillingPolicy {
+    - String policyName
+    - Map<String, Double> coverageRules ' e.g., "procedure": 0.8, "medication": 0.7
+    - double reimbursementLimit
+    - double coPaymentStructure
+    -- Operations --
+    + InsuranceBillingPolicy(String policyName, Map<String, Double> coverageRules, double reimbursementLimit, double coPaymentStructure)
+    + calculateBillAmount(Bill bill, Patient patient, List<Charge> charges): double
+}
+
+class GovernmentBillingPolicy implements IBillingPolicy {
+    - String programName
+    - Map<String, Double> subsidizedRates ' e.g., "procedure": 100.0, "medication": 50.0
+    -- Operations --
+    + GovernmentBillingPolicy(String programName, Map<String, Double> subsidizedRates)
+    + calculateBillAmount(Bill bill, Patient patient, List<Charge> charges): double
+}
+
+class SelfPayBillingPolicy implements IBillingPolicy {
+    -- Operations --
+    + SelfPayBillingPolicy()
+    + calculateBillAmount(Bill bill, Patient patient, List<Charge> charges): double
+}
+
+' --- Relationships ---
+
+Patient "1" -- "0..*" Bill : has
+Bill "1" *-- "1..*" Charge : contains
+Charge "1" --> "1" ChargeableItem : refers to
+Bill "1" --> "1" IBillingPolicy : uses >
+Bill "1" --> "1" Patient : for
+Patient "1" --> "1" PatientType : has
+
+' Notes for clarity
+note "PatientType determines which IBillingPolicy is applied to a Bill." as N1
+PatientType .. N1
+IBillingPolicy .. N1
+
+note "Each ChargeableItem subclass defines its own pricing logic,\nallowing independent pricing rules for diverse sources." as N2
+ChargeableItem .. N2
+
+note "Billing policies are interchangeable at runtime (Strategy Pattern),\nensuring extensibility for evolving regulations." as N3
+IBillingPolicy .. N3
+
+@enduml
