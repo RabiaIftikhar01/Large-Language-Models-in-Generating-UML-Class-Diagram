@@ -1,0 +1,127 @@
+```plantuml
+@startuml
+skinparam classAttributeIconSize 0
+
+class WeatherStation {
+  - stationId: String
+  - location: String
+  - operatorType: String
+  - transmissionFrequency: int
+  + WeatherStation(stationId: String, location: String)
+  + getStationId(): String
+  + getLocation(): String
+  + getOperatorType(): String
+  + getTransmissionFrequency(): int
+  + setTransmissionFrequency(frequency: int): void
+  + addSensor(sensor: Sensor): void
+  + removeSensor(sensor: Sensor): void
+  + collectData(): List<SensorData>
+}
+
+class Sensor {
+  - sensorId: String
+  - manufacturer: String
+  - sensorType: String
+  - nativeFormat: String
+  + Sensor(sensorId: String, manufacturer: String)
+  + getSensorId(): String
+  + getManufacturer(): String
+  + getSensorType(): String
+  + getNativeFormat(): String
+  + readMeasurement(): SensorData
+}
+
+class SensorData {
+  - dataId: String
+  - sensorId: String
+  - timestamp: DateTime
+  - rawValue: String
+  - format: String
+  + SensorData(sensorId: String, rawValue: String)
+  + getDataId(): String
+  + getSensorId(): String
+  + getTimestamp(): DateTime
+  + getRawValue(): String
+  + getFormat(): String
+}
+
+class DataNormalizer {
+  - formatRegistry: Map<String, FormatHandler>
+  + DataNormalizer()
+  + registerFormat(format: String, handler: FormatHandler): void
+  + normalize(data: SensorData): NormalizedData
+  - selectHandler(format: String): FormatHandler
+}
+
+class NormalizedData {
+  - dataId: String
+  - sensorId: String
+  - timestamp: DateTime
+  - value: double
+  - unit: String
+  + NormalizedData(dataId: String, value: double)
+  + getDataId(): String
+  + getSensorId(): String
+  + getTimestamp(): DateTime
+  + getValue(): double
+  + getUnit(): String
+}
+
+interface FormatHandler {
+  + canHandle(format: String): boolean
+  + parse(rawData: String): double
+}
+
+class TemperatureFormatHandler {
+  + canHandle(format: String): boolean
+  + parse(rawData: String): double
+}
+
+class HumidityFormatHandler {
+  + canHandle(format: String): boolean
+  + parse(rawData: String): double
+}
+
+class MonitoringPlatform {
+  - platformId: String
+  + MonitoringPlatform()
+  + registerStation(station: WeatherStation): void
+  + initiateDataCollection(): void
+  + processIncomingData(data: List<SensorData>): void
+}
+
+class DataCollector {
+  - collectorId: String
+  + DataCollector()
+  + establishConnection(station: WeatherStation): boolean
+  + requestTransmission(station: WeatherStation): List<SensorData>
+  + scheduleCollection(station: WeatherStation): void
+}
+
+class DataIngestionService {
+  - serviceId: String
+  + DataIngestionService()
+  + ingest(data: List<SensorData>): void
+  + validateData(data: SensorData): boolean
+  - persistData(data: NormalizedData): void
+}
+
+class DataRepository {
+  - repositoryId: String
+  + DataRepository()
+  + store(data: NormalizedData): void
+  + retrieve(stationId: String, startTime: DateTime, endTime: DateTime): List<NormalizedData>
+}
+
+MonitoringPlatform "1" --> "1..*" WeatherStation : manages
+MonitoringPlatform "1" --> "1" DataCollector : uses
+MonitoringPlatform "1" --> "1" DataIngestionService : uses
+
+WeatherStation "1" --> "1..*" Sensor : hosts
+
+DataCollector --> WeatherStation : requestsFrom
+DataCollector --> SensorData : collects
+
+Sensor --> SensorData : produces
+
+DataIngestionService --> DataNormalizer : uses
