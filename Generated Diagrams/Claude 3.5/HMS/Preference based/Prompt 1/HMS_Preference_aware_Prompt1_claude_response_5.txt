@@ -1,0 +1,78 @@
+@startuml
+abstract class BillingStrategy {
+    + {abstract} calculateBill(charges : List<Charge>) : double
+}
+
+class InsuranceBilling extends BillingStrategy {
+    - coveragePercentage : double
+    - reimbursementLimit : double
+    + calculateBill(charges : List<Charge>) : double
+}
+
+class GovernmentBilling extends BillingStrategy {
+    - subsidizedRate : double
+    + calculateBill(charges : List<Charge>) : double
+}
+
+class SelfPayBilling extends BillingStrategy {
+    + calculateBill(charges : List<Charge>) : double
+}
+
+class Patient {
+    - id : int
+    - name : string
+    - admissionDate : date
+    - dischargeDate : date
+    + getId() : int
+    + getName() : string
+    + getAdmissionDate() : date
+    + getDischargeDate() : date
+}
+
+class DischargeBill {
+    - billId : int
+    - patient : Patient
+    - strategy : BillingStrategy
+    - charges : List<Charge>
+    - totalAmount : double
+    + generateBill()
+    + setStrategy(strategy : BillingStrategy)
+    + addCharge(charge : Charge)
+    + getTotalAmount() : double
+}
+
+abstract class Charge {
+    - chargeId : int
+    - description : string
+    - amount : double
+    + {abstract} calculateAmount() : double
+    + getDescription() : string
+    + getAmount() : double
+}
+
+class ProcedureCharge extends Charge {
+    - procedureName : string
+    + calculateAmount() : double
+}
+
+class MedicationCharge extends Charge {
+    - medicationName : string
+    - quantity : int
+    + calculateAmount() : double
+}
+
+class DiagnosticCharge extends Charge {
+    - testName : string
+    + calculateAmount() : double
+}
+
+class RoomCharge extends Charge {
+    - roomType : string
+    - days : int
+    + calculateAmount() : double
+}
+
+DischargeBill --> Patient
+DischargeBill --> BillingStrategy
+DischargeBill o-- Charge
+@enduml
