@@ -1,0 +1,102 @@
+
+@startuml
+
+class WeatherStation {
+  - stationId: String
+  - location: String
+  - reportingInterval: int
+  - status: String
+  - lastContact: DateTime
+  + WeatherStation(stationId: String, location: String)
+  + updateReportingInterval(interval: int): void
+  + getStationId(): String
+  + getLocation(): String
+  + getReportingInterval(): int
+  + getStatus(): String
+  + setStatus(status: String): void
+}
+
+class Sensor {
+  - sensorId: String
+  - sensorType: String
+  - manufacturer: String
+  - calibrationDate: DateTime
+  + Sensor(sensorId: String, type: String, manufacturer: String)
+  + getSensorId(): String
+  + getSensorType(): String
+  + getManufacturer(): String
+  + updateCalibration(): void
+}
+
+class TelemetryData {
+  - dataId: String
+  - timestamp: DateTime
+  - rawValue: String
+  - normalizedValue: float
+  - unit: String
+  + TelemetryData(timestamp: DateTime, rawValue: String)
+  + getDataId(): String
+  + getTimestamp(): DateTime
+  + getRawValue(): String
+  + getNormalizedValue(): float
+  + setNormalizedValue(value: float): void
+}
+
+class DataNormalizer {
+  - normalizerId: String
+  - manufacturerFormat: String
+  + DataNormalizer(manufacturerFormat: String)
+  + normalize(rawData: String): float
+  + validateFormat(data: String): boolean
+}
+
+class DataCollector {
+  - collectorId: String
+  - collectionStatus: String
+  + DataCollector(collectorId: String)
+  + initiateDataRequest(station: WeatherStation): void
+  + receiveData(data: TelemetryData): void
+  + getCollectionStatus(): String
+}
+
+class DataIngestionService {
+  - serviceId: String
+  - ingestionRate: int
+  + DataIngestionService(serviceId: String)
+  + processIncomingData(data: TelemetryData): void
+  + routeToStorage(data: TelemetryData): void
+  + monitorIngestionRate(): int
+}
+
+class Organization {
+  - organizationId: String
+  - name: String
+  - type: String
+  + Organization(organizationId: String, name: String, type: String)
+  + getOrganizationId(): String
+  + getName(): String
+  + getType(): String
+}
+
+class RegionalNode {
+  - nodeId: String
+  - region: String
+  - operationalStatus: String
+  + RegionalNode(nodeId: String, region: String)
+  + getNodeId(): String
+  + getRegion(): String
+  + getOperationalStatus(): String
+  + setOperationalStatus(status: String): void
+}
+
+WeatherStation "1" -- "*" Sensor : contains
+Sensor "1" -- "*" TelemetryData : generates
+Sensor "*" -- "1" DataNormalizer : uses
+DataCollector "1" -- "*" WeatherStation : requests from
+DataCollector "1" -- "1" DataIngestionService : sends to
+DataIngestionService "1" -- "*" TelemetryData : processes
+Organization "1" -- "*" WeatherStation : manages
+RegionalNode "1" -- "*" DataCollector : hosts
+RegionalNode "1" -- "*" DataIngestionService : operates
+
+@enduml
