@@ -1,0 +1,136 @@
+@startuml
+class WeatherStation {
+  - stationId: String
+  - location: GeoCoordinate
+  - managingOrganization: Organization
+  - reportingInterval: Duration
+  - sensors: List<Sensor>
+  + collectData(): SensorReading[]
+  + updateReportingInterval(interval: Duration): void
+  + getStatus(): StationStatus
+}
+
+class Sensor {
+  - sensorId: String
+  - manufacturer: String
+  - sensorType: SensorType
+  - dataFormat: String
+  + takeMeasurement(): RawData
+  + calibrate(): void
+}
+
+class Organization {
+  - organizationId: String
+  - name: String
+  - type: OrganizationType
+  + getStations(): List<WeatherStation>
+}
+
+enum OrganizationType {
+  GOVERNMENT
+  ACADEMIC
+  INFRASTRUCTURE_OPERATOR
+}
+
+class GeoCoordinate {
+  - latitude: double
+  - longitude: double
+  - altitude: double
+}
+
+class RawData {
+  - timestamp: DateTime
+  - value: byte[]
+  - format: String
+}
+
+class SensorReading {
+  - readingId: String
+  - timestamp: DateTime
+  - sensorId: String
+  - normalizedValue: double
+  - unit: String
+  - quality: DataQuality
+}
+
+class DataNormalizer {
+  - formatHandlers: Map<String, FormatHandler>
+  + normalize(rawData: RawData, format: String): SensorReading
+  + registerFormatHandler(format: String, handler: FormatHandler): void
+}
+
+interface FormatHandler {
+  + parse(rawData: RawData): SensorReading
+  + validate(rawData: RawData): boolean
+}
+
+class EnvironmentalMonitoringPlatform {
+  - platformId: String
+  - regions: List<Region>
+  - dataIngestionService: DataIngestionService
+  + initiateDataCollection(): void
+  + monitorStations(): void
+}
+
+class DataIngestionService {
+  - ingestionRate: int
+  - normalizer: DataNormalizer
+  - dataStore: DataStore
+  + requestDataTransmission(station: WeatherStation): void
+  + ingestData(readings: SensorReading[]): void
+  + processHighVolume(dataStream: Stream<RawData>): void
+}
+
+class Region {
+  - regionId: String
+  - name: String
+  - stations: List<WeatherStation>
+  + getStations(): List<WeatherStation>
+}
+
+class DataStore {
+  - storageCapacity: long
+  + store(readings: SensorReading[]): void
+  + retrieve(query: Query): SensorReading[]
+  + replicate(targetRegion: Region): void
+}
+
+enum SensorType {
+  TEMPERATURE
+  HUMIDITY
+  PRESSURE
+  WIND_SPEED
+  PRECIPITATION
+}
+
+enum DataQuality {
+  GOOD
+  FAIR
+  POOR
+  INVALID
+}
+
+enum StationStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+  ERROR
+}
+
+EnvironmentalMonitoringPlatform "1" *-- "1..*" Region
+EnvironmentalMonitoringPlatform "1" *-- "1" DataIngestionService
+Region "1" o-- "*" WeatherStation
+WeatherStation "*" -- "1" Organization
+WeatherStation "1" *-- "1" GeoCoordinate
+WeatherStation "1" *-- "1..*" Sensor
+Sensor "1" -- "1" SensorType
+Sensor "1" ..> "1" RawData : produces
+DataIngestionService "1" -- "1" DataNormalizer
+DataIngestionService "1" -- "1" DataStore
+DataIngestionService "1" ..> "*" WeatherStation : requests data from
+DataNormalizer "1" o-- "*" FormatHandler
+DataNormalizer "1" ..> RawData : consumes
+DataNormalizer "1" ..> SensorReading : produces
+SensorReading "1" -- "1" DataQuality
+WeatherStation "1" -- "1" StationStatus
+@enduml
