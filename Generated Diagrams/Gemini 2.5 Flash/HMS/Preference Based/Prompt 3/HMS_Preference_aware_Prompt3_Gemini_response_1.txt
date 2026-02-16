@@ -1,0 +1,145 @@
+@startuml
+' Set global styling for readability
+skinparam class {
+    BackgroundColor White
+    ArrowColor Black
+    BorderColor Gray
+}
+skinparam interface {
+    BackgroundColor LightBlue
+    BorderColor Blue
+}
+skinparam abstract {
+    BackgroundColor LightGray
+    BorderColor Gray
+}
+skinparam enum {
+    BackgroundColor LightGreen
+    BorderColor Green
+}
+
+' Title and notes for clarity
+title Hospital Discharge Invoice System
+
+note "Dynamically interchangeable billing policies\n(Strategy Pattern)" as N1
+interface IBillingPolicy <<Strategy>> {
+    + {abstract} calculateAdjustedCost(treatment: Treatment, patientCategory: PatientCategory): double
+}
+N1 .down. IBillingPolicy
+
+class InsuredBillingPolicy {
+    - coveragePercentage: double
+    - deductible: double
+    - insurerName: String
+    + calculateAdjustedCost(treatment: Treatment, patientCategory: PatientCategory): double
+}
+
+class GovernmentBillingPolicy {
+    - subsidyRate: double
+    - programName: String
+    + calculateAdjustedCost(treatment: Treatment, patientCategory: PatientCategory): double
+}
+
+class SelfFundedBillingPolicy {
+    + calculateAdjustedCost(treatment: Treatment, patientCategory: PatientCategory): double
+}
+
+IBillingPolicy <|.. InsuredBillingPolicy
+IBillingPolicy <|.. GovernmentBillingPolicy
+IBillingPolicy <|.. SelfFundedBillingPolicy
+
+class BillingPolicyFactory {
+    - static policies: Map<PatientCategory, IBillingPolicy>
+    + {static} getPolicy(category: PatientCategory): IBillingPolicy
+}
+BillingPolicyFactory .right.> IBillingPolicy : <<creates>>
+
+enum PatientCategory {
+    INSURED
+    GOVERNMENT_BENEFICIARY
+    SELF_FUNDED
+}
+
+class Patient {
+    - patientId: String
+    - name: String
+    - category: PatientCategory
+    + getCategory(): PatientCategory
+}
+Patient "1" -- "1" PatientCategory : isOf
+
+class HospitalStay {
+    - stayId: String
+    - admissionDate: Date
+    - dischargeDate: Date
+    - treatments: List<Treatment>
+    + addTreatment(treatment: Treatment)
+    + getTreatments(): List<Treatment>
+}
+Patient "1" -- "0..1" HospitalStay : has
+
+abstract class Treatment {
+    - treatmentId: String
+    - description: String
+    - datePerformed: Date
+    + {abstract} getBaseCost(): double
+}
+
+class MedicalProcedure extends Treatment {
+    - procedureCode: String
+    - feeSchedule: double
+    + getBaseCost(): double
+}
+
+class Medication extends Treatment {
+    - drugName: String
+    - unitPrice: double
+    - quantity: int
+    + getBaseCost(): double
+}
+
+class DiagnosticService extends Treatment {
+    - serviceType: String
+    - baseFee: double
+    + getBaseCost(): double
+}
+
+class AccommodationCharge extends Treatment {
+    - roomType: String
+    - dailyRate: double
+    - days: int
+    + getBaseCost(): double
+}
+
+HospitalStay "1" *-- "1..*" Treatment : includes >
+
+class DischargeInvoice {
+    - invoiceId: String
+    - issueDate: Date
+    - totalAmount: double
+    - patient: Patient
+    - hospitalStay: HospitalStay
+    - invoiceItems: List<InvoiceItem>
+    + generate(stay: HospitalStay, patient: Patient): void
+    + calculateTotal(): double
+}
+
+class InvoiceItem {
+    - itemDescription: String
+    - baseCost: double
+    - adjustedCost: double
+    - treatment: Treatment
+    + getFinalCost(): double
+}
+
+DischargeInvoice "1" -- "1" Patient : for >
+DischargeInvoice "1" -- "1" HospitalStay : basedOn >
+DischargeInvoice "1" *-- "1..*" InvoiceItem : contains >
+InvoiceItem "1" -- "1" Treatment : represents >
+DischargeInvoice .right.> IBillingPolicy : <<uses>>
+DischargeInvoice .up.> BillingPolicyFactory : <<uses>>
+
+note "Strict separation of concerns:\nPatient Info, Pricing (Treatment), Billing Policies" as N2
+N2 .up. DischargeInvoice
+
+@enduml

@@ -1,0 +1,130 @@
+@startuml
+' Set a consistent style for better readability
+skinparam classAttributeIconSize 0
+skinparam classFontStyle Bold
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 14
+
+title Hospital Discharge Invoice System
+
+' Enums for patient categories
+enum PatientCategory {
+    INSURED
+    GOVERNMENT_BENEFICIARY
+    SELF_FUNDED
+}
+
+' Core entities
+class Patient {
+    - patientId: String
+    - name: String
+    - category: PatientCategory
+    --
+    + getPatientId(): String
+    + getName(): String
+    + getCategory(): PatientCategory
+}
+
+class HospitalStay {
+    - stayId: String
+    - startDate: Date
+    - endDate: Date
+    - charges: List<Charge>
+    --
+    + addCharge(charge: Charge)
+    + getCharges(): List<Charge>
+    + getPatient(): Patient
+}
+
+abstract class Charge {
+    - description: String
+    - rawCost: double
+    --
+    + getRawCost(): double
+    + getDescription(): String
+}
+
+class MedicalProcedure extends Charge {
+    ' Additional specific attributes/methods for medical procedures if needed
+}
+
+class Medication extends Charge {
+    ' Additional specific attributes/methods for medications if needed
+}
+
+class DiagnosticService extends Charge {
+    ' Additional specific attributes/methods for diagnostic services if needed
+}
+
+class AccommodationCharge extends Charge {
+    ' Additional specific attributes/methods for accommodation if needed
+}
+
+' Strategy pattern for Billing Policies
+interface BillingPolicy {
+    + calculateTotal(patient: Patient, charges: List<Charge>): double
+}
+
+class InsuredBillingPolicy implements BillingPolicy {
+    - insurerCoverageRules: Map<String, Double> ' e.g., procedure type -> % coverage
+    - coPayAmount: double
+    --
+    + calculateTotal(patient: Patient, charges: List<Charge>): double
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - subsidizedRates: Map<String, Double> ' e.g., procedure type -> fixed subsidy
+    --
+    + calculateTotal(patient: Patient, charges: List<Charge>): double
+}
+
+class SelfFundedBillingPolicy implements BillingPolicy {
+    + calculateTotal(patient: Patient, charges: List<Charge>): double
+}
+
+' Invoice and Service for orchestration
+class Invoice {
+    - invoiceId: String
+    - patient: Patient
+    - hospitalStay: HospitalStay
+    - issueDate: Date
+    - totalAmount: double
+    --
+    + getInvoiceId(): String
+    + getTotalAmount(): double
+    + getPatient(): Patient
+    + getHospitalStay(): HospitalStay
+}
+
+class BillingService {
+    --
+    + createDischargeInvoice(stay: HospitalStay): Invoice
+    - selectBillingPolicy(category: PatientCategory): BillingPolicy
+}
+
+' Relationships
+
+Patient "1" -- "0..*" HospitalStay : has
+HospitalStay "1" o-- "0..*" Charge : aggregates
+
+Invoice "1" -- "1" Patient : for
+Invoice "1" -- "1" HospitalStay : covers
+
+BillingService ..> BillingPolicy : uses >
+BillingService ..> PatientCategory : selects policy by >
+BillingService --> Invoice : creates >
+BillingService --> HospitalStay : processes >
+
+Patient --> PatientCategory : categorized as >
+
+' Notes for additional context
+note "Encapsulates logic for different patient categories.\nDynamically interchangeable at runtime, ensuring extensibility." as N1
+BillingPolicy .. N1
+
+note "Represents various cost sources, each with distinct pricing rules." as N2
+Charge <|-- N2
+
+note "Orchestrates invoice generation,\nselecting appropriate billing policy based on patient category." as N3
+BillingService .. N3
+
+@enduml

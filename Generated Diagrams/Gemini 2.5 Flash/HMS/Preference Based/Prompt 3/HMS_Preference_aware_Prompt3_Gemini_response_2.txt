@@ -1,0 +1,166 @@
+@startuml
+!pragma layout smetana
+
+' Interface for billing policies (Strategy Pattern)
+interface InvoiceCalculationStrategy {
+    + calculateTotal(stay : HospitalStay, patient : Patient) : double
+}
+
+' Concrete strategies for different patient categories
+class InsuredPatientStrategy implements InvoiceCalculationStrategy {
+    - coverageThreshold : double
+    - coPayAmount : double
+    - insurerReimbursementRate : double
+    + calculateTotal(stay : HospitalStay, patient : Patient) : double
+}
+
+class GovernmentBeneficiaryStrategy implements InvoiceCalculationStrategy {
+    - fixedSubsidyAmount : double
+    - maxSubsidizedCost : double
+    + calculateTotal(stay : HospitalStay, patient : Patient) : double
+}
+
+class SelfFundedPatientStrategy implements InvoiceCalculationStrategy {
+    + calculateTotal(stay : HospitalStay, patient : Patient) : double
+}
+
+' Enum for patient categorization
+enum PatientCategory {
+    INSURED
+    GOVERNMENT_BENEFICIARY
+    SELF_FUNDED
+}
+
+' Patient information
+class Patient {
+    - patientId : String
+    - name : String
+    - dateOfBirth : Date
+    - category : PatientCategory
+    + getPatientDetails() : String
+}
+
+' Represents a patient's stay in the hospital
+class HospitalStay {
+    - stayId : String
+    - admissionDate : Date
+    - dischargeDate : Date
+    - patient : Patient
+    - serviceItems : List<ServiceItem>
+    + addServiceItem(item : ServiceItem)
+    + removeServiceItem(item : ServiceItem)
+    + getTotalBaseCost() : double
+    + getPatient() : Patient
+    + getServiceItems() : List<ServiceItem>
+}
+
+' Abstract base for all chargeable services/items
+abstract class ServiceItem {
+    - itemId : String
+    - description : String
+    - baseCost : double
+    # pricingRule : PricingRule
+    + {abstract} getActualCost() : double
+}
+
+' Concrete service items
+class MedicalProcedure extends ServiceItem {
+    - procedureCode : String
+    + getActualCost() : double
+}
+
+class Medication extends ServiceItem {
+    - drugName : String
+    - dosage : String
+    + getActualCost() : double
+}
+
+class DiagnosticService extends ServiceItem {
+    - serviceCode : String
+    + getActualCost() : double
+}
+
+class AccommodationCharge extends ServiceItem {
+    - roomType : String
+    - dailyRate : double
+    - numberOfDays : int
+    + getActualCost() : double
+}
+
+' Defines rules for individual service item pricing
+class PricingRule {
+    - ruleId : String
+    - ruleName : String
+    - adjustmentFactor : double
+    - minCharge : double
+    - maxCharge : double
+    + applyRule(baseCost : double) : double
+}
+
+' Represents the final discharge invoice
+class Invoice {
+    - invoiceId : String
+    - issueDate : Date
+    - hospitalStay : HospitalStay
+    - totalAmountDue : double
+    - calculatedDetails : String
+    + Invoice(stay : HospitalStay, amount : double)
+    + getInvoiceDetails() : String
+    + getTotalAmountDue() : double
+}
+
+' Orchestrates the billing process
+class BillingSystem {
+    - strategyMap : Map<PatientCategory, InvoiceCalculationStrategy>
+    + registerStrategy(category : PatientCategory, strategy : InvoiceCalculationStrategy)
+    + generateDischargeInvoice(stay : HospitalStay) : Invoice
+    - selectStrategy(patientCategory : PatientCategory) : InvoiceCalculationStrategy
+}
+
+' Relationships
+Patient "1" -- "*" HospitalStay : has >
+HospitalStay "1" -- "1" Patient : for >
+HospitalStay "1" -- "*" ServiceItem : includes >
+ServiceItem "1" -- "1" PricingRule : uses >
+
+Invoice "1" -- "1" HospitalStay : generatedFor >
+
+BillingSystem ..> InvoiceCalculationStrategy : uses
+BillingSystem ..> Patient : accesses
+BillingSystem ..> HospitalStay : accesses
+BillingSystem ..> Invoice : creates
+
+InvoiceCalculationStrategy ..> HospitalStay : accesses
+InvoiceCalculationStrategy ..> Patient : accesses
+
+' Notes for clarity
+note as N_Strategy
+    **InvoiceCalculationStrategy**
+    (Strategy Pattern)
+    Encapsulates varying billing logic
+    for different patient categories,
+    allowing dynamic interchangeability
+    at runtime without modifying core
+    billing system code.
+end note
+InvoiceCalculationStrategy .. N_Strategy
+
+note as N_PricingRule
+    **PricingRule**
+    Defines specific cost adjustments
+    for individual service items.
+    Strictly separated from patient-specific
+    billing policies.
+end note
+PricingRule .. N_PricingRule
+
+note as N_ServiceItem
+    **ServiceItem Hierarchy**
+    Represents heterogeneous cost sources
+    (procedures, medications, diagnostics,
+    accommodation) each with its own
+    base cost and specific pricing rule.
+end note
+ServiceItem <|-- N_ServiceItem
+
+@enduml

@@ -1,0 +1,155 @@
+@startuml
+' Set a consistent style for better readability
+skinparam classAttributeIconSize 0
+skinparam classFontStyle Bold
+skinparam defaultFontName "Arial"
+skinparam packageStyle rectangle
+
+' --- Patient Management Module ---
+package "Patient Management" {
+    class Patient {
+        - patientId : String
+        - name : String
+        - dateOfBirth : Date
+        - admissionDate : Date
+        - dischargeDate : Date
+        - category : String ' e.g., "Insured", "GovernmentBeneficiary", "SelfFunded"
+        + getPatientId() : String
+        + getName() : String
+        + getCategory() : String
+        + getServices() : List<ChargeableService>
+    }
+}
+
+' --- Service & Pricing Module ---
+package "Service & Pricing" {
+    abstract class ChargeableService {
+        - serviceId : String
+        - description : String
+        - baseCost : double
+        + {abstract} calculateBaseCost() : double
+        + getDescription() : String
+        + getServiceId() : String
+    }
+
+    class MedicalProcedure extends ChargeableService {
+        - procedureCode : String
+        - surgeonFee : double
+        + calculateBaseCost() : double
+    }
+
+    class Medication extends ChargeableService {
+        - drugName : String
+        - dosage : String
+        - unitPrice : double
+        - quantity : int
+        + calculateBaseCost() : double
+    }
+
+    class DiagnosticService extends ChargeableService {
+        - testType : String
+        - labFee : double
+        + calculateBaseCost() : double
+    }
+
+    class AccommodationCharge extends ChargeableService {
+        - roomType : String
+        - dailyRate : double
+        - numberOfDays : int
+        + calculateBaseCost() : double
+    }
+}
+
+' --- Billing & Policy Module ---
+package "Billing & Policy" {
+    interface BillingPolicy {
+        + calculateInvoice(patient : Patient, services : List<ChargeableService>, config : PolicyConfiguration) : Invoice
+    }
+
+    class InsuredPatientPolicy implements BillingPolicy {
+        + calculateInvoice(patient : Patient, services : List<ChargeableService>, config : PolicyConfiguration) : Invoice
+        - applyInsurerCoverage(serviceCost : double, patientCategory : String, config : PolicyConfiguration) : double
+        - applyCoPay(totalCost : double, patientCategory : String, config : PolicyConfiguration) : double
+    }
+
+    class GovernmentBeneficiaryPolicy implements BillingPolicy {
+        + calculateInvoice(patient : Patient, services : List<ChargeableService>, config : PolicyConfiguration) : Invoice
+        - applySubsidy(serviceCost : double, patientCategory : String, config : PolicyConfiguration) : double
+    }
+
+    class SelfFundedPatientPolicy implements BillingPolicy {
+        + calculateInvoice(patient : Patient, services : List<ChargeableService>, config : PolicyConfiguration) : Invoice
+    }
+
+    class PolicyConfiguration {
+        - policyParameters : Map<String, Map<String, Double>> ' e.g., {"Insured": {"CoPayRate": 0.1, ...}}
+        + getParameter(policyType : String, paramName : String) : Double
+        + updateParameters(policyType : String, newParams : Map<String, Double>)
+    }
+
+    class InvoiceGenerator {
+        - policyConfiguration : PolicyConfiguration
+        + generateDischargeInvoice(patient : Patient, policy : BillingPolicy, services : List<ChargeableService>) : Invoice
+        + setPolicyConfiguration(config : PolicyConfiguration)
+        + selectPolicy(patientCategory : String) : BillingPolicy
+    }
+}
+
+' --- Invoice & Audit Module ---
+package "Invoice & Audit" {
+    class Invoice {
+        - invoiceId : String
+        - issueDate : Date
+        - totalAmount : double
+        - patientId : String
+        + addLineItem(item : LineItem)
+        + calculateTotal() : double
+        + getLineItems() : List<LineItem>
+    }
+
+    class LineItem {
+        - description : String
+        - amount : double
+        - serviceReferenceId : String
+        + getAmount() : double
+        + getDescription() : String
+    }
+}
+
+' --- Relationships ---
+
+' Patient has many services over a stay
+Patient "1" --> "0..*" ChargeableService : hasTreatment >
+
+' InvoiceGenerator orchestrates the billing process
+InvoiceGenerator "1" --> "1" PolicyConfiguration : uses >
+InvoiceGenerator "1" --> "1" BillingPolicy : applies >
+InvoiceGenerator "1" --> "1" Patient : for >
+InvoiceGenerator "1" --> "1" Invoice : creates >
+
+' An Invoice contains many LineItems
+Invoice "1" o-- "1..*" LineItem : contains >
+
+' A LineItem refers to a specific ChargeableService
+LineItem "1" --> "1" ChargeableService : refersTo >
+
+' Billing policies depend on ChargeableService and PolicyConfiguration to perform calculations
+BillingPolicy ..> ChargeableService : uses
+BillingPolicy ..> PolicyConfiguration : consults
+
+' Notes for clarity and design principles
+note "Billing policies are dynamically\ninterchangeable at runtime (Strategy Pattern)" as N1
+BillingPolicy .. N1
+
+note "Strict separation of patient info,\npricing, and billing logic" as N2
+Patient .. N2
+ChargeableService .. N2
+BillingPolicy .. N2
+
+note "Extensible for new patient categories,\nservices, and policy parameters" as N3
+Patient -- N3
+ChargeableService -- N3
+BillingPolicy -- N3
+PolicyConfiguration -- N3
+
+@enduml

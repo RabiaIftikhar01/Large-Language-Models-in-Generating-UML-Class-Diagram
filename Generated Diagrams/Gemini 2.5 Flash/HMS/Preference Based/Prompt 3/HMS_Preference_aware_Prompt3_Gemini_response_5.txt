@@ -1,0 +1,137 @@
+@startuml
+' Set a consistent style for readability
+skinparam classAttributeFontColor #333333
+skinparam classAttributeFontSize 12
+skinparam classMethodFontColor #005500
+skinparam classMethodFontSize 12
+skinparam classArrowColor #115511
+skinparam classBorderColor #444444
+skinparam classStereotypeFontColor #999999
+skinparam classStereotypeFontSize 10
+
+' Define the Patient and PatientCategory
+class Patient {
+    - patientId : String
+    - name : String
+    --
+    + getPatientId() : String
+    + getName() : String
+    + getCategory() : PatientCategory
+}
+
+enum PatientCategory {
+    INSURED
+    SUBSIDIZED
+    SELF_FUNDED
+}
+
+Patient "1" -- "1" PatientCategory : belongsTo
+
+' Define HospitalStay and its relationship with Treatments
+class HospitalStay {
+    - stayId : String
+    - admissionDate : Date
+    - dischargeDate : Date
+    --
+    + addTreatment(treatment : Treatment)
+    + getTotalCostOfTreatments() : Double
+    + getStayId() : String
+}
+
+Patient "1" -- "0..*" HospitalStay : has
+
+' Define the abstract Treatment and its concrete implementations
+abstract class Treatment {
+    - description : String
+    - date : Date
+    --
+    + {abstract} getBaseCost() : Double
+    + getDescription() : String
+}
+
+class MedicalProcedure extends Treatment {
+    - procedureCode : String
+    - fee : Double
+    --
+    + getBaseCost() : Double
+}
+
+class Medication extends Treatment {
+    - drugName : String
+    - dosage : String
+    - unitCost : Double
+    - quantity : int
+    --
+    + getBaseCost() : Double
+}
+
+class DiagnosticService extends Treatment {
+    - serviceType : String
+    - serviceCharge : Double
+    --
+    + getBaseCost() : Double
+}
+
+class AccommodationCharge extends Treatment {
+    - roomType : String
+    - dailyRate : Double
+    - days : int
+    --
+    + getBaseCost() : Double
+}
+
+HospitalStay "1" *-- "1..*" Treatment : includes
+
+' Define the BillingPolicy Strategy
+interface BillingPolicy {
+    + calculatePatientResponsibility(totalCost : Double, patient : Patient) : Double
+}
+
+class InsuredBillingPolicy implements BillingPolicy {
+    - coverageParameters : Map<String, Double>
+    --
+    + calculatePatientResponsibility(totalCost : Double, patient : Patient) : Double
+}
+
+class SubsidizedBillingPolicy implements BillingPolicy {
+    - subsidizedAmount : Double
+    --
+    + calculatePatientResponsibility(totalCost : Double, patient : Patient) : Double
+}
+
+class SelfFundedBillingPolicy implements BillingPolicy {
+    + calculatePatientResponsibility(totalCost : Double, patient : Patient) : Double
+}
+
+' Define the Invoice and InvoiceGenerator (or BillingEngine)
+class Invoice {
+    - invoiceId : String
+    - issueDate : Date
+    - totalAmount : Double
+    - patientResponsibility : Double
+    --
+    + getInvoiceId() : String
+    + getTotalAmount() : Double
+    + getPatientResponsibility() : Double
+    + getHospitalStay() : HospitalStay
+    + getPatient() : Patient
+}
+
+class InvoiceGenerator {
+    --
+    + generateDischargeInvoice(hospitalStay : HospitalStay, patient : Patient, policy : BillingPolicy) : Invoice
+    + getBillingPolicy(category : PatientCategory) : BillingPolicy
+}
+
+Invoice "1" -- "1" HospitalStay : for
+Invoice "1" -- "1" Patient : for
+
+InvoiceGenerator ..> BillingPolicy : uses
+InvoiceGenerator ..> PatientCategory : determinesPolicyFrom
+
+' Explanatory notes for clarity
+note left of InvoiceGenerator : Orchestrates invoice creation,\nselects appropriate BillingPolicy.
+note top of BillingPolicy : Strategy pattern for\ndynamic billing rules.
+note top of Treatment : Base class for all billable items,\neach with distinct pricing logic.
+
+@enduml

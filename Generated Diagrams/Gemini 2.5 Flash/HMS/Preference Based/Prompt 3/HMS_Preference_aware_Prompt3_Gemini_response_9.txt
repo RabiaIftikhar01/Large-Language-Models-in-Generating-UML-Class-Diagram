@@ -1,0 +1,130 @@
+@startuml
+!pragma layout smetana
+
+' Classes for Patient and Invoice
+class Patient {
+    - patientId: String
+    - name: String
+    - category: PatientCategory
+    + getPatientId(): String
+    + getName(): String
+    + getCategory(): PatientCategory
+}
+
+enum PatientCategory {
+    INSURED
+    GOVERNMENT_BENEFICIARY
+    SELF_FUNDED
+}
+
+class DischargeInvoice {
+    - invoiceId: String
+    - issueDate: Date
+    - totalBaseCost: double
+    - totalAdjustedCost: double
+    + addInvoiceItem(item: InvoiceItem)
+    + calculateBaseTotal(): double
+    + setAdjustedTotal(amount: double)
+    + getInvoiceDetails(): String
+}
+
+class InvoiceItem {
+    - description: String
+    - quantity: int
+    - baseUnitPrice: double
+    - calculatedItemCost: double
+    + getCalculatedItemCost(): double
+    + getDescription(): String
+}
+
+' Abstract and Concrete Services (billable items)
+abstract class Service {
+    - serviceId: String
+    - name: String
+    - description: String
+    + getServiceId(): String
+    + getName(): String
+    + getDescription(): String
+    + getPricingRule(): PricingRule
+}
+
+class MedicalProcedure extends Service {
+}
+
+class Medication extends Service {
+}
+
+class DiagnosticService extends Service {
+}
+
+class AccommodationCharge extends Service {
+}
+
+' Abstract and Concrete Pricing Rules for Services
+abstract class PricingRule {
+    + calculateBaseCost(service: Service, quantity: int): double
+}
+
+class ProcedurePricingRule extends PricingRule {
+    + calculateBaseCost(service: Service, quantity: int): double
+}
+
+class MedicationPricingRule extends PricingRule {
+    + calculateBaseCost(service: Service, quantity: int): double
+}
+
+class DiagnosticPricingRule extends PricingRule {
+    + calculateBaseCost(service: Service, quantity: int): double
+}
+
+class AccommodationPricingRule extends PricingRule {
+    + calculateBaseCost(service: Service, quantity: int): double
+}
+
+' Abstract and Concrete Billing Policies for Patients
+abstract class BillingPolicy {
+    + applyPolicy(invoice: DischargeInvoice, patient: Patient): double
+}
+
+class InsuredPatientBillingPolicy extends BillingPolicy {
+    - coverageParameters: Map<String, Object>
+    - reimbursementThresholds: Map<String, Double>
+    - coPayArrangements: Map<String, Double>
+    + applyPolicy(invoice: DischargeInvoice, patient: Patient): double
+}
+
+class GovernmentBeneficiaryBillingPolicy extends BillingPolicy {
+    - subsidyValues: Map<String, Double>
+    + applyPolicy(invoice: DischargeInvoice, patient: Patient): double
+}
+
+class SelfFundedPatientBillingPolicy extends BillingPolicy {
+    + applyPolicy(invoice: DischargeInvoice, patient: Patient): double
+}
+
+' Orchestrator for invoice generation
+class DischargeInvoiceGenerator {
+    + generateInvoice(patient: Patient, services: List<Service>): DischargeInvoice
+}
+
+' Relationships
+
+Patient "1" --> "1" PatientCategory : has
+DischargeInvoice "1" *-- "1..*" InvoiceItem : contains
+InvoiceItem "1" --> "1" Service : represents
+
+Service "1" --> "1" PricingRule : uses >
+' Each Service instance is associated with a specific PricingRule instance.
+
+DischargeInvoiceGenerator ..> Patient : processes
+DischargeInvoiceGenerator ..> Service : processes
+DischargeInvoiceGenerator ..> PricingRule : uses
+DischargeInvoiceGenerator ..> BillingPolicy : uses
+DischargeInvoiceGenerator ..> DischargeInvoice : creates
+
+' Notes for clarity
+note top of DischargeInvoiceGenerator : Orchestrates invoice creation\nand policy application.
+note bottom of BillingPolicy : Strategy pattern for dynamic policy changes\nbased on patient category.
+note bottom of PricingRule : Strategy pattern for distinct pricing logic\nfor different service types.
+
+@enduml

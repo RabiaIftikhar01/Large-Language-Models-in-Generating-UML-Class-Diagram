@@ -1,0 +1,137 @@
+@startuml
+' Global settings for consistency and readability
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam class {
+    BorderColor #34495E
+    BackgroundColor #ECF0F1
+    ArrowColor #34495E
+    HeaderBackgroundColor #BDC3C7
+}
+skinparam stereotypeCBackgroundColor #D5DBDB
+
+title Hospital Discharge Invoice System
+
+' Abstract classes and Interfaces
+abstract class Treatment {
+    - treatmentId : String
+    - description : String
+    - date : Date
+    --
+    + {abstract} getCost() : double
+    + getTreatmentId() : String
+    + getDescription() : String
+    + getDate() : Date
+}
+
+interface BillingPolicy {
+    + {abstract} calculatePatientShare(totalTreatmentCost : double) : double
+    + {abstract} calculateThirdPartyShare(totalTreatmentCost : double) : double
+}
+
+' Concrete Treatment types
+class MedicalProcedure extends Treatment {
+    - procedureCode : String
+    - basePrice : double
+    --
+    + getCost() : double
+}
+
+class Medication extends Treatment {
+    - medicationName : String
+    - unitPrice : double
+    - quantity : int
+    --
+    + getCost() : double
+}
+
+class DiagnosticService extends Treatment {
+    - serviceCode : String
+    - basePrice : double
+    --
+    + getCost() : double
+}
+
+class AccommodationCharge extends Treatment {
+    - roomType : String
+    - dailyRate : double
+    - days : int
+    --
+    + getCost() : double
+}
+
+' Patient and Hospital Stay
+class Patient {
+    - patientId : String
+    - name : String
+    --
+    + getPatientId() : String
+    + getName() : String
+    + assignBillingPolicy(policy : BillingPolicy)
+    + getBillingPolicy() : BillingPolicy
+}
+
+class HospitalStay {
+    - stayId : String
+    - admissionDate : Date
+    - dischargeDate : Date
+    --
+    + addTreatment(treatment : Treatment)
+    + getTreatments() : List<Treatment>
+    + getTotalTreatmentCost() : double
+}
+
+' Concrete Billing Policies (Strategy Pattern)
+class InsuredBillingPolicy implements BillingPolicy {
+    - insurerName : String
+    - coveragePercentage : double
+    - deductible : double
+    --
+    + calculatePatientShare(totalTreatmentCost : double) : double
+    + calculateThirdPartyShare(totalTreatmentCost : double) : double
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - programName : String
+    - subsidyAmount : double
+    --
+    + calculatePatientShare(totalTreatmentCost : double) : double
+    + calculateThirdPartyShare(totalTreatmentCost : double) : double
+}
+
+class SelfFundedBillingPolicy implements BillingPolicy {
+    --
+    + calculatePatientShare(totalTreatmentCost : double) : double
+    + calculateThirdPartyShare(totalTreatmentCost : double) : double
+}
+
+' Invoice
+class Invoice {
+    - invoiceId : String
+    - issueDate : Date
+    - totalAmount : double
+    - patientResponsibility : double
+    - thirdPartyResponsibility : double
+    --
+    + generateInvoice(stay : HospitalStay, policy : BillingPolicy)
+    + getInvoiceId() : String
+    + getIssueDate() : Date
+    + getTotalAmount() : double
+    + getPatientResponsibility() : double
+    + getThirdPartyResponsibility() : double
+}
+
+' Relationships
+Patient "1" -- "*" HospitalStay : has >
+HospitalStay "1" *-- "1..*" Treatment : includes >
+Patient "1" -- "1" BillingPolicy : appliesPolicy >
+Invoice "1" -- "1" HospitalStay : generatedFor >
+Invoice ..> BillingPolicy : <<uses>>
+
+' Notes for clarity
+note bottom of BillingPolicy : Configurable and dynamically interchangeable\nbilling policies.
+note bottom of Treatment : Each type encapsulates its distinct pricing rules.
+note bottom of Invoice : Aggregates costs and applies the chosen billing policy.
+
+@enduml

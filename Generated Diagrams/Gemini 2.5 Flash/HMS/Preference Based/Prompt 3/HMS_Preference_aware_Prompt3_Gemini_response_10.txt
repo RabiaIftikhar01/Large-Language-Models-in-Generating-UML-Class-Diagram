@@ -1,0 +1,143 @@
+@startuml
+!pragma layout smetana
+
+' Enums for patient categories
+enum PatientCategory {
+    INSURED
+    BENEFICIARY
+    SELF_FUNDED
+}
+
+' Patient Information
+class Patient {
+    - patientId : String
+    - name : String
+    - category : PatientCategory
+    + getPatientId() : String
+    + getName() : String
+    + getCategory() : PatientCategory
+}
+
+' Abstract base for all healthcare services (pricing modules)
+abstract class HealthcareService {
+    - serviceId : String
+    - description : String
+    + {abstract} getBaseCost() : double
+    + getServiceId() : String
+    + getDescription() : String
+}
+
+' Concrete healthcare service types
+class MedicalProcedure extends HealthcareService {
+    - procedureCode : String
+    - standardRate : double
+    + getBaseCost() : double
+}
+
+class Medication extends HealthcareService {
+    - drugCode : String
+    - unitPrice : double
+    - quantity : int
+    + getBaseCost() : double
+}
+
+class DiagnosticService extends HealthcareService {
+    - testCode : String
+    - labFee : double
+    + getBaseCost() : double
+}
+
+class Accommodation extends HealthcareService {
+    - roomType : String
+    - dailyRate : double
+    - days : int
+    + getBaseCost() : double
+}
+
+' BillingPolicy Interface (Strategy Pattern)
+' Defines the contract for different billing calculation strategies
+interface BillingPolicy {
+    + applyPolicy(invoice : Invoice) : double
+}
+
+' Concrete Billing Policies
+' Each policy implements specific billing rules based on patient category
+class InsuredBillingPolicy implements BillingPolicy {
+    - insurerCoverageThreshold : double
+    - coPayPercentage : double
+    + applyPolicy(invoice : Invoice) : double
+}
+
+class BeneficiaryBillingPolicy implements BillingPolicy {
+    - fixedSubsidyPercentage : double
+    + applyPolicy(invoice : Invoice) : double
+}
+
+class SelfFundedBillingPolicy implements BillingPolicy {
+    + applyPolicy(invoice : Invoice) : double
+}
+
+' Invoice Class (Context for BillingPolicy)
+' Assembles services and applies the appropriate billing policy
+class Invoice {
+    - invoiceId : String
+    - issueDate : Date
+    - patient : Patient
+    - services : List<HealthcareService>
+    - billingPolicy : BillingPolicy
+    + Invoice(patient : Patient, policy : BillingPolicy)
+    + addService(service : HealthcareService)
+    + calculateTotalAmount() : double
+    + getServices() : List<HealthcareService>
+    + getPatient() : Patient
+}
+
+' BillingPolicyFactory
+' Centralizes the creation of BillingPolicy instances based on patient category
+class BillingPolicyFactory {
+    + static getPolicy(patientCategory : PatientCategory) : BillingPolicy
+}
+
+' HospitalBillingPlatform (Client/Orchestrator)
+' Responsible for generating invoices and managing the overall process
+class HospitalBillingPlatform {
+    + generateDischargeInvoice(patient : Patient, services : List<HealthcareService>) : Invoice
+}
+
+' Relationships
+
+' Patient has a category
+Patient --> PatientCategory : has
+
+' An Invoice is generated for a Patient
+Patient "1" -- "0..*" Invoice : generates for >
+
+' An Invoice includes multiple HealthcareServices (composition)
+Invoice "1" *-- "0..*" HealthcareService : includes
+
+' An Invoice applies a specific BillingPolicy (aggregation)
+Invoice "1" o-- "1" BillingPolicy : applies
+
+' BillingPolicyFactory creates BillingPolicy instances
+BillingPolicyFactory ..> BillingPolicy : creates
+
+' HospitalBillingPlatform uses the factory to get policies and creates invoices
+HospitalBillingPlatform ..> BillingPolicyFactory : uses
+HospitalBillingPlatform ..> Patient : manages
+HospitalBillingPlatform ..> HealthcareService : provides
+HospitalBillingPlatform ..> Invoice : creates
+
+' Explanatory Notes
+note "Billing policies are dynamically interchangeable at runtime, allowing flexible adaptation to regulatory changes." as N1
+BillingPolicy . N1
+
+note "Ensures strict separation between patient information, pricing modules, and billing policies." as N2
+Patient .. N2
+HealthcareService .. N2
+BillingPolicy .. N2
+
+note "Extensible for new service types or patient categories without structural redesign." as N3
+HealthcareService <|-- MedicalProcedure .. N3
+BillingPolicy <|-- InsuredBillingPolicy .. N3
+
+@enduml

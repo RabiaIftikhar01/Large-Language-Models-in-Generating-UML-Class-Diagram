@@ -1,0 +1,172 @@
+@startuml
+' Set a consistent style for readability
+skinparam classAttributeFontColor #000000
+skinparam classAttributeFontsize 12
+skinparam classAttributeFontName Helvetica
+
+skinparam classFontColor #000000
+skinparam classFontsize 14
+skinparam classFontName Helvetica
+skinparam classStereotypeFontsize 10
+skinparam classStereotypeFontName Helvetica
+skinparam classStereotypeFontColor #808080
+
+skinparam defaultFontsize 12
+skinparam defaultFontName Helvetica
+
+title Hospital Administration Platform - Billing System
+
+' Abstract base class for all patients
+abstract class Patient {
+    - id : String
+    - name : String
+    - admissionDate : Date
+    - dischargeDate : Date
+    # currentBillingPolicy : BillingPolicy
+    - treatmentsReceived : List<Treatment>
+    -- Operations --
+    + getPatientInfo() : String
+    + addTreatment(treatment : Treatment)
+    + getTreatmentsReceived() : List<Treatment>
+    + setBillingPolicy(policy : BillingPolicy)
+    + getBillingPolicy() : BillingPolicy
+    + generateInvoice() : Invoice
+}
+
+' Concrete patient types, each potentially initializing with a default policy
+class InsuredPatient extends Patient {
+    - insurerName : String
+    - policyNumber : String
+    -- Operations --
+    + <init>(id, name, admissionDate, insurerName, policyNumber)
+}
+
+class GovernmentBeneficiaryPatient extends Patient {
+    - programId : String
+    -- Operations --
+    + <init>(id, name, admissionDate, programId)
+}
+
+class SelfFundedPatient extends Patient {
+    -- Operations --
+    + <init>(id, name, admissionDate)
+}
+
+' Strategy interface for billing policies (configurable and interchangeable)
+interface BillingPolicy {
+    + calculateAdjustedCost(treatment : Treatment, patient : Patient) : Double
+}
+
+' Concrete billing policy implementations
+class InsurerBillingPolicy implements BillingPolicy {
+    - coverageConstraints : Map<String, Double>
+    - reimbursementThresholds : Map<String, Double>
+    - coPayArrangements : Map<String, Double>
+    -- Operations --
+    + calculateAdjustedCost(treatment : Treatment, patient : Patient) : Double
+    + updatePolicyParameters(constraints, thresholds, copays)
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - fixedSubsidizedAmounts : Map<String, Double>
+    -- Operations --
+    + calculateAdjustedCost(treatment : Treatment, patient : Patient) : Double
+    + updatePolicyParameters(amounts)
+}
+
+class SelfFundedBillingPolicy implements BillingPolicy {
+    -- Operations --
+    + calculateAdjustedCost(treatment : Treatment, patient : Patient) : Double
+}
+
+' Abstract base class for all treatments/services
+abstract class Treatment {
+    - id : String
+    - description : String
+    - baseCost : Double
+    -- Operations --
+    + getBaseCost() : Double
+    + getDescription() : String
+}
+
+' Concrete treatment types with distinct pricing rules
+class MedicalProcedure extends Treatment {
+    - procedureCode : String
+    -- Operations --
+    + <init>(id, description, baseCost, procedureCode)
+}
+
+class Medication extends Treatment {
+    - drugName : String
+    - dosage : String
+    -- Operations --
+    + <init>(id, description, baseCost, drugName, dosage)
+}
+
+class DiagnosticService extends Treatment {
+    - serviceCode : String
+    -- Operations --
+    + <init>(id, description, baseCost, serviceCode)
+}
+
+class AccommodationCharge extends Treatment {
+    - roomType : String
+    - nights : int
+    -- Operations --
+    + <init>(id, description, baseCost, roomType, nights)
+}
+
+' Invoice class to represent the final bill
+class Invoice {
+    - invoiceId : String
+    - issueDate : Date
+    - totalAmount : Double
+    - patient : Patient
+    - lineItems : List<InvoiceLineItem>
+    -- Operations --
+    + <init>(patient : Patient)
+    + addLineItem(treatment : Treatment, adjustedCost : Double)
+    + calculateTotal() : Double
+    + getInvoiceDetails() : String
+}
+
+' Association class to store adjusted cost for each treatment within an invoice
+class InvoiceLineItem {
+    - treatment : Treatment
+    - adjustedCost : Double
+    -- Operations --
+    + getTreatment() : Treatment
+    + getAdjustedCost() : Double
+}
+
+' -------------------------------------------------------------------
+' Relationships
+' -------------------------------------------------------------------
+
+' Patient uses a BillingPolicy (Strategy pattern)
+Patient "1" *-- "1" BillingPolicy : <<uses>> currentPolicy
+note on link: Patient delegates cost calculation to its assigned BillingPolicy.
+This allows dynamic interchangeability of billing rules.
+
+' Invoice is generated for a Patient
+Patient "1" --> "0..*" Invoice : generates / billedTo
+note on link: An Invoice is generated for a specific Patient.
+
+' Patient aggregates treatments received during their stay
+Patient "1" o-- "0..*" Treatment : received / performed
+note on link: Patient records all treatments received, which form the basis of billing.
+
+' Invoice contains multiple InvoiceLineItems
+Invoice "1" o-- "0..*" InvoiceLineItem : includes
+note on link: An Invoice aggregates line items, each representing a treatment with its final adjusted cost.
+
+' InvoiceLineItem refers to a specific Treatment
+InvoiceLineItem "1" --> "1" Treatment : refersTo
+note on link: Each line item references the original treatment details.
+
+' BillingPolicy needs to access Patient and Treatment details to calculate cost
+BillingPolicy ..> Patient : <<accesses>>
+BillingPolicy ..> Treatment : <<accesses>>
+note on link: The billing policy requires patient and treatment context to apply specific rules.
+
+@enduml

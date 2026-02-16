@@ -1,0 +1,177 @@
+@startuml
+!pragma layout smetana
+
+' Interfaces for extensibility and loose coupling '
+interface BillingPolicy {
+    + applyPolicy(invoice : Invoice) : double
+}
+
+interface PricingRule {
+    + calculateAdjustedCost(baseCost : double) : double
+}
+
+' Concrete Billing Policies (Strategy Pattern) '
+class InsuredBillingPolicy implements BillingPolicy {
+    - coverageConstraints : Map<string, double>
+    - coPayAmount : double
+    + applyPolicy(invoice : Invoice) : double
+}
+
+class GovernmentBillingPolicy implements BillingPolicy {
+    - subsidizedAmount : double
+    + applyPolicy(invoice : Invoice) : double
+}
+
+class SelfFundedBillingPolicy implements BillingPolicy {
+    + applyPolicy(invoice : Invoice) : double
+}
+
+' Concrete Pricing Rules for different service types '
+class MedicalProcedurePricingRule implements PricingRule {
+    - baseRate : double
+    + calculateAdjustedCost(baseCost : double) : double
+}
+
+class MedicationPricingRule implements PricingRule {
+    - drugTierDiscount : double
+    + calculateAdjustedCost(baseCost : double) : double
+}
+
+class DiagnosticServicePricingRule implements PricingRule {
+    - equipmentUsageFee : double
+    + calculateAdjustedCost(baseCost : double) : double
+}
+
+class AccommodationPricingRule implements PricingRule {
+    - dailyRateFactor : double
+    + calculateAdjustedCost(baseCost : double) : double
+}
+
+' Abstract Service and concrete implementations '
+abstract class Service {
+    - serviceId : string
+    - description : string
+    - baseCost : double
+    - pricingRule : PricingRule
+    + Service(id : string, desc : string, cost : double, rule : PricingRule)
+    + calculateCost() : double
+}
+
+class MedicalProcedure extends Service {
+    - procedureName : string
+    + MedicalProcedure(id : string, desc : string, cost : double, rule : PricingRule, name : string)
+}
+
+class Medication extends Service {
+    - drugName : string
+    - dosage : string
+    + Medication(id : string, desc : string, cost : double, rule : PricingRule, name : string, dose : string)
+}
+
+class DiagnosticService extends Service {
+    - serviceType : string
+    + DiagnosticService(id : string, desc : string, cost : double, rule : PricingRule, type : string)
+}
+
+class AccommodationCharge extends Service {
+    - roomNumber : string
+    - numberOfNights : int
+    + AccommodationCharge(id : string, desc : string, cost : double, rule : PricingRule, room : string, nights : int)
+}
+
+' Patient and Invoice '
+class Patient {
+    - patientId : string
+    - name : string
+    - patientCategory : PatientCategoryType
+    + getPatientInfo() : string
+}
+
+enum PatientCategoryType {
+    INSURED
+    GOVERNMENT_BENEFICIARY
+    SELF_FUNDED
+}
+
+class Invoice {
+    - invoiceId : string
+    - issueDate : Date
+    - patient : Patient
+    - services : List<Service>
+    - billingPolicy : BillingPolicy
+    - totalAmountBeforePolicy : double
+    - finalAmount : double
+    + Invoice(patient : Patient, policy : BillingPolicy)
+    + addService(service : Service)
+    + calculateTotalBeforePolicy() : double
+    + applyBillingPolicy() : double
+    + getFinalAmount() : double
+}
+
+' Orchestration/Client '
+class HospitalBillingSystem {
+    + generateDischargeInvoice(patient : Patient, servicesProvided : List<Service>) : Invoice
+    - getBillingPolicyForPatient(category : PatientCategoryType) : BillingPolicy
+    - getPricingRuleForService(serviceType : string) : PricingRule
+}
+
+
+' Relationships '
+
+' Inheritance for Services '
+Service <|-- MedicalProcedure
+Service <|-- Medication
+Service <|-- DiagnosticService
+Service <|-- AccommodationCharge
+
+' Implementation for Policies and Rules '
+BillingPolicy <|.. InsuredBillingPolicy
+BillingPolicy <|.. GovernmentBillingPolicy
+BillingPolicy <|.. SelfFundedBillingPolicy
+
+PricingRule <|.. MedicalProcedurePricingRule
+PricingRule <|.. MedicationPricingRule
+PricingRule <|.. DiagnosticServicePricingRule
+PricingRule <|.. AccommodationPricingRule
+
+' Associations '
+
+' Patient and Invoice '
+Patient "1" -- "0..*" Invoice : generates
+
+' Invoice aggregates Services '
+Invoice "1" *-- "1..*" Service : includes
+
+' Service uses a PricingRule (Composition as it's integral to its cost) '
+Service "1" *-- "1" PricingRule : applies
+
+' Invoice uses a BillingPolicy (Aggregation as policy can be swapped) '
+Invoice "1" o-- "1" BillingPolicy : uses
+
+' HospitalBillingSystem dependencies '
+HospitalBillingSystem ..> Patient : creates for
+HospitalBillingSystem ..> Invoice : manages
+HospitalBillingSystem ..> BillingPolicy : selects
+HospitalBillingSystem ..> PricingRule : selects
+HospitalBillingSystem ..> Service : uses
+
+' Notes for clarity and design justification '
+note "Strategy Pattern: Allows dynamic interchangeability of billing logic at runtime." as N1
+BillingPolicy .. N1
+
+note "Strategy Pattern: Enables flexible, independent modification of service pricing rules." as N2
+PricingRule .. N2
+
+note "Strict separation of concerns: Patient data, Pricing logic, and Billing policies are distinct modules." as N3
+Patient .. N3
+PricingRule .. N3
+BillingPolicy .. N3
+
+note "Extensible design: New patient categories, service types, or policy/rule variations can be added without core structural redesign." as N4
+PatientCategoryType .. N4
+Service <|-- DiagnosticService .. N4
+BillingPolicy <|.. InsuredBillingPolicy .. N4
+
+note "Invoice calculates base cost from services, then applies the selected billing policy." as N5
+Invoice .. N5
+@enduml
