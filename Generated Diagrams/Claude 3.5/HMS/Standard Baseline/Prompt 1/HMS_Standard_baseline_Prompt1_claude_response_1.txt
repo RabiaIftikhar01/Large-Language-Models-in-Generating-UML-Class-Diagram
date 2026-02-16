@@ -1,0 +1,120 @@
+
+@startuml
+
+interface BillingStrategy {
+    +calculateBill(patient: Patient, charges: List<Charge>): Bill
+}
+
+class InsuranceBillingStrategy {
+    -coveragePercentage: double
+    -reimbursementLimit: double
+    -coPaymentAmount: double
+    +calculateBill(patient: Patient, charges: List<Charge>): Bill
+}
+
+class GovernmentProgramBillingStrategy {
+    -subsidizedRate: double
+    -fixedChargeRules: Map<String, double>
+    +calculateBill(patient: Patient, charges: List<Charge>): Bill
+}
+
+class SelfPayBillingStrategy {
+    +calculateBill(patient: Patient, charges: List<Charge>): Bill
+}
+
+class Patient {
+    -patientId: String
+    -name: String
+    -billingStrategy: BillingStrategy
+    +setBillingStrategy(strategy: BillingStrategy): void
+    +getBillingStrategy(): BillingStrategy
+}
+
+abstract class Charge {
+    -chargeId: String
+    -description: String
+    -baseAmount: double
+    +calculateAmount(): double
+}
+
+class ProcedureCharge {
+    -procedureCode: String
+    -procedureType: String
+    +calculateAmount(): double
+}
+
+class MedicationCharge {
+    -medicationName: String
+    -quantity: int
+    -unitPrice: double
+    +calculateAmount(): double
+}
+
+class DiagnosticTestCharge {
+    -testName: String
+    -testCode: String
+    +calculateAmount(): double
+}
+
+class RoomOccupancyCharge {
+    -roomType: String
+    -numberOfDays: int
+    -dailyRate: double
+    +calculateAmount(): double
+}
+
+class Bill {
+    -billId: String
+    -patient: Patient
+    -charges: List<Charge>
+    -totalAmount: double
+    -billDate: Date
+    -status: String
+    +addCharge(charge: Charge): void
+    +calculateTotal(): double
+}
+
+class BillingContext {
+    -patient: Patient
+    -charges: List<Charge>
+    +setBillingStrategy(strategy: BillingStrategy): void
+    +generateBill(): Bill
+}
+
+class PolicyConfiguration {
+    -policyId: String
+    -policyType: String
+    -configParameters: Map<String, Object>
+    -effectiveDate: Date
+    -expiryDate: Date
+    +updatePolicy(parameters: Map<String, Object>): void
+    +isActive(): boolean
+}
+
+class BillingService {
+    -policyConfiguration: PolicyConfiguration
+    +processBilling(patient: Patient, charges: List<Charge>): Bill
+    +updateBillingPolicy(policy: PolicyConfiguration): void
+}
+
+BillingStrategy <|.. InsuranceBillingStrategy
+BillingStrategy <|.. GovernmentProgramBillingStrategy
+BillingStrategy <|.. SelfPayBillingStrategy
+
+Charge <|-- ProcedureCharge
+Charge <|-- MedicationCharge
+Charge <|-- DiagnosticTestCharge
+Charge <|-- RoomOccupancyCharge
+
+Patient --> BillingStrategy
+Bill --> Patient
+Bill "1" *-- "many" Charge
+
+BillingContext --> Patient
+BillingContext --> BillingStrategy
+BillingContext --> Bill
+
+BillingService --> BillingContext
+BillingService --> PolicyConfiguration
+
+@enduml
