@@ -1,0 +1,89 @@
+@startuml
+class WeatherInformationSystem {
+  - stationRegistry: List<WeatherStation>
+  + establishLink(station: WeatherStation): void
+  + requestDataTransmission(station: WeatherStation): void
+  + ingestData(data: SensorData): void
+  + normalizeData(data: SensorData): NormalizedData
+}
+
+class WeatherStation {
+  - stationId: String
+  - location: GeoLocation
+  - operator: Operator
+  - sensors: List<Sensor>
+  - transmissionFrequency: int
+  + sendData(): void
+  + setTransmissionFrequency(frequency: int): void
+  + getTransmissionFrequency(): int
+}
+
+class GeoLocation {
+  - latitude: double
+  - longitude: double
+  - altitude: double
+}
+
+enum Operator {
+  GOVERNMENT_AGENCY
+  RESEARCH_INSTITUTION
+  INFRASTRUCTURE_PROVIDER
+}
+
+abstract class Sensor {
+  - sensorId: String
+  - manufacturer: String
+  - model: String
+  + collectMeasurement(): SensorData
+  + getDataFormat(): String
+}
+
+class TemperatureSensor {
+  + collectMeasurement(): SensorData
+}
+
+class HumiditySensor {
+  + collectMeasurement(): SensorData
+}
+
+class PressureSensor {
+  + collectMeasurement(): SensorData
+}
+
+class WindSensor {
+  + collectMeasurement(): SensorData
+}
+
+class SensorData {
+  - timestamp: DateTime
+  - sensorId: String
+  - rawValue: Object
+  - nativeFormat: String
+}
+
+class NormalizedData {
+  - timestamp: DateTime
+  - sensorId: String
+  - normalizedValue: double
+  - unit: String
+  - standardFormat: String
+}
+
+class DataNormalizer {
+  + normalize(data: SensorData): NormalizedData
+  + detectFormat(data: SensorData): String
+}
+
+WeatherInformationSystem "1" -- "*" WeatherStation : manages
+WeatherInformationSystem "1" -- "1" DataNormalizer : uses
+WeatherStation "1" *-- "1" GeoLocation
+WeatherStation "1" -- "1" Operator
+WeatherStation "1" *-- "*" Sensor : contains
+Sensor <|-- TemperatureSensor
+Sensor <|-- HumiditySensor
+Sensor <|-- PressureSensor
+Sensor <|-- WindSensor
+Sensor "1" -- "*" SensorData : produces
+DataNormalizer ..> SensorData : processes
+DataNormalizer ..> NormalizedData : creates
+@enduml
